@@ -1,0 +1,97 @@
+/* ============================================================
+   BrazzaEats — feuille de styles globale
+   Ordre obligatoire Tailwind : base → components → utilities
+   ============================================================ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Variables CSS globales ──────────────────────────────── */
+:root {
+  /* Hauteur de la barre de navigation mobile fixe en bas */
+  --bottom-nav-height: 4rem;
+  /* Zone safe-area iOS (notch, home indicator) */
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ── Reset & base ────────────────────────────────────────── */
+@layer base {
+  html {
+    /* Empêche le zoom involontaire sur double-tap iOS */
+    touch-action: manipulation;
+    /* Scroll fluide pour les ancres */
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+    /* Police système native — plus rapide, pas de flash FOUT */
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                 'Helvetica Neue', Arial, sans-serif;
+    /* Corrige la hauteur sur mobile (barre d'adresse Chrome/Safari) */
+    min-height: 100dvh;
+  }
+
+  /* Supprime le style par défaut des boutons */
+  button {
+    @apply cursor-pointer;
+  }
+
+  /* Focus visible uniquement au clavier (pas au clic) */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-500;
+  }
+
+  /* Empêche la sélection de texte sur les éléments interactifs */
+  button, a, label {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+/* ── Composants utilitaires ──────────────────────────────── */
+@layer components {
+  /* Padding inférieur tenant compte de la barre de nav mobile + safe area */
+  .pb-safe {
+    padding-bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom));
+  }
+
+  /* Cache la scrollbar tout en conservant le scroll */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Troncature sur plusieurs lignes */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+/* ── Animations ──────────────────────────────────────────── */
+@layer utilities {
+  /* Skeleton shimmer (défini aussi dans tailwind.config.js pour keyframes) */
+  .animate-shimmer {
+    background: linear-gradient(
+      90deg,
+      #f0f0f0 25%,
+      #e0e0e0 50%,
+      #f0f0f0 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+  }
+}
