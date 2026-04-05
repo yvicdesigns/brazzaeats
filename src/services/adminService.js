@@ -117,6 +117,7 @@ export async function getAllRestaurants() {
         note_moyenne,
         commission_rate,
         created_at,
+        owner_id,
         owner:profiles!restaurants_owner_id_fkey(nom, telephone)
       `)
       .order('created_at', { ascending: false })
