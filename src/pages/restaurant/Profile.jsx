@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { Loader2, ImagePlus, Save, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Loader2, ImagePlus, Save, ToggleLeft, ToggleRight, Video, X, UploadCloud } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useMyRestaurant } from '@/hooks/useMyRestaurant'
-import { updateRestaurant, uploadRestaurantLogo } from '@/services/menuService'
+import { updateRestaurant, uploadRestaurantLogo, uploadRestaurantVideo, uploadRestaurantVideoApercu } from '@/services/menuService'
 
 // ── Jours de la semaine (ordre affiché) ───────────────────
 const JOURS = [
@@ -35,11 +35,19 @@ export default function Profile() {
   })
   const [horaires, setHoraires] = useState(HORAIRES_DEFAUT)
 
-  const [saving,        setSaving]        = useState(false)
-  const [uploadingLogo, setUploadingLogo] = useState(false)
-  const [logoPreview,   setLogoPreview]   = useState(null)
+  const [saving,          setSaving]          = useState(false)
+  const [uploadingLogo,   setUploadingLogo]   = useState(false)
+  const [logoPreview,     setLogoPreview]     = useState(null)
+  const [uploadingVideo,        setUploadingVideo]        = useState(false)
+  const [videoProgress,         setVideoProgress]         = useState(0)
+  const [videoUrl,              setVideoUrl]              = useState(null)
+  const [uploadingApercu,       setUploadingApercu]       = useState(false)
+  const [apercuProgress,        setApercuProgress]        = useState(0)
+  const [videoApercuUrl,        setVideoApercuUrl]        = useState(null)
 
-  const inputLogoRef = useRef(null)
+  const inputLogoRef   = useRef(null)
+  const inputVideoRef  = useRef(null)
+  const inputApercuRef = useRef(null)
 
   // ── Pré-remplir le formulaire depuis le restaurant chargé
   useEffect(() => {
@@ -52,7 +60,8 @@ export default function Profile() {
       ouvert:      restaurant.statut === 'actif',
     })
     setLogoPreview(restaurant.logo_url ?? null)
-    // Fusionner les horaires sauvegardées avec le défaut (au cas où un jour manquerait)
+    setVideoUrl(restaurant.video_url ?? null)
+    setVideoApercuUrl(restaurant.video_apercu_url ?? null)
     if (restaurant.horaires && typeof restaurant.horaires === 'object') {
       setHoraires({ ...HORAIRES_DEFAUT, ...restaurant.horaires })
     }
@@ -71,6 +80,91 @@ export default function Profile() {
     if (error) { toast.error('Erreur upload : ' + error); return }
     setLogoPreview(url)
     setForm(f => ({ ...f, logoUrl: url }))
+  }
+
+  // ── Upload vidéo ───────────────────────────────────────
+  async function handleVideoChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.includes('mp4') && !file.name.endsWith('.mp4')) {
+      toast.error('Seul le format MP4 est accepté')
+      return
+    }
+    if (file.size > 100 * 1024 * 1024) {
+      toast.error('Vidéo trop lourde (max 100 Mo)')
+      return
+    }
+
+    setUploadingVideo(true)
+    setVideoProgress(0)
+
+    // Simulation de progression pendant l'upload
+    const interval = setInterval(() => {
+      setVideoProgress(p => Math.min(p + Math.random() * 15, 90))
+    }, 400)
+
+    const { url, error } = await uploadRestaurantVideo(file, restaurant.id)
+    clearInterval(interval)
+    setVideoProgress(100)
+
+    setTimeout(() => {
+      setUploadingVideo(false)
+      setVideoProgress(0)
+    }, 600)
+
+    if (error) { toast.error('Erreur upload : ' + error); return }
+
+    setVideoUrl(url)
+    // Sauvegarder immédiatement l'URL en base
+    await updateRestaurant(restaurant.id, { video_url: url })
+    toast.success('Vidéo mise en ligne !')
+    e.target.value = ''
+  }
+
+  // ── Upload vidéo aperçu (accueil) ──────────────────────
+  async function handleApercuChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.includes('mp4') && !file.name.endsWith('.mp4')) {
+      toast.error('Seul le format MP4 est accepté')
+      return
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error('Vidéo trop lourde (max 20 Mo)')
+      return
+    }
+
+    // Vérification durée côté client (max 6 sec)
+    const duree = await new Promise(resolve => {
+      const v = document.createElement('video')
+      v.preload = 'metadata'
+      v.onloadedmetadata = () => { URL.revokeObjectURL(v.src); resolve(v.duration) }
+      v.src = URL.createObjectURL(file)
+    })
+
+    if (duree > 10) {
+      toast.error(`Vidéo trop longue (${duree.toFixed(1)}s) — max 10 secondes`)
+      e.target.value = ''
+      return
+    }
+
+    setUploadingApercu(true)
+    setApercuProgress(0)
+    const interval = setInterval(() => {
+      setApercuProgress(p => Math.min(p + Math.random() * 20, 90))
+    }, 300)
+
+    const { url, error } = await uploadRestaurantVideoApercu(file, restaurant.id)
+    clearInterval(interval)
+    setApercuProgress(100)
+    setTimeout(() => { setUploadingApercu(false); setApercuProgress(0) }, 500)
+
+    if (error) { toast.error('Erreur upload : ' + error); return }
+
+    setVideoApercuUrl(url)
+    await updateRestaurant(restaurant.id, { video_apercu_url: url })
+    toast.success('Vidéo aperçu mise en ligne !')
+    e.target.value = ''
   }
 
   // ── Modifier un champ du formulaire ───────────────────
@@ -152,13 +246,29 @@ export default function Profile() {
             <div>
               <p className="text-sm font-semibold text-gray-800">Photo de profil</p>
               <p className="text-xs text-gray-400 mt-0.5">JPEG / PNG / WebP · max 5 Mo</p>
-              <button
-                type="button"
-                onClick={() => inputLogoRef.current?.click()}
-                className="mt-2 text-xs text-brand-500 font-semibold hover:underline"
-              >
-                {logoPreview ? 'Changer le logo' : 'Ajouter un logo'}
-              </button>
+              <div className="flex items-center gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={() => inputLogoRef.current?.click()}
+                  className="text-xs text-brand-500 font-semibold hover:underline"
+                >
+                  {logoPreview ? 'Changer' : 'Ajouter un logo'}
+                </button>
+                {logoPreview && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setLogoPreview(null)
+                      setForm(f => ({ ...f, logoUrl: null }))
+                      await updateRestaurant(restaurant.id, { logo_url: null })
+                      toast.success('Photo supprimée')
+                    }}
+                    className="text-xs text-red-400 font-semibold hover:underline"
+                  >
+                    Supprimer
+                  </button>
+                )}
+              </div>
             </div>
           </div>
           <input
@@ -167,6 +277,161 @@ export default function Profile() {
             accept="image/jpeg,image/png,image/webp"
             className="hidden"
             onChange={handleLogoChange}
+          />
+        </div>
+
+        {/* ════════════════════════════════════════
+            Vidéo aperçu (carte d'accueil)
+        ════════════════════════════════════════ */}
+        <div className="bg-white rounded-2xl p-5 shadow-card">
+          <div className="flex items-center justify-between mb-1">
+            <div>
+              <h2 className="font-bold text-gray-800">Vidéo aperçu</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Jouée en boucle sur la carte d'accueil · max 10 sec · MP4</p>
+            </div>
+            <div className="w-9 h-9 bg-brand-100 rounded-xl flex items-center justify-center shrink-0">
+              <Video className="w-4 h-4 text-brand-500" />
+            </div>
+          </div>
+
+          {videoApercuUrl && !uploadingApercu && (
+            <div className="relative rounded-xl overflow-hidden bg-black mt-3 mb-3">
+              <video
+                src={videoApercuUrl}
+                autoPlay muted loop playsInline
+                className="w-full max-h-36 object-cover"
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  setVideoApercuUrl(null)
+                  await updateRestaurant(restaurant.id, { video_apercu_url: null })
+                  toast.success('Vidéo aperçu supprimée')
+                }}
+                className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white
+                           rounded-full p-1.5 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {uploadingApercu && (
+            <div className="mt-3 mb-3">
+              <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
+                <span className="flex items-center gap-1.5">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-500" />
+                  Téléversement…
+                </span>
+                <span className="font-bold text-brand-500">{Math.round(apercuProgress)}%</span>
+              </div>
+              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-brand-500 rounded-full transition-all duration-300"
+                  style={{ width: `${apercuProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => inputApercuRef.current?.click()}
+            disabled={uploadingApercu}
+            className="w-full flex flex-col items-center justify-center gap-2 py-4
+                       border-2 border-dashed border-gray-200 rounded-xl text-gray-400
+                       hover:border-brand-400 hover:text-brand-500 transition-colors
+                       disabled:opacity-50 disabled:cursor-not-allowed mt-1"
+          >
+            <UploadCloud className="w-5 h-5" />
+            <span className="text-sm font-semibold">
+              {videoApercuUrl ? 'Remplacer la vidéo aperçu' : 'Ajouter une vidéo aperçu'}
+            </span>
+          </button>
+          <input ref={inputApercuRef} type="file" accept="video/mp4,.mp4" className="hidden" onChange={handleApercuChange} />
+        </div>
+
+        {/* ════════════════════════════════════════
+            Vidéo de présentation
+        ════════════════════════════════════════ */}
+        <div className="bg-white rounded-2xl p-5 shadow-card">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="font-bold text-gray-800">Vidéo de présentation</h2>
+              <p className="text-xs text-gray-400 mt-0.5">MP4 · max 100 Mo</p>
+            </div>
+            <div className="w-9 h-9 bg-purple-100 rounded-xl flex items-center justify-center shrink-0">
+              <Video className="w-4 h-4 text-purple-500" />
+            </div>
+          </div>
+
+          {/* Lecteur vidéo si déjà uploadée */}
+          {videoUrl && !uploadingVideo && (
+            <div className="relative rounded-xl overflow-hidden bg-black mb-3">
+              <video
+                src={videoUrl}
+                controls
+                className="w-full max-h-52 object-contain"
+                playsInline
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  setVideoUrl(null)
+                  await updateRestaurant(restaurant.id, { video_url: null })
+                  toast.success('Vidéo supprimée')
+                }}
+                className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white
+                           rounded-full p-1.5 transition-colors"
+                title="Supprimer la vidéo"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Barre de progression pendant l'upload */}
+          {uploadingVideo && (
+            <div className="mb-3">
+              <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
+                <span className="flex items-center gap-1.5">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-500" />
+                  Téléversement en cours…
+                </span>
+                <span className="font-bold text-brand-500">{Math.round(videoProgress)}%</span>
+              </div>
+              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-brand-500 rounded-full transition-all duration-300"
+                  style={{ width: `${videoProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Zone de drop / bouton upload */}
+          <button
+            type="button"
+            onClick={() => inputVideoRef.current?.click()}
+            disabled={uploadingVideo}
+            className="w-full flex flex-col items-center justify-center gap-2 py-5
+                       border-2 border-dashed border-gray-200 rounded-xl text-gray-400
+                       hover:border-brand-400 hover:text-brand-500 transition-colors
+                       disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <UploadCloud className="w-6 h-6" />
+            <span className="text-sm font-semibold">
+              {videoUrl ? 'Remplacer la vidéo' : 'Ajouter une vidéo MP4'}
+            </span>
+            <span className="text-xs">Cliquez pour sélectionner</span>
+          </button>
+
+          <input
+            ref={inputVideoRef}
+            type="file"
+            accept="video/mp4,.mp4"
+            className="hidden"
+            onChange={handleVideoChange}
           />
         </div>
 

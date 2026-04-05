@@ -1,4 +1,5 @@
 import { supabase } from '@/supabase/client'
+import { incrementPromoUsage } from '@/services/promotionService'
 
 /**
  * Crée une commande complète avec ses lignes.
@@ -18,6 +19,8 @@ export async function createOrder({
   notes           = null,
   fraisLivraison  = 1000,
   remise          = 0,
+  promoId         = null, // ID de la promo appliquée (pour incrémenter l'usage)
+  promoNbActuel   = 0,    // nb_utilisations actuel (pour l'incrément atomique)
 }) {
   try {
     // 1. Récupérer le taux de commission du restaurant
@@ -68,6 +71,11 @@ export async function createOrder({
       // Rollback : supprimer la commande orpheline
       await supabase.from('orders').delete().eq('id', order.id)
       throw itemsError
+    }
+
+    // Incrémenter le compteur d'utilisation de la promo (best-effort, sans bloquer)
+    if (promoId) {
+      incrementPromoUsage(promoId, promoNbActuel).catch(() => {})
     }
 
     return { data: order, error: null }
@@ -181,6 +189,23 @@ export async function submitReview({ clientId, restaurantId, orderId, note, comm
       .single()
 
     if (error) throw error
+
+    // Recalcul de la note moyenne du restaurant (fallback si le trigger SQL n'existe pas)
+    supabase
+      .from('reviews')
+      .select('note')
+      .eq('restaurant_id', restaurantId)
+      .eq('masque', false)
+      .then(({ data: avis }) => {
+        if (!avis || avis.length === 0) return
+        const moyenne = Math.round(avis.reduce((s, r) => s + r.note, 0) / avis.length * 10) / 10
+        supabase
+          .from('restaurants')
+          .update({ note_moyenne: moyenne })
+          .eq('id', restaurantId)
+          .then(() => {}) // fire-and-forget
+      })
+
     return { data, error: null }
   } catch (err) {
     return { data: null, error: err.message }

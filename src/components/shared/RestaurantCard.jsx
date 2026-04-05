@@ -19,9 +19,18 @@ export default function RestaurantCard({ restaurant }) {
       className="block bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-card-lg
                  active:scale-[0.98] transition-all duration-150"
     >
-      {/* ── Image / Logo ─────────────────────────────────── */}
-      <div className="relative h-44 bg-gray-100">
-        {restaurant.logo_url ? (
+      {/* ── Vidéo aperçu ou logo ─────────────────────────── */}
+      <div className="relative h-44 bg-gray-900">
+        {restaurant.video_apercu_url ? (
+          <video
+            src={restaurant.video_apercu_url}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="w-full h-full object-cover"
+          />
+        ) : restaurant.logo_url ? (
           <img
             src={restaurant.logo_url}
             alt={restaurant.nom}

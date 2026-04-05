@@ -147,6 +147,24 @@ export async function updateRestaurantStatus(id, statut) {
 }
 
 /**
+ * Mise à jour complète d'un restaurant par l'admin (nom, adresse, commission).
+ */
+export async function adminUpdateRestaurant(id, updates) {
+  try {
+    const { data, error } = await supabase
+      .from('restaurants')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return { data, error: null }
+  } catch (err) {
+    return { data: null, error: err.message }
+  }
+}
+
+/**
  * Met à jour le taux de commission d'un restaurant (en %).
  */
 export async function updateCommissionRate(id, commissionRate) {
@@ -160,6 +178,54 @@ export async function updateCommissionRate(id, commissionRate) {
 
     if (error) throw error
     return { data, error: null }
+  } catch (err) {
+    return { data: null, error: err.message }
+  }
+}
+
+/**
+ * Crée un compte restaurant complet :
+ *   1. Crée le compte auth (email = phone fake)
+ *   2. Upsert le profil avec rôle 'restaurant'
+ *   3. Insère le restaurant en statut 'en_attente'
+ */
+export async function createRestaurant({ nom, adresse, telephone, motDePasse, commissionRate = 10 }) {
+  try {
+    const email = `p${telephone.replace(/[^0-9]/g, '')}@brazzaeats.local`
+
+    // 1. Créer le compte auth via Admin API (service role requis côté Supabase Edge Function)
+    // Fallback : signUp classique (email non confirmé, statut en_attente protège quand même)
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password: motDePasse,
+      options: { data: { nom, telephone, role: 'restaurant' } },
+    })
+    if (authError) throw authError
+
+    const userId = authData.user?.id
+    if (!userId) throw new Error('Impossible de créer le compte')
+
+    // 2. Upsert profil
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert({ id: userId, nom, telephone, role: 'restaurant' }, { onConflict: 'id' })
+    if (profileError) throw profileError
+
+    // 3. Créer le restaurant en statut en_attente
+    const { data: resto, error: restoError } = await supabase
+      .from('restaurants')
+      .insert({
+        owner_id:        userId,
+        nom,
+        adresse:         adresse || null,
+        statut:          'en_attente',
+        commission_rate: commissionRate,
+      })
+      .select()
+      .single()
+    if (restoError) throw restoError
+
+    return { data: resto, error: null }
   } catch (err) {
     return { data: null, error: err.message }
   }

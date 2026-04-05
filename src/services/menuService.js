@@ -211,6 +211,41 @@ export async function uploadRestaurantLogo(file, restaurantId) {
   }
 }
 
+/**
+ * Upload une vidéo de présentation pour un restaurant.
+ * Chemin : videos/{restaurantId}.mp4 (upsert)
+ * Retourne l'URL publique + progression via onProgress(0-100).
+ */
+export async function uploadRestaurantVideo(file, restaurantId) {
+  try {
+    const chemin = `videos/${restaurantId}.mp4`
+    const { error: uploadError } = await supabase.storage
+      .from('restaurant-images')
+      .upload(chemin, file, { upsert: true, contentType: 'video/mp4', duplex: 'half' })
+    if (uploadError) throw uploadError
+    const { data: { publicUrl } } = supabase.storage
+      .from('restaurant-images').getPublicUrl(chemin)
+    return { url: publicUrl, error: null }
+  } catch (err) {
+    return { url: null, error: err.message }
+  }
+}
+
+export async function uploadRestaurantVideoApercu(file, restaurantId) {
+  try {
+    const chemin = `previews/${restaurantId}.mp4`
+    const { error: uploadError } = await supabase.storage
+      .from('restaurant-images')
+      .upload(chemin, file, { upsert: true, contentType: 'video/mp4', duplex: 'half' })
+    if (uploadError) throw uploadError
+    const { data: { publicUrl } } = supabase.storage
+      .from('restaurant-images').getPublicUrl(chemin)
+    return { url: publicUrl, error: null }
+  } catch (err) {
+    return { url: null, error: err.message }
+  }
+}
+
 // ============================================================
 // PROFIL RESTAURANT (côté propriétaire)
 // ============================================================

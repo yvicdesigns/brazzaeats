@@ -124,15 +124,24 @@ export default function Restaurant() {
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* ── Header photo ────────────────────────────────── */}
-      <div className="relative h-56 bg-gray-200 overflow-hidden">
-        {restaurant?.logo_url && (
+      {/* ── Header : vidéo ou photo de couverture ───────── */}
+      <div className="relative h-56 bg-gray-900 overflow-hidden">
+        {restaurant?.video_url ? (
+          <video
+            src={restaurant.video_url}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="w-full h-full object-cover"
+          />
+        ) : restaurant?.logo_url ? (
           <img
             src={restaurant.logo_url}
             alt={restaurant?.nom}
             className="w-full h-full object-cover"
           />
-        )}
+        ) : null}
 
         {/* Dégradé lisibilité */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-black/20" />
@@ -146,7 +155,7 @@ export default function Restaurant() {
           <ArrowLeft className="w-5 h-5 text-gray-800" />
         </button>
 
-        {/* Informations du restaurant par-dessus l'image */}
+        {/* Informations du restaurant par-dessus */}
         {restaurant && (
           <div className="absolute bottom-4 left-4 right-4 text-white">
             <h1 className="text-xl font-bold leading-tight">{restaurant.nom}</h1>

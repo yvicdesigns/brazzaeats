@@ -136,7 +136,15 @@ export default function Dashboard() {
 
     // Rafraîchissement toutes les 2 minutes
     const intervalle = setInterval(charger, 2 * 60 * 1000)
-    return () => clearInterval(intervalle)
+
+    // Rafraîchissement immédiat quand l'utilisateur revient sur l'onglet
+    const onVisible = () => { if (!document.hidden) charger() }
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      clearInterval(intervalle)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [restaurant?.id])
 
   if (loadingResto || loading) {

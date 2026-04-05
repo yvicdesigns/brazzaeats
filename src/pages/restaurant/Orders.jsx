@@ -23,7 +23,13 @@ const TRANSITIONS = {
   en_préparation: [
     { statut: 'prête', label: 'Marquer prête', Icon: Package, classe: 'bg-purple-500 hover:bg-purple-600' },
   ],
-  prête: [], // Le livreur prend en charge à partir de là
+  prête: [
+    { statut: 'en_livraison', label: 'Confier au livreur', Icon: Bike,  classe: 'bg-orange-500 hover:bg-orange-600' },
+    { statut: 'livrée',       label: 'Marquer livrée',     Icon: Check, classe: 'bg-green-500  hover:bg-green-600'  },
+  ],
+  en_livraison: [
+    { statut: 'livrée', label: 'Marquer livrée', Icon: Check, classe: 'bg-green-500 hover:bg-green-600' },
+  ],
 }
 
 // ── Badge statut ─────────────────────────────────────────────
@@ -41,10 +47,14 @@ function BadgeStatut({ statut }) {
 
 // ── Modal de détail commande ─────────────────────────────────
 function ModalCommande({ commande, onClose, onStatusChange, userId }) {
-  const [envoi,      setEnvoi]      = useState(false)
-  const [chatOuvert, setChatOuvert] = useState(false)
+  const [envoi,         setEnvoi]         = useState(false)
+  const [chatOuvert,    setChatOuvert]    = useState(false)
+  const [confirmerAnnul, setConfirmerAnnul] = useState(false)
   const transitions = TRANSITIONS[commande.statut] ?? []
   const refCourte   = commande.id.slice(0, 8).toUpperCase()
+  // L'annulation manuelle est disponible pour tout statut actif qui n'a pas déjà ce bouton
+  const peutAnnuler = commande.statut !== 'annulée' && commande.statut !== 'livrée'
+  const annulationDansTransitions = transitions.some(t => t.statut === 'annulée')
 
   const tempsPrep = Math.max(
     ...(commande.order_items ?? []).map(oi => oi.menu_item?.temps_preparation ?? 15),
@@ -213,6 +223,49 @@ function ModalCommande({ commande, onClose, onStatusChange, userId }) {
             <MessageSquare className="w-4 h-4 text-brand-500" />
             Messagerie client
           </button>
+
+          {/* Annulation manuelle (pour statuts sans bouton "Refuser" direct) */}
+          {peutAnnuler && !annulationDansTransitions && (
+            confirmerAnnul ? (
+              <div className="border border-red-200 bg-red-50 rounded-xl p-4 space-y-3">
+                <p className="text-sm font-semibold text-red-700 text-center">
+                  Confirmer l'annulation de cette commande ?
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setConfirmerAnnul(false)}
+                    className="flex-1 min-h-[44px] border border-gray-200 rounded-xl text-gray-600
+                               font-semibold text-sm hover:bg-gray-50 transition-colors"
+                  >
+                    Non, garder
+                  </button>
+                  <button
+                    onClick={() => changerStatut('annulée')}
+                    disabled={envoi}
+                    className="flex-1 min-h-[44px] bg-red-500 text-white rounded-xl font-semibold
+                               text-sm hover:bg-red-600 disabled:opacity-60 transition-colors
+                               flex items-center justify-center gap-1.5"
+                  >
+                    {envoi
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <XCircle className="w-4 h-4" />
+                    }
+                    Oui, annuler
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmerAnnul(true)}
+                className="w-full min-h-[48px] flex items-center justify-center gap-2
+                           border border-red-200 text-red-500 font-semibold rounded-xl
+                           hover:bg-red-50 transition-colors text-sm"
+              >
+                <XCircle className="w-4 h-4" />
+                Annuler la commande
+              </button>
+            )
+          )}
         </div>
       </div>
 

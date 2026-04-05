@@ -237,6 +237,8 @@ export default function Checkout() {
       notes:            donnees.notes?.trim() || null,
       fraisLivraison,
       remise,
+      promoId:          promoApplied?.promo?.id ?? null,
+      promoNbActuel:    promoApplied?.promo?.nb_utilisations ?? 0,
     }
 
     if (donnees.modePaiement === 'mobile_money') {

@@ -66,7 +66,7 @@ export async function deletePromotion(id) {
 
 /**
  * Valide un code promo pour un restaurant + montant donné.
- * Retourne { promo, remise } si valide, { error } sinon.
+ * Vérifie : actif, dans les dates, et limite d'utilisation non atteinte.
  * @param {string} code
  * @param {string} restaurantId
  * @param {number} sousTotal — montant avant remise (FCFA)
@@ -88,12 +88,39 @@ export async function validatePromoCode(code, restaurantId, sousTotal) {
     if (error) throw error
     if (!data) return { promo: null, remise: 0, error: 'Code invalide ou expiré' }
 
+    // Vérification de la limite d'utilisation
+    if (data.usage_limit !== null && data.usage_limit !== undefined) {
+      const utilisations = data.nb_utilisations ?? 0
+      if (utilisations >= data.usage_limit) {
+        return { promo: null, remise: 0, error: 'Ce code a atteint sa limite d\'utilisation' }
+      }
+    }
+
     const remise = data.type === 'pourcentage'
       ? Math.round(sousTotal * data.valeur / 100)
-      : Math.min(data.valeur, sousTotal) // Le montant fixe ne peut pas dépasser le sous-total
+      : Math.min(data.valeur, sousTotal)
 
     return { promo: data, remise, error: null }
   } catch (err) {
     return { promo: null, remise: 0, error: err.message }
+  }
+}
+
+/**
+ * Incrémente le compteur d'utilisations d'une promotion.
+ * Appelé après la création réussie d'une commande avec promo.
+ * @param {string} promoId
+ * @param {number} nbActuel — valeur actuelle de nb_utilisations
+ */
+export async function incrementPromoUsage(promoId, nbActuel) {
+  try {
+    const { error } = await supabase
+      .from('promotions')
+      .update({ nb_utilisations: (nbActuel ?? 0) + 1 })
+      .eq('id', promoId)
+    if (error) throw error
+    return { error: null }
+  } catch (err) {
+    return { error: err.message }
   }
 }

@@ -34,6 +34,7 @@ function ModalPromotion({ promo, restaurantId, onSave, onClose }) {
     date_debut:  promo?.date_debut  ?? today,
     date_fin:    promo?.date_fin    ?? '',
     actif:       promo?.actif       ?? true,
+    usage_limit: promo?.usage_limit ?? '',  // vide = illimité
   })
   const [saving, setSaving] = useState(false)
 
@@ -51,8 +52,16 @@ function ModalPromotion({ promo, restaurantId, onSave, onClose }) {
     if (!form.date_debut || !form.date_fin)     { toast.error('Dates obligatoires');       return }
     if (form.date_fin < form.date_debut)        { toast.error('Date fin < date début');    return }
 
+    const usage_limit = form.usage_limit === '' || form.usage_limit === null
+      ? null
+      : Number(form.usage_limit)
+    if (usage_limit !== null && (isNaN(usage_limit) || usage_limit < 1)) {
+      toast.error('Limite d\'utilisation doit être ≥ 1')
+      return
+    }
+
     setSaving(true)
-    await onSave({ ...form, code, valeur })
+    await onSave({ ...form, code, valeur, usage_limit })
     setSaving(false)
   }
 
@@ -139,6 +148,24 @@ function ModalPromotion({ promo, restaurantId, onSave, onClose }) {
                            focus:outline-none focus:ring-2 focus:ring-brand-400"
               />
             </div>
+          </div>
+
+          {/* Limite d'utilisation */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Limite d'utilisation
+              <span className="text-gray-400 font-normal ml-1">(laisser vide = illimité)</span>
+            </label>
+            <input
+              type="number"
+              value={form.usage_limit}
+              onChange={e => set('usage_limit', e.target.value)}
+              min={1}
+              step={1}
+              placeholder="Ex: 50"
+              className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-400"
+            />
           </div>
 
           {/* Actif */}
@@ -292,6 +319,17 @@ export default function Promotions() {
                   </p>
                   <p className="text-xs text-gray-400 mt-0.5">
                     {dateCourteFR(promo.date_debut)} → {dateCourteFR(promo.date_fin)}
+                  </p>
+                  {/* Compteur d'utilisation */}
+                  <p className="text-xs mt-1">
+                    <span className="font-semibold text-gray-700">
+                      {promo.nb_utilisations ?? 0}
+                    </span>
+                    <span className="text-gray-400">
+                      {promo.usage_limit != null
+                        ? ` / ${promo.usage_limit} utilisation${promo.usage_limit > 1 ? 's' : ''}`
+                        : ' utilisation' + ((promo.nb_utilisations ?? 0) !== 1 ? 's' : '')}
+                    </span>
                   </p>
                 </div>
 

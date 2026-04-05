@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react'
 import {
   Store, CheckCircle, XCircle, Loader2, Search,
-  ChevronDown, Pencil, Star,
+  ChevronDown, Pencil, Star, Plus, Eye, EyeOff,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import {
   getAllRestaurants,
   updateRestaurantStatus,
   updateCommissionRate,
+  createRestaurant,
+  adminUpdateRestaurant,
 } from '@/services/adminService'
 import { STATUTS_RESTAURANT } from '@/utils/constants'
 
@@ -29,62 +31,91 @@ function BadgeStatut({ statut }) {
   )
 }
 
-// ── Modale modification commission ────────────────────────
-function ModaleCommission({ restaurant, onSave, onClose }) {
-  const [taux,   setTaux]   = useState(restaurant.commission_rate ?? 10)
+// ── Modale modification restaurant (admin) ─────────────────
+function ModaleModifier({ restaurant, onSave, onClose }) {
+  const [form, setForm] = useState({
+    nom:             restaurant.nom             ?? '',
+    adresse:         restaurant.adresse         ?? '',
+    description:     restaurant.description     ?? '',
+    commission_rate: restaurant.commission_rate ?? 10,
+  })
   const [saving, setSaving] = useState(false)
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   async function handleSubmit(e) {
     e.preventDefault()
-    const val = Number(taux)
-    if (isNaN(val) || val < 0 || val > 100) {
-      toast.error('Le taux doit être entre 0 et 100')
-      return
-    }
+    if (!form.nom.trim()) { toast.error('Le nom est requis'); return }
     setSaving(true)
-    await onSave(restaurant.id, val)
+    await onSave(restaurant.id, {
+      nom:             form.nom.trim(),
+      adresse:         form.adresse.trim() || null,
+      description:     form.description.trim() || null,
+      commission_rate: Number(form.commission_rate),
+    })
     setSaving(false)
   }
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-2xl">
-        <h2 className="text-base font-bold text-gray-900 mb-1">Modifier la commission</h2>
-        <p className="text-sm text-gray-500 mb-4">{restaurant.nom}</p>
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 shadow-2xl">
+        <h2 className="text-base font-black text-gray-900 mb-4">Modifier le restaurant</h2>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Taux de commission (%)
-            </label>
+            <label className="text-xs font-medium text-gray-600">Nom *</label>
             <input
-              type="number"
-              value={taux}
-              onChange={e => setTaux(e.target.value)}
-              min={0}
-              max={100}
-              step={0.5}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm
-                         focus:outline-none focus:ring-2 focus:ring-brand-400"
-              autoFocus
+              value={form.nom}
+              onChange={e => set('nom', e.target.value)}
+              className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-300"
             />
           </div>
-          <div className="flex gap-3">
+          <div>
+            <label className="text-xs font-medium text-gray-600">Adresse</label>
+            <input
+              value={form.adresse}
+              onChange={e => set('adresse', e.target.value)}
+              placeholder="Avenue…, Quartier"
+              className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600">Description</label>
+            <textarea
+              value={form.description}
+              onChange={e => set('description', e.target.value)}
+              rows={2}
+              placeholder="Cuisine typique, spécialités…"
+              className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-300 resize-none"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600">Commission (%)</label>
+            <input
+              type="number" min={0} max={100} step={0.5}
+              value={form.commission_rate}
+              onChange={e => set('commission_rate', e.target.value)}
+              className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
             <button
               type="button" onClick={onClose}
-              className="flex-1 border border-gray-300 text-gray-700 rounded-xl py-3 text-sm font-medium
-                         hover:bg-gray-50 transition-colors"
+              className="flex-1 border border-gray-200 text-gray-600 rounded-xl py-3 text-sm font-semibold"
             >
               Annuler
             </button>
             <button
-              type="submit" disabled={saving}
+              type="submit" disabled={saving || !form.nom.trim()}
               className="flex-1 bg-brand-500 text-white rounded-xl py-3 text-sm font-bold
-                         hover:bg-brand-600 transition-colors disabled:opacity-60
-                         flex items-center justify-center gap-2"
+                         hover:bg-brand-600 disabled:opacity-40 flex items-center justify-center gap-2"
             >
               {saving && <Loader2 className="w-4 h-4 animate-spin" />}
               Enregistrer
@@ -97,13 +128,14 @@ function ModaleCommission({ restaurant, onSave, onClose }) {
 }
 
 // ── Détail déroulant d'un restaurant ──────────────────────
-function DetailRestaurant({ restaurant, ouvert, onValider, onSuspendre, onCommission, loading }) {
+function DetailRestaurant({ restaurant, ouvert, onValider, onSuspendre, onModifier, loading }) {
   if (!ouvert) return null
 
   return (
     <div className="px-4 pb-4 border-t border-gray-100 bg-gray-50">
       <div className="pt-3 space-y-2">
-        {/* Infos */}
+
+        {/* Infos propriétaire + adresse */}
         <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
           <div>
             <p className="font-medium text-gray-700">Propriétaire</p>
@@ -113,24 +145,23 @@ function DetailRestaurant({ restaurant, ouvert, onValider, onSuspendre, onCommis
           <div>
             <p className="font-medium text-gray-700">Adresse</p>
             <p className="truncate">{restaurant.adresse ?? '—'}</p>
+            <p className="font-medium text-gray-700 mt-1">Commission</p>
+            <p>{restaurant.commission_rate ?? 10}%</p>
           </div>
         </div>
 
-        {/* Commission actuelle */}
-        <div className="flex items-center justify-between bg-white rounded-xl px-3 py-2 border border-gray-200">
-          <p className="text-xs text-gray-600">
-            Commission : <span className="font-bold text-gray-800">{restaurant.commission_rate ?? 10}%</span>
-          </p>
-          <button
-            onClick={() => onCommission(restaurant)}
-            className="flex items-center gap-1 text-xs text-brand-500 font-semibold hover:underline"
-          >
-            <Pencil className="w-3 h-3" /> Modifier
-          </button>
-        </div>
+        {/* Bouton modifier */}
+        <button
+          onClick={() => onModifier(restaurant)}
+          className="w-full flex items-center justify-center gap-1.5 bg-white border border-gray-200
+                     text-gray-700 text-xs font-bold py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+          Modifier les informations
+        </button>
 
         {/* Actions statut */}
-        <div className="flex gap-2 pt-1">
+        <div className="flex gap-2">
           {restaurant.statut !== 'actif' && (
             <button
               onClick={() => onValider(restaurant.id)}
@@ -161,6 +192,120 @@ function DetailRestaurant({ restaurant, ouvert, onValider, onSuspendre, onCommis
   )
 }
 
+// ── Modale création restaurant ────────────────────────────
+function ModaleCreerRestaurant({ onSave, onClose }) {
+  const [form, setForm] = useState({
+    nom: '', adresse: '', telephone: '', motDePasse: '', commissionRate: 10,
+  })
+  const [mdpVisible, setMdpVisible] = useState(false)
+  const [saving,     setSaving]     = useState(false)
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const valide = form.nom.trim() && form.telephone.trim() && form.motDePasse.length >= 6
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (!valide) return
+    setSaving(true)
+    await onSave(form)
+    setSaving(false)
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 shadow-2xl">
+        <h2 className="text-base font-black text-gray-900 mb-1">Créer un restaurant</h2>
+        <p className="text-xs text-gray-400 mb-5">Le restaurant sera en attente de validation.</p>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className="text-xs font-medium text-gray-600">Nom du restaurant *</label>
+            <input
+              value={form.nom}
+              onChange={e => set('nom', e.target.value)}
+              placeholder="Le Mami Wata"
+              className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600">Adresse</label>
+            <input
+              value={form.adresse}
+              onChange={e => set('adresse', e.target.value)}
+              placeholder="Avenue de l'Indépendance, Poto-Poto"
+              className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600">Téléphone du propriétaire *</label>
+            <input
+              value={form.telephone}
+              onChange={e => set('telephone', e.target.value)}
+              placeholder="+242066000000"
+              type="tel"
+              className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+            <p className="text-[11px] text-gray-400 mt-0.5">Utilisé comme identifiant de connexion</p>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600">Mot de passe *</label>
+            <div className="relative mt-1">
+              <input
+                value={form.motDePasse}
+                onChange={e => set('motDePasse', e.target.value)}
+                type={mdpVisible ? 'text' : 'password'}
+                placeholder="Min. 6 caractères"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 pr-10 text-sm
+                           focus:outline-none focus:ring-2 focus:ring-brand-300"
+              />
+              <button
+                type="button"
+                onClick={() => setMdpVisible(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+              >
+                {mdpVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600">Commission (%)</label>
+            <input
+              value={form.commissionRate}
+              onChange={e => set('commissionRate', Number(e.target.value))}
+              type="number" min={0} max={100} step={0.5}
+              className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button" onClick={onClose}
+              className="flex-1 border border-gray-200 text-gray-600 rounded-xl py-3 text-sm font-semibold"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit" disabled={!valide || saving}
+              className="flex-1 bg-brand-500 text-white rounded-xl py-3 text-sm font-bold
+                         hover:bg-brand-600 disabled:opacity-40 flex items-center justify-center gap-2"
+            >
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              Créer
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ══════════════════════════════════════════════════════════
 // Page Restaurants Admin
 // ══════════════════════════════════════════════════════════
@@ -169,9 +314,10 @@ export default function AdminRestaurants() {
   const [loading,         setLoading]         = useState(true)
   const [filtre,          setFiltre]          = useState('tous')
   const [recherche,       setRecherche]       = useState('')
-  const [ouvertId,        setOuvertId]        = useState(null)  // ligne déroulée
+  const [ouvertId,        setOuvertId]        = useState(null)
   const [actionLoadingId, setActionLoadingId] = useState(null)
-  const [modaleCommission,setModaleCommission]= useState(null)  // objet restaurant
+  const [modaleModifier,  setModaleModifier]  = useState(null)
+  const [modaleCreer,     setModaleCreer]     = useState(false)
 
   // ── Chargement ─────────────────────────────────────────
   useEffect(() => {
@@ -197,13 +343,22 @@ export default function AdminRestaurants() {
     setOuvertId(null)
   }
 
-  // ── Modification commission ────────────────────────────
-  async function handleCommission(id, taux) {
-    const { data, error } = await updateCommissionRate(id, taux)
+  // ── Création restaurant ────────────────────────────────
+  async function handleCreer(form) {
+    const { data, error } = await createRestaurant(form)
+    if (error) { toast.error('Erreur : ' + error); return }
+    setRestaurants(prev => [data, ...prev])
+    setModaleCreer(false)
+    toast.success(`Restaurant "${data.nom}" créé — en attente de validation`)
+  }
+
+  // ── Modification restaurant ────────────────────────────
+  async function handleModifier(id, updates) {
+    const { data, error } = await adminUpdateRestaurant(id, updates)
     if (error) { toast.error('Erreur : ' + error); return }
     setRestaurants(prev => prev.map(r => r.id === id ? { ...r, ...data } : r))
-    setModaleCommission(null)
-    toast.success('Commission mise à jour')
+    setModaleModifier(null)
+    toast.success('Restaurant mis à jour')
   }
 
   // ── Filtrage + recherche ───────────────────────────────
@@ -233,12 +388,23 @@ export default function AdminRestaurants() {
 
       {/* ── En-tête ─────────────────────────────────────── */}
       <header className="bg-white border-b border-gray-100 px-4 pt-12 pb-5 md:pt-8">
-        <p className="text-xs text-gray-400 font-medium">Administration</p>
-        <h1 className="text-xl font-black text-gray-900 mt-0.5">Restaurants</h1>
-        <p className="text-xs text-gray-500 mt-0.5">
-          {restaurants.length} restaurant{restaurants.length !== 1 ? 's' : ''} enregistré
-          {restaurants.length !== 1 ? 's' : ''}
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-gray-400 font-medium">Administration</p>
+            <h1 className="text-xl font-black text-gray-900 mt-0.5">Restaurants</h1>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {restaurants.length} restaurant{restaurants.length !== 1 ? 's' : ''} enregistré{restaurants.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+          <button
+            onClick={() => setModaleCreer(true)}
+            className="flex items-center gap-2 bg-brand-500 text-white text-sm font-bold
+                       px-4 py-2.5 rounded-xl hover:bg-brand-600 transition-colors shadow-sm shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            Créer
+          </button>
+        </div>
       </header>
 
       <div className="px-4 pt-4 space-y-4">
@@ -334,7 +500,7 @@ export default function AdminRestaurants() {
                     ouvert={ouvertId === resto.id}
                     onValider={id => handleStatut(id, 'actif')}
                     onSuspendre={id => handleStatut(id, 'suspendu')}
-                    onCommission={setModaleCommission}
+                    onModifier={setModaleModifier}
                     loading={actionLoadingId === resto.id}
                   />
                 </div>
@@ -344,12 +510,20 @@ export default function AdminRestaurants() {
         }
       </div>
 
-      {/* ── Modale commission ────────────────────────────── */}
-      {modaleCommission && (
-        <ModaleCommission
-          restaurant={modaleCommission}
-          onSave={handleCommission}
-          onClose={() => setModaleCommission(null)}
+      {/* ── Modale modifier restaurant ───────────────────── */}
+      {modaleModifier && (
+        <ModaleModifier
+          restaurant={modaleModifier}
+          onSave={handleModifier}
+          onClose={() => setModaleModifier(null)}
+        />
+      )}
+
+      {/* ── Modale création restaurant ───────────────────── */}
+      {modaleCreer && (
+        <ModaleCreerRestaurant
+          onSave={handleCreer}
+          onClose={() => setModaleCreer(false)}
         />
       )}
     </div>
