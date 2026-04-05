@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   Store, CheckCircle, XCircle, Loader2, Search,
-  ChevronDown, Pencil, Star, Plus, Eye, EyeOff, KeyRound, User,
+  ChevronDown, Pencil, Star, Plus, Eye, EyeOff, KeyRound, User, Trash2,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import {
@@ -12,6 +12,7 @@ import {
   adminUpdateRestaurant,
   adminChangePassword,
   adminUpdateOwnerProfile,
+  deleteRestaurant,
 } from '@/services/adminService'
 import { STATUTS_RESTAURANT } from '@/utils/constants'
 
@@ -130,7 +131,7 @@ function ModaleModifier({ restaurant, onSave, onClose }) {
 }
 
 // ── Détail déroulant d'un restaurant ──────────────────────
-function DetailRestaurant({ restaurant, ouvert, onValider, onSuspendre, onModifier, onMotDePasse, onProprietaire, loading }) {
+function DetailRestaurant({ restaurant, ouvert, onValider, onSuspendre, onModifier, onMotDePasse, onProprietaire, onSupprimer, loading }) {
   if (!ouvert) return null
 
   return (
@@ -207,6 +208,18 @@ function DetailRestaurant({ restaurant, ouvert, onValider, onSuspendre, onModifi
             </button>
           )}
         </div>
+
+        {/* Supprimer — action destructive séparée */}
+        <button
+          onClick={() => onSupprimer(restaurant)}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-1.5 border border-red-200
+                     text-red-500 text-xs font-bold py-2.5 rounded-xl hover:bg-red-50
+                     transition-colors disabled:opacity-60"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          Supprimer définitivement
+        </button>
       </div>
     </div>
   )
@@ -520,6 +533,23 @@ export default function AdminRestaurants() {
     toast.success('Restaurant mis à jour')
   }
 
+  // ── Suppression restaurant ─────────────────────────────
+  async function handleSupprimer(restaurant) {
+    const confirme = window.confirm(
+      `Supprimer définitivement "${restaurant.nom}" ?\n\nCette action est irréversible — le restaurant, son menu et son compte seront effacés.`
+    )
+    if (!confirme) return
+
+    setActionLoadingId(restaurant.id)
+    const { error } = await deleteRestaurant(restaurant.id, restaurant.owner_id)
+    setActionLoadingId(null)
+
+    if (error) { toast.error('Erreur : ' + error); return }
+    setRestaurants(prev => prev.filter(r => r.id !== restaurant.id))
+    setOuvertId(null)
+    toast.success(`"${restaurant.nom}" supprimé`)
+  }
+
   // ── Modification propriétaire ──────────────────────────
   async function handleProprietaire(ownerId, updates) {
     const { error } = await adminUpdateOwnerProfile(ownerId, updates)
@@ -675,6 +705,7 @@ export default function AdminRestaurants() {
                     onModifier={setModaleModifier}
                     onMotDePasse={setModaleMotDePasse}
                     onProprietaire={setModaleProprietaire}
+                    onSupprimer={handleSupprimer}
                     loading={actionLoadingId === resto.id}
                   />
                 </div>

@@ -166,6 +166,35 @@ export async function adminUpdateRestaurant(id, updates) {
 }
 
 /**
+ * Supprime un restaurant et son compte auth associé.
+ * Supprime : restaurant → profil → compte auth (dans cet ordre).
+ * @param {string} restaurantId
+ * @param {string} ownerId — UUID du propriétaire pour supprimer le compte auth
+ */
+export async function deleteRestaurant(restaurantId, ownerId) {
+  try {
+    // 1. Supprimer le restaurant
+    const { error: restoError } = await supabase
+      .from('restaurants')
+      .delete()
+      .eq('id', restaurantId)
+    if (restoError) throw restoError
+
+    // 2. Supprimer le profil
+    await supabase.from('profiles').delete().eq('id', ownerId)
+
+    // 3. Supprimer le compte auth (nécessite service_role)
+    if (supabaseAdmin) {
+      await supabaseAdmin.auth.admin.deleteUser(ownerId)
+    }
+
+    return { error: null }
+  } catch (err) {
+    return { error: err.message }
+  }
+}
+
+/**
  * Met à jour le taux de commission d'un restaurant (en %).
  */
 export async function updateCommissionRate(id, commissionRate) {
