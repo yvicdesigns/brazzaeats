@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   Store, CheckCircle, XCircle, Loader2, Search,
-  ChevronDown, Pencil, Star, Plus, Eye, EyeOff,
+  ChevronDown, Pencil, Star, Plus, Eye, EyeOff, KeyRound, User,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import {
@@ -10,6 +10,8 @@ import {
   updateCommissionRate,
   createRestaurant,
   adminUpdateRestaurant,
+  adminChangePassword,
+  adminUpdateOwnerProfile,
 } from '@/services/adminService'
 import { STATUTS_RESTAURANT } from '@/utils/constants'
 
@@ -128,7 +130,7 @@ function ModaleModifier({ restaurant, onSave, onClose }) {
 }
 
 // ── Détail déroulant d'un restaurant ──────────────────────
-function DetailRestaurant({ restaurant, ouvert, onValider, onSuspendre, onModifier, loading }) {
+function DetailRestaurant({ restaurant, ouvert, onValider, onSuspendre, onModifier, onMotDePasse, onProprietaire, loading }) {
   if (!ouvert) return null
 
   return (
@@ -150,15 +152,33 @@ function DetailRestaurant({ restaurant, ouvert, onValider, onSuspendre, onModifi
           </div>
         </div>
 
-        {/* Bouton modifier */}
-        <button
-          onClick={() => onModifier(restaurant)}
-          className="w-full flex items-center justify-center gap-1.5 bg-white border border-gray-200
-                     text-gray-700 text-xs font-bold py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
-        >
-          <Pencil className="w-3.5 h-3.5" />
-          Modifier les informations
-        </button>
+        {/* Boutons gestion */}
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            onClick={() => onModifier(restaurant)}
+            className="flex flex-col items-center justify-center gap-1 bg-white border border-gray-200
+                       text-gray-700 text-xs font-bold py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Infos
+          </button>
+          <button
+            onClick={() => onProprietaire(restaurant)}
+            className="flex flex-col items-center justify-center gap-1 bg-white border border-gray-200
+                       text-gray-700 text-xs font-bold py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
+          >
+            <User className="w-3.5 h-3.5" />
+            Propriétaire
+          </button>
+          <button
+            onClick={() => onMotDePasse(restaurant)}
+            className="flex flex-col items-center justify-center gap-1 bg-white border border-orange-200
+                       text-orange-600 text-xs font-bold py-2.5 rounded-xl hover:bg-orange-50 transition-colors"
+          >
+            <KeyRound className="w-3.5 h-3.5" />
+            Mot de passe
+          </button>
+        </div>
 
         {/* Actions statut */}
         <div className="flex gap-2">
@@ -187,6 +207,143 @@ function DetailRestaurant({ restaurant, ouvert, onValider, onSuspendre, onModifi
             </button>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Modale changement mot de passe ────────────────────────
+function ModaleMotDePasse({ restaurant, onClose }) {
+  const [mdp,        setMdp]        = useState('')
+  const [mdpVisible, setMdpVisible] = useState(false)
+  const [saving,     setSaving]     = useState(false)
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (mdp.length < 6) { toast.error('Minimum 6 caractères'); return }
+    setSaving(true)
+    const { error } = await adminChangePassword(restaurant.owner_id, mdp)
+    setSaving(false)
+    if (error) { toast.error('Erreur : ' + error); return }
+    toast.success(`Mot de passe mis à jour pour ${restaurant.nom}`)
+    onClose()
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 shadow-2xl">
+        <h2 className="text-base font-black text-gray-900 mb-1">Changer le mot de passe</h2>
+        <p className="text-xs text-gray-400 mb-5">{restaurant.nom}</p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="text-xs font-medium text-gray-600">Nouveau mot de passe *</label>
+            <div className="relative mt-1">
+              <input
+                value={mdp}
+                onChange={e => setMdp(e.target.value)}
+                type={mdpVisible ? 'text' : 'password'}
+                placeholder="Min. 6 caractères"
+                autoFocus
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 pr-10 text-sm
+                           focus:outline-none focus:ring-2 focus:ring-brand-300"
+              />
+              <button
+                type="button"
+                onClick={() => setMdpVisible(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+              >
+                {mdpVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose}
+              className="flex-1 border border-gray-200 text-gray-600 rounded-xl py-3 text-sm font-semibold">
+              Annuler
+            </button>
+            <button type="submit" disabled={mdp.length < 6 || saving}
+              className="flex-1 bg-brand-500 text-white rounded-xl py-3 text-sm font-bold
+                         hover:bg-brand-600 disabled:opacity-40 flex items-center justify-center gap-2">
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              Enregistrer
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ── Modale modification propriétaire ─────────────────────
+function ModaleProprietaire({ restaurant, onSave, onClose }) {
+  const [form, setForm] = useState({
+    nom:       restaurant.owner?.nom       ?? '',
+    telephone: restaurant.owner?.telephone ?? '',
+  })
+  const [saving, setSaving] = useState(false)
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (!form.nom.trim()) { toast.error('Le nom est requis'); return }
+    setSaving(true)
+    await onSave(restaurant.owner_id, form)
+    setSaving(false)
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 shadow-2xl">
+        <h2 className="text-base font-black text-gray-900 mb-1">Modifier le propriétaire</h2>
+        <p className="text-xs text-gray-400 mb-5">{restaurant.nom}</p>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className="text-xs font-medium text-gray-600">Nom complet *</label>
+            <input
+              value={form.nom}
+              onChange={e => set('nom', e.target.value)}
+              placeholder="Nom du propriétaire"
+              className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600">Téléphone</label>
+            <input
+              value={form.telephone}
+              onChange={e => set('telephone', e.target.value)}
+              placeholder="+242066000000"
+              type="tel"
+              className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+            <p className="text-[11px] text-gray-400 mt-0.5">
+              Modifier le téléphone change aussi l'identifiant de connexion
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose}
+              className="flex-1 border border-gray-200 text-gray-600 rounded-xl py-3 text-sm font-semibold">
+              Annuler
+            </button>
+            <button type="submit" disabled={!form.nom.trim() || saving}
+              className="flex-1 bg-brand-500 text-white rounded-xl py-3 text-sm font-bold
+                         hover:bg-brand-600 disabled:opacity-40 flex items-center justify-center gap-2">
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              Enregistrer
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   )
@@ -316,8 +473,10 @@ export default function AdminRestaurants() {
   const [recherche,       setRecherche]       = useState('')
   const [ouvertId,        setOuvertId]        = useState(null)
   const [actionLoadingId, setActionLoadingId] = useState(null)
-  const [modaleModifier,  setModaleModifier]  = useState(null)
-  const [modaleCreer,     setModaleCreer]     = useState(false)
+  const [modaleModifier,      setModaleModifier]      = useState(null)
+  const [modaleCreer,         setModaleCreer]         = useState(false)
+  const [modaleMotDePasse,    setModaleMotDePasse]    = useState(null)
+  const [modaleProprietaire,  setModaleProprietaire]  = useState(null)
 
   // ── Chargement ─────────────────────────────────────────
   useEffect(() => {
@@ -359,6 +518,19 @@ export default function AdminRestaurants() {
     setRestaurants(prev => prev.map(r => r.id === id ? { ...r, ...data } : r))
     setModaleModifier(null)
     toast.success('Restaurant mis à jour')
+  }
+
+  // ── Modification propriétaire ──────────────────────────
+  async function handleProprietaire(ownerId, updates) {
+    const { error } = await adminUpdateOwnerProfile(ownerId, updates)
+    if (error) { toast.error('Erreur : ' + error); return }
+    setRestaurants(prev => prev.map(r =>
+      r.owner_id === ownerId
+        ? { ...r, owner: { ...r.owner, ...updates } }
+        : r
+    ))
+    setModaleProprietaire(null)
+    toast.success('Propriétaire mis à jour')
   }
 
   // ── Filtrage + recherche ───────────────────────────────
@@ -501,6 +673,8 @@ export default function AdminRestaurants() {
                     onValider={id => handleStatut(id, 'actif')}
                     onSuspendre={id => handleStatut(id, 'suspendu')}
                     onModifier={setModaleModifier}
+                    onMotDePasse={setModaleMotDePasse}
+                    onProprietaire={setModaleProprietaire}
                     loading={actionLoadingId === resto.id}
                   />
                 </div>
@@ -524,6 +698,23 @@ export default function AdminRestaurants() {
         <ModaleCreerRestaurant
           onSave={handleCreer}
           onClose={() => setModaleCreer(false)}
+        />
+      )}
+
+      {/* ── Modale mot de passe ──────────────────────────── */}
+      {modaleMotDePasse && (
+        <ModaleMotDePasse
+          restaurant={modaleMotDePasse}
+          onClose={() => setModaleMotDePasse(null)}
+        />
+      )}
+
+      {/* ── Modale propriétaire ──────────────────────────── */}
+      {modaleProprietaire && (
+        <ModaleProprietaire
+          restaurant={modaleProprietaire}
+          onSave={handleProprietaire}
+          onClose={() => setModaleProprietaire(null)}
         />
       )}
     </div>

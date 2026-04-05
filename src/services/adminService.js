@@ -1,4 +1,5 @@
 import { supabase } from '@/supabase/client'
+import { supabaseAdmin } from '@/supabase/adminClient'
 
 // ============================================================
 // ADMIN — requêtes Supabase
@@ -228,6 +229,55 @@ export async function createRestaurant({ nom, adresse, telephone, motDePasse, co
     return { data: resto, error: null }
   } catch (err) {
     return { data: null, error: err.message }
+  }
+}
+
+/**
+ * Change le mot de passe d'un utilisateur (restaurant, livreur, etc.)
+ * Nécessite la clé service_role dans VITE_SUPABASE_SERVICE_KEY.
+ * @param {string} userId — UUID auth de l'utilisateur
+ * @param {string} newPassword — nouveau mot de passe (min 6 chars)
+ */
+export async function adminChangePassword(userId, newPassword) {
+  if (!supabaseAdmin) {
+    return { error: 'Clé service_role manquante (VITE_SUPABASE_SERVICE_KEY)' }
+  }
+  try {
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      password: newPassword,
+    })
+    if (error) throw error
+    return { error: null }
+  } catch (err) {
+    return { error: err.message }
+  }
+}
+
+/**
+ * Met à jour le profil (nom, téléphone) du propriétaire d'un restaurant.
+ * Si le téléphone change, met aussi à jour l'email auth (faux email).
+ * @param {string} ownerId — UUID du propriétaire
+ * @param {{ nom, telephone }} updates
+ */
+export async function adminUpdateOwnerProfile(ownerId, { nom, telephone }) {
+  try {
+    // 1. Mettre à jour le profil
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ nom, telephone })
+      .eq('id', ownerId)
+    if (profileError) throw profileError
+
+    // 2. Si téléphone modifié → mettre à jour l'email auth
+    if (telephone && supabaseAdmin) {
+      const fakeEmail = `p${telephone.replace(/[^0-9]/g, '')}@brazzaeats.local`
+      await supabaseAdmin.auth.admin.updateUserById(ownerId, { email: fakeEmail })
+      // On ne bloque pas si ça échoue (l'identifiant de connexion reste l'ancien)
+    }
+
+    return { error: null }
+  } catch (err) {
+    return { error: err.message }
   }
 }
 
