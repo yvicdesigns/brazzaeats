@@ -32,6 +32,43 @@ export function isRestaurantOpen(horaires) {
   return now >= open && now < close
 }
 
+const JOURS_LABELS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
+
+/**
+ * Retourne l'heure d'ouverture prochaine pour un restaurant fermé.
+ * Cherche d'abord aujourd'hui (si pas encore ouvert), puis les 6 jours suivants.
+ * @param {object} horaires
+ * @returns {string|null} ex: "Ouvre à 10:00" ou "Ouvre lundi à 08:00"
+ */
+export function getProchainHoraire(horaires) {
+  if (!horaires) return null
+
+  const maintenant = new Date()
+  const now = maintenant.getHours() * 60 + maintenant.getMinutes()
+  const jourIdx = maintenant.getDay()
+
+  for (let delta = 0; delta < 7; delta++) {
+    const idx = (jourIdx + delta) % 7
+    const nomJour = JOURS_FR[idx]
+    const h = horaires[nomJour]
+
+    if (!h || h.ferme || !h.ouverture) continue
+
+    const [hOuv, mOuv] = h.ouverture.split(':').map(Number)
+    const open = hOuv * 60 + mOuv
+
+    // Aujourd'hui : seulement si l'heure d'ouverture est encore à venir
+    if (delta === 0 && now >= open) continue
+
+    const heureStr = h.ouverture
+    if (delta === 0) return `Ouvre à ${heureStr}`
+    if (delta === 1) return `Ouvre demain à ${heureStr}`
+    return `Ouvre ${JOURS_LABELS[idx].toLowerCase()} à ${heureStr}`
+  }
+
+  return null
+}
+
 /**
  * Récupère les restaurants actifs avec filtres optionnels et pagination.
  * Le filtre "ouvert maintenant" est appliqué côté client (horaires en JSONB).
