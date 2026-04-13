@@ -1,7 +1,7 @@
 {
-  "name": "BrazzaEats",
-  "short_name": "BrazzaEats",
-  "description": "Commandez vos plats préférés à Brazzaville",
+  "name": "Zandofood",
+  "short_name": "Zandofood",
+  "description": "Commandez vos plats préférés au Congo",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -25,7 +25,7 @@
       "sizes": "390x844",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Accueil BrazzaEats"
+      "label": "Accueil Zandofood"
     }
   ]
 }

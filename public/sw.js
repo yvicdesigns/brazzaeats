@@ -1,4 +1,4 @@
-// Service Worker BrazzaEats
+// Service Worker Zandofood
 // Géré automatiquement par vite-plugin-pwa (workbox).
 // Ce fichier est le point d'entrée déclaré dans manifest.json ;
 // le SW réel est injecté par le build à l'URL /sw.js.

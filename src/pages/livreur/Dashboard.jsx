@@ -176,7 +176,7 @@ export default function LivreurDashboard() {
                 <div className="flex gap-3 pt-1">
                   {commandeActive.client?.telephone && (
                     <button
-                      onClick={() => ouvrirWhatsApp(commandeActive.client.telephone, 'Bonjour, je suis votre livreur BrazzaEats. Je suis en route avec votre commande.')}
+                      onClick={() => ouvrirWhatsApp(commandeActive.client.telephone, 'Bonjour, je suis votre livreur Zandofood. Je suis en route avec votre commande.')}
                       className="flex-1 flex items-center justify-center gap-2 border border-gray-300
                                  text-gray-700 rounded-xl py-3 text-sm font-medium
                                  hover:bg-gray-50 transition-colors min-h-[48px]"

@@ -94,7 +94,7 @@ export function playNotificationSound(type = 'nouvelle_commande', volume = 0.4) 
     })
   } catch (err) {
     // Son non critique — échec silencieux
-    console.warn('[BrazzaEats] Impossible de jouer le son de notification :', err)
+    console.warn('[Zandofood] Impossible de jouer le son de notification :', err)
   }
 }
 

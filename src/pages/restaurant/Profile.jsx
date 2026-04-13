@@ -492,7 +492,7 @@ export default function Profile() {
             <div>
               <p className="text-sm font-medium text-gray-700">Restaurant ouvert</p>
               <p className="text-xs text-gray-400 mt-0.5">
-                {form.ouvert ? 'Visible et commandable sur BrazzaEats' : 'Masqué des clients'}
+                {form.ouvert ? 'Visible et commandable sur Zandofood' : 'Masqué des clients'}
               </p>
             </div>
             <button

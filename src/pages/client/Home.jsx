@@ -361,7 +361,7 @@ export default function Home() {
         className="fixed bottom-20 right-4 w-14 h-14 bg-green-500 text-white rounded-full
                    flex items-center justify-center shadow-lg hover:bg-green-600
                    active:scale-95 transition-all z-30"
-        aria-label="Contacter le support BrazzaEats via WhatsApp"
+        aria-label="Contacter le support Zandofood via WhatsApp"
       >
         <MessageCircle className="w-6 h-6" />
       </button>

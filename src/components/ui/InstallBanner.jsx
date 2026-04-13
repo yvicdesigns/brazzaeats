@@ -66,7 +66,7 @@ export default function InstallBanner() {
                  flex items-center gap-3 px-4 py-3
                  animate-in fade-in slide-in-from-bottom-4 duration-300"
       role="banner"
-      aria-label="Installer BrazzaEats"
+      aria-label="Installer Zandofood"
     >
       {/* Icône */}
       <div className="w-10 h-10 bg-brand-500 rounded-xl flex items-center justify-center shrink-0">
@@ -76,7 +76,7 @@ export default function InstallBanner() {
       {/* Texte */}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold text-gray-900 leading-tight">
-          📲 Installer BrazzaEats
+          📲 Installer Zandofood
         </p>
         <p className="text-xs text-gray-500 mt-0.5">
           Accès rapide depuis votre téléphone

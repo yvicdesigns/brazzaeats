@@ -156,7 +156,7 @@ export default function Navbar() {
           <div className="w-7 h-7 bg-brand-500 rounded-lg flex items-center justify-center">
             <span className="text-sm">🍽️</span>
           </div>
-          <span className="font-black text-gray-900 text-base hidden sm:block">BrazzaEats</span>
+          <span className="font-black text-gray-900 text-base hidden sm:block">Zandofood</span>
         </Link>
 
         {/* ── Liens de navigation (desktop) ───────────────── */}

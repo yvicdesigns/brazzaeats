@@ -72,7 +72,7 @@ export function buildOrderMessage({
     `*Paiement :* ${labelPaiement}`,
     notes ? `*Instructions :* ${notes}` : null,
     '',
-    '_Commande passée via BrazzaEats 🍽️_',
+    '_Commande passée via Zandofood 🍽️_',
   ]
 
   return lignes.filter((l) => l !== null).join('\n')
@@ -93,13 +93,13 @@ export function ouvrirWhatsApp(telephone, message) {
 }
 
 /**
- * Raccourci : contact support BrazzaEats.
+ * Raccourci : contact support Zandofood.
  * @param {string} [sujet] — Sujet optionnel affiché dans le message
  */
 export function contacterSupport(sujet = '') {
   const message = sujet
-    ? `Bonjour BrazzaEats Support, j'ai besoin d'aide concernant : ${sujet}`
-    : 'Bonjour BrazzaEats Support, j\'ai besoin d\'aide.'
+    ? `Bonjour Zandofood Support, j'ai besoin d'aide concernant : ${sujet}`
+    : 'Bonjour Zandofood Support, j\'ai besoin d\'aide.'
 
   ouvrirWhatsApp(WHATSAPP_SUPPORT, message)
 }

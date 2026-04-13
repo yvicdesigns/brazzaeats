@@ -437,9 +437,9 @@ export default function Profile() {
 
   // ── Partager ─────────────────────────────────────────────
   function handlePartager() {
-    const texte = 'Commande ta nourriture préférée sur BrazzaEats ! 🍽️'
+    const texte = 'Commande ta nourriture préférée sur Zandofood ! 🍽️'
     if (navigator.share) {
-      navigator.share({ title: 'BrazzaEats', text: texte, url: window.location.origin })
+      navigator.share({ title: 'Zandofood', text: texte, url: window.location.origin })
         .catch(() => {})
     } else {
       navigator.clipboard.writeText(window.location.origin)
@@ -803,7 +803,7 @@ export default function Profile() {
           <div className={`mt-4 rounded-2xl bg-gradient-to-br ${tier.gradient} p-5 shadow-inner`}>
             <div className="flex items-start justify-between mb-5">
               <div>
-                <p className="text-white/60 text-xs font-medium">BrazzaEats</p>
+                <p className="text-white/60 text-xs font-medium">Zandofood</p>
                 <p className="text-white font-black text-xl mt-0.5">Carte {tier.nom}</p>
               </div>
               <span className="text-4xl">{tier.emoji}</span>
@@ -889,7 +889,7 @@ export default function Profile() {
             <Share2 className="w-4 h-4 text-pink-500" />
           </div>
           <div className="flex-1 text-left">
-            <p className="font-semibold text-gray-900 text-sm">Partager BrazzaEats</p>
+            <p className="font-semibold text-gray-900 text-sm">Partager Zandofood</p>
             <p className="text-xs text-gray-400 mt-0.5">Invitez vos amis à commander</p>
           </div>
           <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
@@ -910,7 +910,7 @@ export default function Profile() {
       </div>
 
       {/* ── Version ──────────────────────────────────────── */}
-      <p className="text-center text-[11px] text-gray-300 mt-6">BrazzaEats v1.0</p>
+      <p className="text-center text-[11px] text-gray-300 mt-6">Zandofood v1.0</p>
 
       {/* ── Modal recadrage photo ─────────────────────────── */}
       {cropImageUrl && (

@@ -6,7 +6,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 // Vérification au démarrage pour un message d'erreur explicite
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
-    '[BrazzaEats] Variables VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY manquantes.\n' +
+    '[Zandofood] Variables VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY manquantes.\n' +
     'Copiez .env.example en .env.local et renseignez vos clés Supabase.'
   )
 }

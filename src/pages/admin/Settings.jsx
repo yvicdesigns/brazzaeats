@@ -19,7 +19,7 @@ function Champ({ label, sousTitre, children }) {
 // ══════════════════════════════════════════════════════════
 export default function AdminSettings() {
   const [form, setForm] = useState({
-    nom_plateforme:       'BrazzaEats',
+    nom_plateforme:       'Zandofood',
     contact_support:      '',
     commission_defaut:    10,
     frais_livraison_base: 1000,
@@ -45,7 +45,7 @@ export default function AdminSettings() {
 
       if (data) {
         setForm({
-          nom_plateforme:       data.nom_plateforme       ?? 'BrazzaEats',
+          nom_plateforme:       data.nom_plateforme       ?? 'Zandofood',
           contact_support:      data.contact_support      ?? '',
           commission_defaut:    data.commission_defaut    ?? 10,
           frais_livraison_base: data.frais_livraison_base ?? 1000,
@@ -115,7 +115,7 @@ export default function AdminSettings() {
             <pre className="text-xs bg-yellow-100 rounded-lg p-2 mt-2 overflow-x-auto text-yellow-900 font-mono leading-relaxed">
 {`CREATE TABLE platform_settings (
   id                   INTEGER PRIMARY KEY DEFAULT 1,
-  nom_plateforme       TEXT    DEFAULT 'BrazzaEats',
+  nom_plateforme       TEXT    DEFAULT 'Zandofood',
   contact_support      TEXT    DEFAULT '',
   commission_defaut    NUMERIC DEFAULT 10,
   frais_livraison_base INTEGER DEFAULT 1000,
@@ -146,7 +146,7 @@ INSERT INTO platform_settings DEFAULT VALUES;`}
               value={form.nom_plateforme}
               onChange={e => setField('nom_plateforme', e.target.value)}
               maxLength={80}
-              placeholder="BrazzaEats"
+              placeholder="Zandofood"
               className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm
                          focus:outline-none focus:ring-2 focus:ring-brand-400"
             />

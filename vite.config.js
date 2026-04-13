@@ -38,9 +38,9 @@ export default defineConfig({
 
       // Manifest PWA inline (remplace public/manifest.json)
       manifest: {
-        name: 'BrazzaEats',
-        short_name: 'BrazzaEats',
-        description: 'Commandez vos plats préférés à Brazzaville',
+        name: 'Zandofood',
+        short_name: 'Zandofood',
+        description: 'Commandez vos plats préférés au Congo',
         start_url: '/',
         display: 'standalone',
         background_color: '#ffffff',
@@ -89,5 +89,6 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true,
+    allowedHosts: 'all',
   },
 })

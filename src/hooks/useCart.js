@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware'
 
 // ------------------------------------------------------------
 // Store panier — persisté dans localStorage sous la clé
-// 'brazzaeats-cart' pour survivre aux rechargements de page.
+// 'zandofood-cart' pour survivre aux rechargements de page.
 // Un seul restaurant autorisé par panier (logique marketplace).
 // ------------------------------------------------------------
 const useCart = create(
@@ -129,7 +129,7 @@ const useCart = create(
     }),
 
     {
-      name:    'brazzaeats-cart',   // Clé localStorage
+      name:    'zandofood-cart',   // Clé localStorage
       version: 1,                   // Incrémenter si la structure change
       // Sérialisation partielle : on ne persiste que ce qui est utile
       partialize: (state) => ({

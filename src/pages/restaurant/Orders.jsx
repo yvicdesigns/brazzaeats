@@ -370,7 +370,7 @@ export default function RestaurantOrders() {
   // ── Badge sur l'onglet navigateur ──────────────────────
   useEffect(() => {
     if (nbNouveaux > 0) {
-      document.title = `(${nbNouveaux}) Nouvelles commandes — BrazzaEats`
+      document.title = `(${nbNouveaux}) Nouvelles commandes — Zandofood`
     } else {
       document.title = titreOriginal.current
     }

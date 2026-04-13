@@ -83,7 +83,7 @@ export default function Login() {
                           mx-auto mb-4 shadow-lg">
             <span className="text-3xl">🍽️</span>
           </div>
-          <h1 className="text-2xl font-black text-gray-900">BrazzaEats</h1>
+          <h1 className="text-2xl font-black text-gray-900">Zandofood</h1>
           <p className="text-sm text-gray-500 mt-1">Commandez à Brazzaville</p>
         </div>
 

@@ -63,7 +63,7 @@ export function useRestaurantNotifications(restaurantId) {
 
           // Browser Notification (Notification API)
           if ('Notification' in window && Notification.permission === 'granted') {
-            const notif = new Notification('BrazzaEats — Nouvelle commande \uD83C\uDF7D\uFE0F', {
+            const notif = new Notification('Zandofood — Nouvelle commande \uD83C\uDF7D\uFE0F', {
               body: 'Un client vient de passer une commande. Répondez rapidement !',
               icon: '/icon-192.png',
               badge: '/icon-72.png',

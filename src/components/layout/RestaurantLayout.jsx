@@ -41,7 +41,7 @@ export default function RestaurantLayout() {
                         fixed top-0 left-0 h-full z-30 pt-6">
         {/* Logo / titre */}
         <div className="px-5 mb-8">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">BrazzaEats</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Zandofood</p>
           <p className="text-sm font-bold text-gray-800 mt-0.5">Espace restaurant</p>
         </div>
 

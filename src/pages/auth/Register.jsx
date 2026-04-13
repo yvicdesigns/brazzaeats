@@ -59,7 +59,7 @@ export default function Register() {
       return
     }
 
-    toast.success('Compte créé ! Bienvenue sur BrazzaEats 🎉')
+    toast.success('Compte créé ! Bienvenue sur Zandofood 🎉')
     navigate('/', { replace: true })
   }
 
@@ -73,7 +73,7 @@ export default function Register() {
                           mx-auto mb-3 shadow-lg">
             <span className="text-2xl">🍽️</span>
           </div>
-          <h1 className="text-xl font-black text-gray-900">BrazzaEats</h1>
+          <h1 className="text-xl font-black text-gray-900">Zandofood</h1>
         </div>
 
         <div className="w-full max-w-sm">

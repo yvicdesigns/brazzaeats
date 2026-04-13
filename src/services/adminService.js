@@ -367,7 +367,7 @@ export async function toggleUserActive(id, actif) {
  * Prérequis schéma :
  *   CREATE TABLE platform_settings (
  *     id               INTEGER PRIMARY KEY DEFAULT 1,
- *     nom_plateforme   TEXT    DEFAULT 'BrazzaEats',
+ *     nom_plateforme   TEXT    DEFAULT 'Zandofood',
  *     contact_support  TEXT    DEFAULT '',
  *     commission_defaut NUMERIC DEFAULT 10,
  *     frais_livraison_base INTEGER DEFAULT 1000,
