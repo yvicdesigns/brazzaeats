@@ -17,14 +17,15 @@ export function useMyRestaurant() {
 
   useEffect(() => {
     if (authLoading) return   // Attendre que l'auth soit initialisée
-    if (!user) {
+    if (!user?.id) {
       setLoading(false)
       setError('Non authentifié')
       return
     }
 
     async function charger() {
-      setLoading(true)
+      // Ne montrer le spinner que si on n'a pas encore de données
+      if (!restaurant) setLoading(true)
       const { data, error: err } = await getMyRestaurant(user.id)
       setRestaurant(data)
       setError(err)
@@ -32,7 +33,9 @@ export function useMyRestaurant() {
     }
 
     charger()
-  }, [user, authLoading])
+  // user.id stable — ne se relance pas au simple refresh du token
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, authLoading])
 
   return { restaurant, loading, error, setRestaurant }
 }
