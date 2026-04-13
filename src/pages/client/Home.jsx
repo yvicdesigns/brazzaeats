@@ -4,6 +4,8 @@ import toast from 'react-hot-toast'
 import RestaurantCard from '@/components/shared/RestaurantCard'
 import { getRestaurants, isRestaurantOpen } from '@/services/restaurantService'
 import { contacterSupport } from '@/utils/whatsappMessage'
+import { useVille } from '@/hooks/useVille'
+import SelectVille from './SelectVille'
 
 // ── Squelette de chargement ────────────────────────────────
 function CarteSkeleton({ className = '' }) {
@@ -158,6 +160,7 @@ function GrilleRecherche({ restaurants, loading, search }) {
 
 // ── Composant principal ────────────────────────────────────
 export default function Home() {
+  const { ville, setVille } = useVille()
   const [tous,        setTous]        = useState([])
   const [loading,     setLoading]     = useState(true)
   const [isOffline,   setIsOffline]   = useState(!navigator.onLine)
@@ -168,6 +171,9 @@ export default function Home() {
   const [ouvertMaintenant, setOuvertMaintenant] = useState(false)
 
   const modeRecherche = search.trim() !== '' || noteMin > 0 || ouvertMaintenant
+
+  // Écran sélection ville au premier lancement
+  if (!ville) return <SelectVille onSelect={setVille} />
 
   // ── Surveillance réseau ───────────────────────────────────
   useEffect(() => {
@@ -181,12 +187,12 @@ export default function Home() {
     }
   }, [])
 
-  // ── Chargement initial (tous les restaurants actifs) ──────
+  // ── Chargement initial (restaurants de la ville sélectionnée) ──
   useEffect(() => {
     let cancelled = false
     const charger = async () => {
       setLoading(true)
-      const { data, error } = await getRestaurants({ page: 0, limit: 100 })
+      const { data, error } = await getRestaurants({ page: 0, limit: 100, ville })
       if (cancelled) return
       if (error) toast.error('Impossible de charger les restaurants')
       else setTous(data ?? [])
@@ -194,7 +200,7 @@ export default function Home() {
     }
     charger()
     return () => { cancelled = true }
-  }, [])
+  }, [ville])
 
   // ── Sections thématiques (calculées côté client) ──────────
   const sections = useMemo(() => {

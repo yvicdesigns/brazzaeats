@@ -140,3 +140,19 @@ export const TARIFS = {
 // Numéro WhatsApp support (format international sans +)
 // ------------------------------------------------------------
 export const WHATSAPP_SUPPORT = import.meta.env.VITE_WHATSAPP_SUPPORT || '242066000001'
+
+// ------------------------------------------------------------
+// Villes du Congo couvertes par Zandofood
+// ------------------------------------------------------------
+export const VILLES_CONGO = [
+  { nom: 'Brazzaville',  emoji: '🏙️' },
+  { nom: 'Pointe-Noire', emoji: '🌊' },
+  { nom: 'Dolisie',      emoji: '🌿' },
+  { nom: 'Nkayi',        emoji: '🌱' },
+  { nom: 'Impfondo',     emoji: '🌳' },
+  { nom: 'Ouesso',       emoji: '🌿' },
+  { nom: 'Madingou',     emoji: '🌾' },
+  { nom: 'Sibiti',       emoji: '🏔️' },
+  { nom: 'Gamboma',      emoji: '🌾' },
+  { nom: 'Owando',       emoji: '🌿' },
+]

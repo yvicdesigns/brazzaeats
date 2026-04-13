@@ -79,16 +79,18 @@ export async function getRestaurants({
   noteMin          = 0,
   ouvertMaintenant = false,
   search           = '',
+  ville            = null,
 } = {}) {
   try {
     let query = supabase
       .from('restaurants')
-      .select('id, nom, description, logo_url, video_apercu_url, adresse, horaires, note_moyenne, statut', { count: 'exact' })
+      .select('id, nom, description, logo_url, video_apercu_url, adresse, horaires, note_moyenne, statut, ville', { count: 'exact' })
       .eq('statut', 'actif')
       .order('note_moyenne', { ascending: false })
 
     if (noteMin > 0)     query = query.gte('note_moyenne', noteMin)
     if (search.trim())   query = query.ilike('nom', `%${search.trim()}%`)
+    if (ville)           query = query.eq('ville', ville)
 
     const { data, error, count } = await query.range(page * limit, (page + 1) * limit - 1)
     if (error) throw error

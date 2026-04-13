@@ -4,10 +4,12 @@ import { useState, useRef, useEffect } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import {
   ShoppingCart, User, LogOut, Settings,
-  ChevronDown, LayoutDashboard,
+  ChevronDown, LayoutDashboard, MapPin,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useCartCount } from '@/hooks/useCart'
+import { useVille } from '@/hooks/useVille'
+import { VILLES_CONGO } from '@/utils/constants'
 
 // ── Liens de navigation selon le rôle ─────────────────────
 const LIENS_PAR_ROLE = {
@@ -132,6 +134,59 @@ function MenuProfil({ profile, role, onLogout }) {
 // ══════════════════════════════════════════════════════════
 // Navbar
 // ══════════════════════════════════════════════════════════
+// ── Sélecteur de ville (clients) ──────────────────────────
+function SelecteurVille() {
+  const { ville, setVille, effacerVille } = useVille()
+  const [ouvert, setOuvert] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOuvert(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOuvert(o => !o)}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-50
+                   hover:bg-brand-100 transition-colors"
+      >
+        <MapPin className="w-3.5 h-3.5 text-brand-500 shrink-0" />
+        <span className="text-sm font-semibold text-brand-700 max-w-[100px] truncate">
+          {ville ?? 'Choisir'}
+        </span>
+        <ChevronDown className={`w-3 h-3 text-brand-400 transition-transform ${ouvert ? 'rotate-180' : ''}`} />
+      </button>
+
+      {ouvert && (
+        <div className="absolute left-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-xl
+                        border border-gray-100 py-1.5 z-50 max-h-72 overflow-y-auto">
+          <p className="px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
+            Changer de ville
+          </p>
+          {VILLES_CONGO.map(({ nom, emoji }) => (
+            <button
+              key={nom}
+              onClick={() => { setVille(nom); setOuvert(false) }}
+              className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left
+                         hover:bg-gray-50 transition-colors
+                         ${ville === nom ? 'text-brand-600 font-bold' : 'text-gray-700'}`}
+            >
+              <span>{emoji}</span>
+              {nom}
+              {ville === nom && <span className="ml-auto text-brand-500">✓</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Navbar() {
   const navigate = useNavigate()
   const { profile, role, logout } = useAuth()
@@ -158,6 +213,9 @@ export default function Navbar() {
           </div>
           <span className="font-black text-gray-900 text-base hidden sm:block">Zandofood</span>
         </Link>
+
+        {/* ── Sélecteur de ville (clients uniquement) ─────── */}
+        {(!role || role === 'client') && <SelecteurVille />}
 
         {/* ── Liens de navigation (desktop) ───────────────── */}
         <nav className="hidden md:flex items-center gap-1 flex-1 px-4">
