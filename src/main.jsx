@@ -1,7 +1,17 @@
 import { createRoot } from 'react-dom/client'
 import { Toaster } from 'react-hot-toast'
+import { registerSW } from 'virtual:pwa-register'
 import App from './App'
 import './index.css'
+
+// ── Mise à jour PWA — recharge auto quand nouvelle version dispo ──
+registerSW({
+  onNeedRefresh() {
+    // Nouvelle version disponible → recharge silencieuse
+    window.location.reload()
+  },
+  onOfflineReady() {},
+})
 
 // ── Montage de l'application ───────────────────────────────
 const racine = document.getElementById('root')

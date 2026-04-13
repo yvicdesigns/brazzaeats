@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
 
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
 
       // Fichiers à précacher lors du build
       workbox: {

@@ -3,6 +3,7 @@ import { Loader2, ImagePlus, Save, ToggleLeft, ToggleRight, Video, X, UploadClou
 import toast from 'react-hot-toast'
 import { useMyRestaurant } from '@/hooks/useMyRestaurant'
 import { updateRestaurant, uploadRestaurantLogo, uploadRestaurantVideo, uploadRestaurantVideoApercu } from '@/services/menuService'
+import { VILLES_CONGO } from '@/utils/constants'
 
 // ── Jours de la semaine (ordre affiché) ───────────────────
 const JOURS = [
@@ -30,6 +31,7 @@ export default function Profile() {
     nom:         '',
     description: '',
     adresse:     '',
+    ville:       'Brazzaville',
     logoUrl:     null,
     ouvert:      true,  // true = statut 'actif', false = statut 'suspendu'
   })
@@ -56,6 +58,7 @@ export default function Profile() {
       nom:         restaurant.nom         ?? '',
       description: restaurant.description ?? '',
       adresse:     restaurant.adresse     ?? '',
+      ville:       restaurant.ville       ?? 'Brazzaville',
       logoUrl:     restaurant.logo_url    ?? null,
       ouvert:      restaurant.statut === 'actif',
     })
@@ -189,6 +192,7 @@ export default function Profile() {
       nom,
       description: form.description.trim() || null,
       adresse:     form.adresse.trim()     || null,
+      ville:       form.ville,
       logo_url:    form.logoUrl,
       statut:      form.ouvert ? 'actif' : 'suspendu',
       horaires,
@@ -471,6 +475,21 @@ export default function Profile() {
               className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm
                          focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
             />
+          </div>
+
+          {/* Ville */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Ville *</label>
+            <select
+              value={form.ville}
+              onChange={e => setField('ville', e.target.value)}
+              className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
+            >
+              {VILLES_CONGO.map(({ nom, emoji }) => (
+                <option key={nom} value={nom}>{emoji} {nom}</option>
+              ))}
+            </select>
           </div>
 
           {/* Adresse */}
