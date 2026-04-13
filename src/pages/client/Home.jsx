@@ -246,9 +246,6 @@ export default function Home() {
     return () => { cancelled = true }
   }, [ville])
 
-  // Écran sélection ville — affiché après tous les hooks
-  if (!ville) return <SelectVille onSelect={setVille} />
-
   // ── Sections thématiques (calculées côté client) ──────────
   const sections = useMemo(() => {
     if (!tous.length) return {}
@@ -286,6 +283,9 @@ export default function Home() {
       return matchSearch && matchNote && matchOuvert
     })
   }, [tous, search, noteMin, ouvertMaintenant, modeRecherche])
+
+  // Écran sélection ville — après TOUS les hooks (règle React)
+  if (!ville) return <SelectVille onSelect={setVille} />
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
