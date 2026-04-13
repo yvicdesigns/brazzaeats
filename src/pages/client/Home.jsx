@@ -6,6 +6,7 @@ import { getRestaurants, isRestaurantOpen } from '@/services/restaurantService'
 import { contacterSupport } from '@/utils/whatsappMessage'
 import { useVille } from '@/hooks/useVille'
 import SelectVille from './SelectVille'
+import { VILLES_CONGO } from '@/utils/constants'
 
 // ── Squelette de chargement ────────────────────────────────
 function CarteSkeleton({ className = '' }) {
@@ -158,9 +159,54 @@ function GrilleRecherche({ restaurants, loading, search }) {
   )
 }
 
+// ── Ville sans restaurants ─────────────────────────────────
+function VilleVide({ ville, onChangerVille }) {
+  const emoji = VILLES_CONGO.find(v => v.nom === ville)?.emoji ?? '📍'
+  const { contacterSupport: wa } = { contacterSupport: () => contacterSupport() }
+
+  return (
+    <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+      <div className="w-24 h-24 bg-brand-50 rounded-full flex items-center justify-center mb-5">
+        <span className="text-4xl">{emoji}</span>
+      </div>
+
+      <h2 className="text-xl font-black text-gray-900 mb-2">
+        Bientôt à {ville} !
+      </h2>
+      <p className="text-gray-500 text-sm leading-relaxed max-w-xs mb-6">
+        Nous n'avons pas encore de restaurants partenaires dans votre ville.
+        Vous pouvez inviter vos restaurants préférés à rejoindre Zandofood !
+      </p>
+
+      {/* Actions */}
+      <div className="flex flex-col gap-3 w-full max-w-xs">
+        <button
+          onClick={() => contacterSupport(`Bonjour, je voudrais suggérer un restaurant à ${ville} pour Zandofood.`)}
+          className="w-full bg-brand-500 text-white font-bold py-3.5 rounded-2xl
+                     hover:bg-brand-600 active:scale-95 transition-all text-sm"
+        >
+          📲 Suggérer un restaurant
+        </button>
+
+        <button
+          onClick={onChangerVille}
+          className="w-full bg-gray-100 text-gray-700 font-semibold py-3.5 rounded-2xl
+                     hover:bg-gray-200 active:scale-95 transition-all text-sm"
+        >
+          Choisir une autre ville
+        </button>
+      </div>
+
+      <p className="text-xs text-gray-400 mt-8 leading-relaxed max-w-xs">
+        Vous êtes restaurateur à {ville} ? Contactez-nous pour rejoindre la plateforme et toucher plus de clients.
+      </p>
+    </div>
+  )
+}
+
 // ── Composant principal ────────────────────────────────────
 export default function Home() {
-  const { ville, setVille } = useVille()
+  const { ville, setVille, effacerVille } = useVille()
   const [tous,        setTous]        = useState([])
   const [loading,     setLoading]     = useState(true)
   const [isOffline,   setIsOffline]   = useState(!navigator.onLine)
@@ -256,7 +302,7 @@ export default function Home() {
       <header className="bg-brand-500 px-4 md:px-6 pt-12 pb-6 md:pt-8">
         <div className="max-w-4xl mx-auto">
           <p className="text-brand-100 text-xs mb-0.5">Livraison à</p>
-          <h1 className="text-white text-xl font-bold mb-4">Brazzaville 🇨🇬</h1>
+          <h1 className="text-white text-xl font-bold mb-4">{ville} 🇨🇬</h1>
 
           <div className="relative">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
@@ -349,6 +395,11 @@ export default function Home() {
             loading={loading}
           />
 
+          {/* Ville sans restaurants */}
+          {!loading && tous.length === 0 && (
+            <VilleVide ville={ville} onChangerVille={effacerVille} />
+          )}
+
           {/* Séparateur */}
           {!loading && tous.length > 0 && (
             <div className="px-4 md:px-6 mb-4 max-w-screen-xl mx-auto">
@@ -357,7 +408,7 @@ export default function Home() {
           )}
 
           {/* Tous */}
-          <GrilleTous restaurants={tous} loading={loading} />
+          {tous.length > 0 && <GrilleTous restaurants={tous} loading={loading} />}
         </div>
       )}
 
