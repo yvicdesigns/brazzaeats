@@ -177,9 +177,16 @@ function FormulaireItem({ item, categories, restaurantId, onSave, onClose }) {
     disponible:       item?.disponible         ?? true,
     imageUrl:         item?.image_url          ?? null,
   })
-  const [saving, setSaving] = useState(false)
+  const [variantes,     setVariantes]     = useState(item?.variantes ?? [])
+  const [hasVariantes,  setHasVariantes]  = useState((item?.variantes ?? []).length > 0)
+  const [saving,        setSaving]        = useState(false)
 
   function set(key, val) { setForm(f => ({ ...f, [key]: val })) }
+
+  // ── Gestion variantes ──────────────────────────────────────
+  function ajouterVariante()            { setVariantes(v => [...v, { nom: '', prix: '' }]) }
+  function supprimerVariante(i)         { setVariantes(v => v.filter((_, idx) => idx !== i)) }
+  function setVariante(i, key, val)     { setVariantes(v => v.map((x, idx) => idx === i ? { ...x, [key]: val } : x)) }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -188,6 +195,17 @@ function FormulaireItem({ item, categories, restaurantId, onSave, onClose }) {
     if (!nom)              { toast.error('Le nom est requis');        return }
     if (!prix || prix <= 0){ toast.error('Le prix doit être > 0');    return }
     if (!form.categorieId) { toast.error('Choisissez une catégorie'); return }
+
+    // Valider les variantes si activées
+    const variantesFinales = hasVariantes ? variantes : []
+    if (hasVariantes) {
+      if (variantesFinales.length < 2) { toast.error('Ajoutez au moins 2 variantes'); return }
+      for (const v of variantesFinales) {
+        if (!v.nom.trim())            { toast.error('Chaque variante doit avoir un nom'); return }
+        if (!v.prix || Number(v.prix) <= 0) { toast.error('Chaque variante doit avoir un prix > 0'); return }
+      }
+    }
+
     setSaving(true)
     await onSave({
       nom,
@@ -197,6 +215,9 @@ function FormulaireItem({ item, categories, restaurantId, onSave, onClose }) {
       tempsPreparation: Number(form.tempsPreparation) || 15,
       disponible:       form.disponible,
       imageUrl:         form.imageUrl,
+      variantes:        hasVariantes
+        ? variantesFinales.map(v => ({ nom: v.nom.trim(), prix: Number(v.prix) }))
+        : null,
     })
     setSaving(false)
   }
@@ -262,6 +283,67 @@ function FormulaireItem({ item, categories, restaurantId, onSave, onClose }) {
                        focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
+      </div>
+
+      {/* ── Variantes (tailles / formats) ─────────────────── */}
+      <div className="border border-gray-200 rounded-xl p-3 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-700">Variantes</p>
+            <p className="text-xs text-gray-400">Ex : Petit / Grand, Sans sauce / Avec sauce…</p>
+          </div>
+          <button type="button" onClick={() => {
+            const next = !hasVariantes
+            setHasVariantes(next)
+            if (next && variantes.length === 0) setVariantes([{ nom: '', prix: '' }, { nom: '', prix: '' }])
+          }}>
+            {hasVariantes
+              ? <ToggleRight className="w-8 h-8 text-brand-500" />
+              : <ToggleLeft  className="w-8 h-8 text-gray-400" />
+            }
+          </button>
+        </div>
+
+        {hasVariantes && (
+          <div className="space-y-2">
+            {variantes.map((v, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <input
+                  value={v.nom}
+                  onChange={e => setVariante(i, 'nom', e.target.value)}
+                  placeholder="Nom (ex: Grand)"
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm
+                             focus:outline-none focus:ring-2 focus:ring-brand-300"
+                />
+                <input
+                  type="number"
+                  value={v.prix}
+                  onChange={e => setVariante(i, 'prix', e.target.value)}
+                  placeholder="Prix"
+                  min={0} step={50}
+                  className="w-24 border border-gray-200 rounded-lg px-3 py-2 text-sm
+                             focus:outline-none focus:ring-2 focus:ring-brand-300"
+                />
+                <button
+                  type="button"
+                  onClick={() => supprimerVariante(i)}
+                  className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={ajouterVariante}
+              className="flex items-center gap-1.5 text-xs font-semibold text-brand-500
+                         hover:text-brand-600 mt-1"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Ajouter une variante
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Disponible */}
@@ -512,6 +594,7 @@ export default function Menu() {
         imageUrl:         donnees.imageUrl,
         disponible:       donnees.disponible,
         tempsPreparation: donnees.tempsPreparation,
+        variantes:        donnees.variantes ?? null,
       })
       if (error) { toast.error('Erreur : ' + error); return }
       setItems(its => [...its, data])
@@ -525,6 +608,7 @@ export default function Menu() {
         image_url:         donnees.imageUrl,
         disponible:        donnees.disponible,
         temps_preparation: donnees.tempsPreparation,
+        variantes:         donnees.variantes ?? null,
       })
       if (error) { toast.error('Erreur : ' + error); return }
       setItems(its => its.map(x => x.id === data.id ? data : x))

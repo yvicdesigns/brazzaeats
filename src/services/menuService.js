@@ -107,6 +107,7 @@ export async function createMenuItem({
   imageUrl     = null,
   disponible   = true,
   tempsPreparation = 15,
+  variantes    = null,  // [{ nom: 'Petit', prix: 2000 }, { nom: 'Grand', prix: 3500 }]
 }) {
   try {
     const { data, error } = await supabase
@@ -120,6 +121,7 @@ export async function createMenuItem({
         image_url:         imageUrl,
         disponible,
         temps_preparation: tempsPreparation,
+        variantes:         variantes && variantes.length > 0 ? variantes : null,
       })
       .select()
       .single()
