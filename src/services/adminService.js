@@ -221,29 +221,32 @@ export async function updateCommissionRate(id, commissionRate) {
  *   3. Insère le restaurant en statut 'en_attente'
  */
 export async function createRestaurant({ nom, adresse, telephone, motDePasse, commissionRate = 10 }) {
+  if (!supabaseAdmin) {
+    return { data: null, error: 'Clé service_role manquante (VITE_SUPABASE_SERVICE_KEY)' }
+  }
   try {
     const email = `p${telephone.replace(/[^0-9]/g, '')}@brazzaeats.local`
 
-    // 1. Créer le compte auth via Admin API (service role requis côté Supabase Edge Function)
-    // Fallback : signUp classique (email non confirmé, statut en_attente protège quand même)
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    // 1. Créer le compte auth via Admin API — ne change PAS la session admin courante
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
-      password: motDePasse,
-      options: { data: { nom, telephone, role: 'restaurant' } },
+      password:      motDePasse,
+      email_confirm: true,  // pas besoin de vérification email
+      user_metadata: { nom, telephone, role: 'restaurant' },
     })
     if (authError) throw authError
 
     const userId = authData.user?.id
     if (!userId) throw new Error('Impossible de créer le compte')
 
-    // 2. Upsert profil
-    const { error: profileError } = await supabase
+    // 2. Upsert profil (via supabaseAdmin pour bypasser RLS)
+    const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .upsert({ id: userId, nom, telephone, role: 'restaurant' }, { onConflict: 'id' })
     if (profileError) throw profileError
 
     // 3. Créer le restaurant en statut en_attente
-    const { data: resto, error: restoError } = await supabase
+    const { data: resto, error: restoError } = await supabaseAdmin
       .from('restaurants')
       .insert({
         owner_id:        userId,
