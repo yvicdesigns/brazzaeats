@@ -218,9 +218,6 @@ export default function Home() {
 
   const modeRecherche = search.trim() !== '' || noteMin > 0 || ouvertMaintenant
 
-  // Écran sélection ville au premier lancement
-  if (!ville) return <SelectVille onSelect={setVille} />
-
   // ── Surveillance réseau ───────────────────────────────────
   useEffect(() => {
     const goOnline  = () => { setIsOffline(false); toast.success('Connexion rétablie') }
@@ -235,6 +232,7 @@ export default function Home() {
 
   // ── Chargement initial (restaurants de la ville sélectionnée) ──
   useEffect(() => {
+    if (!ville) return
     let cancelled = false
     const charger = async () => {
       setLoading(true)
@@ -247,6 +245,9 @@ export default function Home() {
     charger()
     return () => { cancelled = true }
   }, [ville])
+
+  // Écran sélection ville — affiché après tous les hooks
+  if (!ville) return <SelectVille onSelect={setVille} />
 
   // ── Sections thématiques (calculées côté client) ──────────
   const sections = useMemo(() => {
