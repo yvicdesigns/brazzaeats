@@ -179,6 +179,7 @@ function FormulaireItem({ item, categories, restaurantId, onSave, onClose }) {
   })
   const [variantes,     setVariantes]     = useState(item?.variantes ?? [])
   const [hasVariantes,  setHasVariantes]  = useState((item?.variantes ?? []).length > 0)
+  const [isBoisson,     setIsBoisson]     = useState((item?.temps_preparation ?? 15) === 0)
   const [saving,        setSaving]        = useState(false)
 
   function set(key, val) { setForm(f => ({ ...f, [key]: val })) }
@@ -212,7 +213,7 @@ function FormulaireItem({ item, categories, restaurantId, onSave, onClose }) {
       description:      form.description.trim() || null,
       prix,
       categorieId:      form.categorieId,
-      tempsPreparation: Number(form.tempsPreparation) || 15,
+      tempsPreparation: isBoisson ? 0 : (Number(form.tempsPreparation) || 15),
       disponible:       form.disponible,
       imageUrl:         form.imageUrl,
       variantes:        hasVariantes
@@ -263,7 +264,7 @@ function FormulaireItem({ item, categories, restaurantId, onSave, onClose }) {
       </div>
 
       {/* Prix + Temps préparation */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className={`grid gap-3 ${isBoisson ? 'grid-cols-1' : 'grid-cols-2'}`}>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Prix (FCFA) *</label>
           <input
@@ -273,16 +274,32 @@ function FormulaireItem({ item, categories, restaurantId, onSave, onClose }) {
                        focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
+        {!isBoisson && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Temps (min)</label>
+            <input
+              type="number" value={form.tempsPreparation}
+              onChange={e => set('tempsPreparation', e.target.value)}
+              min={1} max={120} step={5}
+              className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-400"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Boisson */}
+      <div className="flex items-center justify-between">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Temps (min)</label>
-          <input
-            type="number" value={form.tempsPreparation}
-            onChange={e => set('tempsPreparation', e.target.value)}
-            min={1} max={120} step={5}
-            className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm
-                       focus:outline-none focus:ring-2 focus:ring-brand-400"
-          />
+          <p className="text-sm font-medium text-gray-700">C'est une boisson</p>
+          <p className="text-xs text-gray-400">Pas de temps de préparation</p>
         </div>
+        <button type="button" onClick={() => setIsBoisson(v => !v)} className="text-brand-500">
+          {isBoisson
+            ? <ToggleRight className="w-8 h-8" />
+            : <ToggleLeft  className="w-8 h-8 text-gray-400" />
+          }
+        </button>
       </div>
 
       {/* ── Variantes (tailles / formats) ─────────────────── */}

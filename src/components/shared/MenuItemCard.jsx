@@ -364,7 +364,7 @@ export default function MenuItemCard({ item, restaurantId, restaurantNom }) {
               <p className="text-xs text-orange-500 font-medium mt-1">
                 {labelHoraires(item.horaires)}
               </p>
-            ) : item.temps_preparation ? (
+            ) : item.temps_preparation > 0 ? (
               <p className="text-gray-400 text-xs mt-1">⏱ {item.temps_preparation} min</p>
             ) : null}
           </div>
