@@ -66,44 +66,81 @@ export async function deletePromotion(id) {
 
 /**
  * Valide un code promo pour un restaurant + montant donné.
- * Vérifie : actif, dans les dates, et limite d'utilisation non atteinte.
+ * Cherche d'abord dans les promos restaurant, puis dans les codes plateforme.
  * @param {string} code
  * @param {string} restaurantId
  * @param {number} sousTotal — montant avant remise (FCFA)
  */
 export async function validatePromoCode(code, restaurantId, sousTotal) {
+  const codeNorm = code.trim().toUpperCase()
   try {
-    const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+    const today = new Date().toISOString().slice(0, 10)
 
-    const { data, error } = await supabase
+    // 1. Chercher dans les promos restaurant
+    const { data: restoPromo } = await supabase
       .from('promotions')
       .select('*')
-      .eq('code', code.trim().toUpperCase())
+      .eq('code', codeNorm)
       .eq('restaurant_id', restaurantId)
       .eq('actif', true)
       .lte('date_debut', today)
       .gte('date_fin',   today)
       .maybeSingle()
 
-    if (error) throw error
-    if (!data) return { promo: null, remise: 0, error: 'Code invalide ou expiré' }
-
-    // Vérification de la limite d'utilisation
-    if (data.usage_limit !== null && data.usage_limit !== undefined) {
-      const utilisations = data.nb_utilisations ?? 0
-      if (utilisations >= data.usage_limit) {
-        return { promo: null, remise: 0, error: 'Ce code a atteint sa limite d\'utilisation' }
+    if (restoPromo) {
+      if (restoPromo.usage_limit !== null && restoPromo.usage_limit !== undefined) {
+        if ((restoPromo.nb_utilisations ?? 0) >= restoPromo.usage_limit) {
+          return { promo: null, remise: 0, error: "Ce code a atteint sa limite d'utilisation" }
+        }
       }
+      const remise = restoPromo.type === 'pourcentage'
+        ? Math.round(sousTotal * restoPromo.valeur / 100)
+        : Math.min(restoPromo.valeur, sousTotal)
+      return { promo: { ...restoPromo, _source: 'restaurant' }, remise, error: null }
     }
 
-    const remise = data.type === 'pourcentage'
-      ? Math.round(sousTotal * data.valeur / 100)
-      : Math.min(data.valeur, sousTotal)
+    // 2. Chercher dans les codes plateforme (admin)
+    const { data: platPromo, error: platError } = await supabase
+      .from('promo_codes')
+      .select('*')
+      .eq('code', codeNorm)
+      .eq('actif', true)
+      .maybeSingle()
 
-    return { promo: data, remise, error: null }
+    if (platError) throw platError
+
+    if (!platPromo) return { promo: null, remise: 0, error: 'Code invalide ou expiré' }
+
+    if (platPromo.date_expiration && new Date(platPromo.date_expiration) < new Date()) {
+      return { promo: null, remise: 0, error: 'Code expiré' }
+    }
+    if (platPromo.max_utilisations !== null && platPromo.utilisations >= platPromo.max_utilisations) {
+      return { promo: null, remise: 0, error: "Ce code a atteint sa limite d'utilisation" }
+    }
+    if (platPromo.min_commande > 0 && sousTotal < platPromo.min_commande) {
+      return { promo: null, remise: 0, error: `Commande minimum : ${platPromo.min_commande} FCFA` }
+    }
+
+    const remise = platPromo.type === 'pourcentage'
+      ? Math.round(sousTotal * platPromo.valeur / 100)
+      : platPromo.type === 'livraison_gratuite'
+        ? 0  // géré côté checkout sur fraisLivraison
+        : Math.min(platPromo.valeur, sousTotal)
+
+    return { promo: { ...platPromo, _source: 'platform' }, remise, error: null }
   } catch (err) {
     return { promo: null, remise: 0, error: err.message }
   }
+}
+
+/**
+ * Incrémente le compteur d'utilisations d'un code plateforme.
+ * Appelé après création réussie d'une commande.
+ */
+export async function incrementPlatformPromoUsage(code) {
+  try {
+    await supabase.rpc('utiliser_promo', { p_code: code })
+  } catch (_) { /* best-effort */ }
 }
 
 /**

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, Lock, AtSign } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -17,7 +17,7 @@ const REDIRECT_PAR_ROLE = {
 // ══════════════════════════════════════════════════════════
 export default function Login() {
   const navigate = useNavigate()
-  const { login, resetPassword } = useAuth()
+  const { login, resetPassword, user, role, loading: authLoading } = useAuth()
 
   const [identifier,    setIdentifier]    = useState('')
   const [password,      setPassword]      = useState('')
@@ -26,32 +26,49 @@ export default function Login() {
   const [resetEnCours,  setResetEnCours]  = useState(false)
   const [resetId,       setResetId]       = useState('')
 
+  // Rediriger si déjà connecté
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate(REDIRECT_PAR_ROLE[role ?? 'client'] ?? '/', { replace: true })
+    }
+  }, [user, role, authLoading, navigate])
+
   // ── Connexion ──────────────────────────────────────────
   async function handleSubmit(e) {
     e.preventDefault()
     if (!identifier.trim() || !password) return
 
     setSubmitting(true)
-    const { data, error } = await login(identifier.trim(), password)
-    setSubmitting(false)
+    try {
+      // Timeout 15s pour éviter un spinner infini si Supabase ne répond pas
+      const loginPromise = login(identifier.trim(), password)
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Délai dépassé, réessayez')), 15000)
+      )
+      const { error } = await Promise.race([loginPromise, timeoutPromise])
 
-    if (error) {
-      const msg = error.message?.includes('Invalid login credentials')
-        ? 'Identifiant ou mot de passe incorrect'
-        : error.message?.includes('Email not confirmed')
-          ? 'Compte non confirmé'
-          : error.message ?? 'Erreur de connexion'
-      toast.error(msg)
-      return
-    }
+      if (error) {
+        const msg = error.message?.includes('Invalid login credentials')
+          ? 'Identifiant ou mot de passe incorrect'
+          : error.message?.includes('Email not confirmed')
+            ? 'Compte non confirmé — vérifiez vos emails'
+            : error.message ?? 'Erreur de connexion'
+        toast.error(msg)
+        return
+      }
 
-    // Attendre que le profil soit chargé
-    let role = useAuthStore.getState().role
-    if (!role) {
-      await new Promise(r => setTimeout(r, 600))
-      role = useAuthStore.getState().role
+      // Attendre que le profil soit chargé (max 2s)
+      let role = useAuthStore.getState().role
+      for (let i = 0; i < 4 && !role; i++) {
+        await new Promise(r => setTimeout(r, 500))
+        role = useAuthStore.getState().role
+      }
+      navigate(REDIRECT_PAR_ROLE[role ?? 'client'] ?? '/', { replace: true })
+    } catch (err) {
+      toast.error(err.message ?? 'Erreur de connexion')
+    } finally {
+      setSubmitting(false)
     }
-    navigate(REDIRECT_PAR_ROLE[role ?? 'client'] ?? '/', { replace: true })
   }
 
   // ── Réinitialisation mot de passe ──────────────────────

@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react'
-import { Users, Search, UserX, UserCheck, Loader2, ChevronDown } from 'lucide-react'
+import { Users, Search, UserX, UserCheck, Loader2, ChevronDown, Wallet, X } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { getAllUsers, toggleUserActive } from '@/services/adminService'
+import { getAllUsers, toggleUserActive, crediterSoldeClient } from '@/services/adminService'
+import { formatCurrency } from '@/utils/formatCurrency'
 import { ROLES } from '@/utils/constants'
 
 // ── Onglets par rôle ───────────────────────────────────────
 const ONGLETS = [
-  { key: 'client',      label: 'Clients'     },
-  { key: 'livreur',     label: 'Livreurs'    },
-  { key: 'restaurant',  label: 'Restaurants' },
+  { key: 'client',     label: 'Clients'     },
+  { key: 'restaurant', label: 'Restaurants' },
 ]
 
 // ── Formatage date ─────────────────────────────────────────
@@ -29,15 +29,82 @@ function Avatar({ nom, actif }) {
   )
 }
 
+// ── Modal crédit solde ─────────────────────────────────────
+function ModalCreditSolde({ utilisateur, onClose, onSuccess }) {
+  const [montant,  setMontant]  = useState('')
+  const [saving,   setSaving]   = useState(false)
+
+  async function handleCrediter() {
+    const val = parseInt(montant, 10)
+    if (!val || val <= 0) { toast.error('Montant invalide'); return }
+    setSaving(true)
+    const { error } = await crediterSoldeClient(utilisateur.id, val)
+    setSaving(false)
+    if (error) { toast.error('Erreur : ' + error); return }
+    toast.success(`${formatCurrency(val)} crédités à ${utilisateur.nom}`)
+    onSuccess(val)
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl p-6 w-full max-w-sm mx-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-gray-900">Créditer le solde</h3>
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg">
+            <X className="w-4 h-4 text-gray-500" />
+          </button>
+        </div>
+        <p className="text-sm text-gray-500 mb-4">
+          Client : <span className="font-semibold text-gray-800">{utilisateur.nom}</span>
+        </p>
+        <div>
+          <label className="text-xs text-gray-500 font-medium">Montant à créditer (FCFA)</label>
+          <input
+            type="number"
+            value={montant}
+            onChange={e => setMontant(e.target.value)}
+            placeholder="ex : 2000"
+            min={1}
+            className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                       focus:outline-none focus:ring-2 focus:ring-brand-300"
+            autoFocus
+          />
+        </div>
+        <div className="flex gap-3 mt-4">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-semibold"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={handleCrediter}
+            disabled={saving || !montant}
+            className="flex-1 py-2.5 rounded-xl bg-green-500 text-white text-sm font-bold
+                       disabled:opacity-40 flex items-center justify-center gap-2"
+          >
+            {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            Créditer
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Ligne utilisateur avec détail déroulant ────────────────
-function LigneUtilisateur({ utilisateur, onToggle, loading }) {
-  const [ouvert, setOuvert] = useState(false)
+function LigneUtilisateur({ utilisateur, onToggle, loading, onglet }) {
+  const [ouvert,      setOuvert]      = useState(false)
+  const [modalSolde,  setModalSolde]  = useState(false)
+  const [solde,       setSolde]       = useState(utilisateur.solde ?? 0)
 
   return (
     <div className="border-t border-gray-50 first:border-0">
       {/* Ligne principale */}
       <button
         onClick={() => setOuvert(o => !o)}
+
         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
       >
         <Avatar nom={utilisateur.nom} actif={utilisateur.actif} />
@@ -83,6 +150,24 @@ function LigneUtilisateur({ utilisateur, onToggle, loading }) {
               <span className="font-medium text-gray-500">ID :</span> {utilisateur.id}
             </p>
 
+            {/* Créditer solde — clients uniquement */}
+            {onglet === 'client' && (
+              <button
+                onClick={() => setModalSolde(true)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl
+                           bg-green-50 border border-green-200 text-green-700 text-xs font-bold
+                           hover:bg-green-100 transition-colors min-h-[44px]"
+              >
+                <Wallet className="w-3.5 h-3.5" />
+                Créditer solde
+                {solde > 0 && (
+                  <span className="text-green-500 font-normal">
+                    (actuel : {formatCurrency(solde)})
+                  </span>
+                )}
+              </button>
+            )}
+
             {/* Action activer / désactiver */}
             <button
               onClick={() => onToggle(utilisateur.id, !utilisateur.actif)}
@@ -104,6 +189,14 @@ function LigneUtilisateur({ utilisateur, onToggle, loading }) {
             </button>
           </div>
         </div>
+      )}
+
+      {modalSolde && (
+        <ModalCreditSolde
+          utilisateur={utilisateur}
+          onClose={() => setModalSolde(false)}
+          onSuccess={val => setSolde(s => s + val)}
+        />
       )}
     </div>
   )
@@ -222,12 +315,14 @@ export default function AdminUsers() {
                   utilisateur={u}
                   onToggle={handleToggle}
                   loading={actionLoadingId === u.id}
+                  onglet={onglet}
                 />
               ))}
             </div>
           )
         }
       </div>
+
     </div>
   )
 }

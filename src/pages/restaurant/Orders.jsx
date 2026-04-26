@@ -24,8 +24,7 @@ const TRANSITIONS = {
     { statut: 'prête', label: 'Marquer prête', Icon: Package, classe: 'bg-purple-500 hover:bg-purple-600' },
   ],
   prête: [
-    { statut: 'en_livraison', label: 'Confier au livreur', Icon: Bike,  classe: 'bg-orange-500 hover:bg-orange-600' },
-    { statut: 'livrée',       label: 'Marquer livrée',     Icon: Check, classe: 'bg-green-500  hover:bg-green-600'  },
+    { statut: 'livrée', label: 'Marquer livrée', Icon: Check, classe: 'bg-green-500 hover:bg-green-600' },
   ],
   en_livraison: [
     { statut: 'livrée', label: 'Marquer livrée', Icon: Check, classe: 'bg-green-500 hover:bg-green-600' },

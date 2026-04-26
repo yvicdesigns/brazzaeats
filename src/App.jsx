@@ -1,13 +1,13 @@
 // Routeur principal React Router v6 — toutes les routes + PrivateRoute par rôle
 
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useNavigate } from 'react-router-dom'
-import { Loader2, LayoutDashboard, Bike, History, ShieldAlert } from 'lucide-react'
-import { NavLink } from 'react-router-dom'
+import { Loader2, ShieldAlert } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import Navbar           from '@/components/layout/Navbar'
 import BottomNav        from '@/components/layout/BottomNav'
 import Sidebar          from '@/components/layout/Sidebar'
 import RestaurantLayout from '@/components/layout/RestaurantLayout'
+import LivreurLayout    from '@/components/layout/LivreurLayout'
 import InstallBanner    from '@/components/ui/InstallBanner'
 
 // ── Pages Auth ─────────────────────────────────────────────
@@ -40,7 +40,13 @@ import LivreurHistory   from '@/pages/livreur/History'
 // ── Pages Admin ────────────────────────────────────────────
 import AdminDashboard    from '@/pages/admin/Dashboard'
 import AdminRestaurants  from '@/pages/admin/Restaurants'
+import AdminLivreurs     from '@/pages/admin/Livreurs'
 import AdminUsers        from '@/pages/admin/Users'
+import AdminVersements   from '@/pages/admin/Versements'
+import AdminAvis         from '@/pages/admin/Avis'
+import AdminCommandes    from '@/pages/admin/Commandes'
+import AdminPromos       from '@/pages/admin/Promos'
+import AdminHistorique   from '@/pages/admin/Historique'
 import AdminSettings     from '@/pages/admin/Settings'
 
 // ── Écran de chargement plein écran ───────────────────────
@@ -121,52 +127,6 @@ function ClientLayout() {
   )
 }
 
-// ── Navigation mobile livreur (3 onglets) ─────────────────
-const NAV_LIVREUR = [
-  { to: '/livreur/dashboard',  label: 'Dashboard',  Icon: LayoutDashboard },
-  { to: '/livreur/disponible', label: 'Disponibles', Icon: Bike            },
-  { to: '/livreur/historique', label: 'Historique',  Icon: History         },
-]
-
-function LivreurBottomNav() {
-  return (
-    <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-200
-                    shadow-bottom z-40 pb-safe">
-      <div className="flex h-16">
-        {NAV_LIVREUR.map(({ to, label, Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              `flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors
-               ${isActive ? 'text-brand-500' : 'text-gray-400'}`
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <Icon className="w-6 h-6" strokeWidth={isActive ? 2.5 : 1.8} />
-                <span className="text-[10px] font-medium leading-none">{label}</span>
-              </>
-            )}
-          </NavLink>
-        ))}
-      </div>
-    </nav>
-  )
-}
-
-// ── Layout espace livreur (Sidebar desktop + nav mobile) ──
-function LivreurLayout() {
-  return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar />
-      <main className="flex-1 md:ml-56 pb-20 md:pb-0">
-        <Outlet />
-      </main>
-      <LivreurBottomNav />
-    </div>
-  )
-}
 
 // ── Layout espace admin (Sidebar desktop uniquement) ──────
 function AdminLayout() {
@@ -236,7 +196,13 @@ export default function App() {
           <Route element={<AdminLayout />}>
             <Route path="/admin/dashboard"    element={<AdminDashboard />} />
             <Route path="/admin/restaurants"  element={<AdminRestaurants />} />
+            <Route path="/admin/livreurs"     element={<AdminLivreurs />} />
             <Route path="/admin/utilisateurs" element={<AdminUsers />} />
+            <Route path="/admin/commandes"    element={<AdminCommandes />} />
+            <Route path="/admin/promos"       element={<AdminPromos />} />
+            <Route path="/admin/historique"   element={<AdminHistorique />} />
+            <Route path="/admin/versements"   element={<AdminVersements />} />
+            <Route path="/admin/avis"         element={<AdminAvis />} />
             <Route path="/admin/parametres"   element={<AdminSettings />} />
           </Route>
         </Route>

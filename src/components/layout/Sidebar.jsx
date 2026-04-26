@@ -3,7 +3,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Bike, History, Settings,
-  Users, Store, LogOut, ChevronRight,
+  Users, Store, LogOut, ChevronRight, Wallet, Star, ShoppingBag, Tag, CalendarRange,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -16,8 +16,14 @@ const NAV_PAR_ROLE = {
   ],
   admin: [
     { to: '/admin/dashboard',    label: 'Dashboard',    Icon: LayoutDashboard },
+    { to: '/admin/commandes',    label: 'Commandes',    Icon: ShoppingBag     },
+    { to: '/admin/historique',   label: 'Historique',   Icon: CalendarRange   },
     { to: '/admin/restaurants',  label: 'Restaurants',  Icon: Store           },
+    { to: '/admin/livreurs',     label: 'Livreurs',     Icon: Bike            },
     { to: '/admin/utilisateurs', label: 'Utilisateurs', Icon: Users           },
+    { to: '/admin/promos',       label: 'Promos',       Icon: Tag             },
+    { to: '/admin/versements',   label: 'Versements',   Icon: Wallet          },
+    { to: '/admin/avis',         label: 'Avis',         Icon: Star            },
     { to: '/admin/parametres',   label: 'Paramètres',   Icon: Settings        },
   ],
 }

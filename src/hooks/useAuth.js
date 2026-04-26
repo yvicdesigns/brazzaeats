@@ -32,35 +32,41 @@ const useAuthStore = create((set, get) => ({
       return phoneToFakeEmail(s)
     }
 
-    // Username → chercher le téléphone dans profiles
-    const { data } = await supabase
+    // Username → chercher le téléphone dans profiles (insensible à la casse)
+    const { data, error } = await supabase
       .from('profiles')
       .select('telephone')
-      .eq('username', s)
+      .ilike('username', s)
       .maybeSingle()
 
+    if (error) console.error('[Auth] Erreur lookup username :', error.message)
     if (data?.telephone) return phoneToFakeEmail(data.telephone)
 
+    console.warn('[Auth] Username introuvable :', s)
     // Dernier recours : retourner tel quel
     return s
   },
 
   // ── Chargement du profil depuis la table profiles ───────
   _fetchProfile: async (userId) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
+    // Retry jusqu'à 3 fois (race condition à l'inscription)
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, 600))
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle()
 
-      if (error) throw error
-
-      set({ profile: data, role: data.role })
-    } catch (err) {
-      console.error('[useAuth] Erreur chargement profil :', err.message)
-      set({ profile: null, role: null })
+        if (error) { console.error('[useAuth] Erreur profil :', error.message); break }
+        if (data) { set({ profile: data, role: data.role }); return }
+      } catch (err) {
+        console.error('[useAuth] Erreur profil :', err.message)
+        break
+      }
     }
+    set({ profile: null, role: null })
   },
 
   // ── Connexion : email, téléphone ou username ────────────
@@ -68,8 +74,13 @@ const useAuthStore = create((set, get) => ({
     set({ error: null })
     try {
       const email = await get()._resolveIdentifier(identifier)
+      console.log('[Auth] Tentative connexion avec email résolu :', email)
       const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) throw error
+      if (error) {
+        console.error('[Auth] Erreur Supabase :', error.message, error.status)
+        throw error
+      }
+      console.log('[Auth] Connexion réussie, userId :', data.user?.id)
       return { data, error: null }
     } catch (err) {
       set({ error: err.message })

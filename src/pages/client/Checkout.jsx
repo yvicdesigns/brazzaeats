@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { ArrowLeft, MapPin, Check, Loader2, Tag, X } from 'lucide-react'
+import { ArrowLeft, MapPin, Check, Loader2, Tag, X, Gift, Wallet } from 'lucide-react'
 import toast from 'react-hot-toast'
 import useCart, { useCartTempsPrep } from '@/hooks/useCart'
 import { useAuth } from '@/hooks/useAuth'
@@ -11,6 +11,21 @@ import { createOrder } from '@/services/orderService'
 import { validatePromoCode } from '@/services/promotionService'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { QUARTIERS_BRAZZAVILLE, TARIFS } from '@/utils/constants'
+
+// ── Avantages par niveau de fidélité ──────────────────────
+const AVANTAGES_TIER = {
+  Bronze:  { remisePct: 0,  label: null },
+  Argent:  { remisePct: 0,  label: null },
+  Or:      { remisePct: 5,  label: '🥇 Avantage Or — 5% de réduction' },
+  Platine: { remisePct: 10, label: '💎 Avantage Platine — 10% de réduction' },
+}
+
+function getTierNom(points) {
+  if (points >= 2000) return 'Platine'
+  if (points >= 1000) return 'Or'
+  if (points >= 500)  return 'Argent'
+  return 'Bronze'
+}
 
 // ── Validation Zod ─────────────────────────────────────────
 const schema = z
@@ -141,7 +156,7 @@ function ModalMobileMoney({ operateur, montant, telephone, onSuccess, onClose })
 // ══════════════════════════════════════════════════════════
 export default function Checkout() {
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const { items, restaurantId, clearCart } = useCart()
   const tempsPrep = useCartTempsPrep()
 
@@ -161,16 +176,30 @@ export default function Checkout() {
   const [codeInput,      setCodeInput]      = useState('')
   const [promoApplied,   setPromoApplied]   = useState(null) // { promo, remise }
   const [validating,     setValidating]     = useState(false)
+  const [utiliserSolde,  setUtiliserSolde]  = useState(false)
 
   const type         = watch('type')
   const modePaiement = watch('modePaiement')
   const operateur    = watch('operateur')
   const telephone    = watch('telephone')
 
-  const sousTotal      = items.reduce((s, i) => s + i.prix * i.quantite, 0)
-  const fraisLivraison = type === 'retrait' ? 0 : TARIFS.FRAIS_LIVRAISON_BASE
-  const remise         = promoApplied?.remise ?? 0
-  const total          = sousTotal + fraisLivraison - remise
+  const sousTotal         = items.reduce((s, i) => s + i.prix * i.quantite, 0)
+  const livraisonGratuite = promoApplied?.promo?._source === 'platform' && promoApplied?.promo?.type === 'livraison_gratuite'
+  const fraisLivraison    = type === 'retrait' ? 0 : (livraisonGratuite ? 0 : TARIFS.FRAIS_LIVRAISON_BASE)
+  const remise            = promoApplied?.remise ?? 0
+
+  // Remise fidélité (Or = 5%, Platine = 10%)
+  const tierNom        = getTierNom(profile?.points_fidelite ?? 0)
+  const avantage       = AVANTAGES_TIER[tierNom]
+  const remiseFidelite = avantage.remisePct > 0
+    ? Math.round(sousTotal * avantage.remisePct / 100)
+    : 0
+
+  // Solde disponible et montant utilisé
+  const soldeDisponible = profile?.solde ?? 0
+  const totalAvantSolde = Math.max(0, sousTotal + fraisLivraison - remise - remiseFidelite)
+  const soldeUtilise    = utiliserSolde ? Math.min(soldeDisponible, totalAvantSolde) : 0
+  const total           = Math.max(0, totalAvantSolde - soldeUtilise)
 
   async function appliquerCode() {
     const code = codeInput.trim().toUpperCase()
@@ -236,9 +265,13 @@ export default function Checkout() {
       adresseLivraison,
       notes:            donnees.notes?.trim() || null,
       fraisLivraison,
-      remise,
+      remise:           remise + remiseFidelite,
+      soldeUtilise,
+      livraisonGratuite,
       promoId:          promoApplied?.promo?.id ?? null,
       promoNbActuel:    promoApplied?.promo?.nb_utilisations ?? 0,
+      promoSource:      promoApplied?.promo?._source ?? 'restaurant',
+      promoCode:        promoApplied?.promo?.code ?? null,
     }
 
     if (donnees.modePaiement === 'mobile_money') {
@@ -426,6 +459,44 @@ export default function Checkout() {
           />
         </div>
 
+        {/* ── Mon solde ────────────────────────────────── */}
+        {soldeDisponible > 0 && (
+          <div className="bg-white rounded-xl p-4 shadow-sm">
+            <label className="flex items-center justify-between cursor-pointer gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-green-100 rounded-xl flex items-center justify-center shrink-0">
+                  <Wallet className="w-4 h-4 text-green-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-800 text-sm">Utiliser mon solde</p>
+                  <p className="text-xs text-green-600 font-semibold mt-0.5">
+                    {formatCurrency(soldeDisponible)} disponibles
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUtiliserSolde(v => !v)}
+                className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${
+                  utiliserSolde ? 'bg-green-500' : 'bg-gray-200'
+                }`}
+              >
+                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                  utiliserSolde ? 'translate-x-6' : 'translate-x-0.5'
+                }`} />
+              </button>
+            </label>
+            {utiliserSolde && (
+              <div className="mt-3 bg-green-50 rounded-xl px-3 py-2 text-xs text-green-700 font-medium">
+                {soldeUtilise >= totalAvantSolde
+                  ? `✓ Commande entièrement couverte par votre solde`
+                  : `✓ ${formatCurrency(soldeUtilise)} déduits — reste ${formatCurrency(total)} à payer`
+                }
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── Code promo ───────────────────────────────── */}
         <div className="bg-white rounded-xl p-4 shadow-sm">
           <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
@@ -479,10 +550,30 @@ export default function Checkout() {
           ))}
           <div className="border-t border-gray-100 pt-2 flex justify-between text-sm text-gray-500">
             <span>Frais de livraison</span>
-            <span className="tabular-nums">
-              {type === 'retrait' ? 'Gratuit' : formatCurrency(fraisLivraison)}
+            <span className={`tabular-nums ${livraisonGratuite ? 'line-through' : ''}`}>
+              {type === 'retrait' ? 'Gratuit' : livraisonGratuite ? (
+                <span className="text-green-600 font-semibold no-underline not-italic">Offerts 🎉</span>
+              ) : formatCurrency(fraisLivraison)}
             </span>
           </div>
+          {soldeUtilise > 0 && (
+            <div className="flex justify-between text-sm text-green-600 font-medium">
+              <span className="flex items-center gap-1">
+                <Wallet className="w-3.5 h-3.5" />
+                Mon solde
+              </span>
+              <span className="tabular-nums">−{formatCurrency(soldeUtilise)}</span>
+            </div>
+          )}
+          {remiseFidelite > 0 && (
+            <div className="flex justify-between text-sm text-yellow-600 font-medium">
+              <span className="flex items-center gap-1">
+                <Gift className="w-3.5 h-3.5" />
+                {avantage.label}
+              </span>
+              <span className="tabular-nums">−{formatCurrency(remiseFidelite)}</span>
+            </div>
+          )}
           {remise > 0 && (
             <div className="flex justify-between text-sm text-green-600 font-medium">
               <span>Code promo ({promoApplied.promo.code})</span>

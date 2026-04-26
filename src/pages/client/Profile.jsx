@@ -7,6 +7,7 @@ import {
   User, Phone, MapPin, ShoppingBag, MessageSquare, Gift,
   Wallet, Share2, ChevronRight, Plus, Trash2, Star,
   Camera, Check, Edit2, LogOut, Loader2, Home, Briefcase,
+  Utensils, ArrowRight, TrendingUp,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/hooks/useAuth'
@@ -34,6 +35,18 @@ function getTier(points) {
   return TIERS.find(t => points >= t.min && points <= t.max) ?? TIERS[0]
 }
 
+// ── Temps relatif ─────────────────────────────────────────
+function tempsDepuis(isoDate) {
+  if (!isoDate) return null
+  const jours = Math.floor((Date.now() - new Date(isoDate).getTime()) / 86400000)
+  if (jours === 0) return "aujourd'hui"
+  if (jours === 1) return 'hier'
+  if (jours < 7) return `il y a ${jours} j`
+  if (jours < 30) return `il y a ${Math.floor(jours / 7)} sem.`
+  if (jours < 365) return `il y a ${Math.floor(jours / 30)} mois`
+  return `il y a plus d'un an`
+}
+
 // ── Recadrage photo ───────────────────────────────────────
 const CROP_SIZE = 260
 
@@ -58,7 +71,6 @@ function CropModal({ imageUrl, onSave, onClose, saving }) {
     const y = (CROP_SIZE - h) / 2 + off.y
     ctx.drawImage(img, x, y, w, h)
 
-    // Masque sombre hors du cercle
     ctx.save()
     ctx.fillStyle = 'rgba(0,0,0,0.5)'
     ctx.fillRect(0, 0, CROP_SIZE, CROP_SIZE)
@@ -300,13 +312,13 @@ export default function Profile() {
   const [sectionAdresses,  setSectionAdresses]  = useState(false)
   const [adresses,         setAdresses]         = useState([])
   const [loadAdresses,     setLoadAdresses]     = useState(false)
-  const [formAdresse,      setFormAdresse]      = useState(null) // null | 'new' | objet adresse
+  const [formAdresse,      setFormAdresse]      = useState(null)
 
   // ── Messages ─────────────────────────────────────────────
   const [sectionMessages,   setSectionMessages]   = useState(false)
   const [conversations,     setConversations]     = useState([])
   const [loadConversations, setLoadConversations] = useState(false)
-  const [chatOuvert,        setChatOuvert]        = useState(null) // { orderId, titreChat }
+  const [chatOuvert,        setChatOuvert]        = useState(null)
 
   // ── Fidélité ─────────────────────────────────────────────
   const [sectionFidelite, setSectionFidelite] = useState(false)
@@ -314,10 +326,61 @@ export default function Profile() {
   // ── Solde ────────────────────────────────────────────────
   const [sectionSolde, setSectionSolde] = useState(false)
 
+  // ── Stats commandes ──────────────────────────────────────
+  const [statsCommandes, setStatsCommandes] = useState({
+    total: 0,
+    derniereDate: null,
+    restaurantFavori: null,
+  })
+  const [statsChargees, setStatsChargees] = useState(false)
+
   const points = profile?.points_fidelite ?? 0
   const solde  = profile?.solde ?? 0
   const tier   = getTier(points)
   const tierSuivant = TIERS.find(t => t.min > points)
+
+  // ── Charger stats commandes au montage ───────────────────
+  useEffect(() => {
+    if (!user?.id) return
+    supabase
+      .from('orders')
+      .select('id, created_at, restaurant_id, restaurant:restaurants(id, nom)')
+      .eq('client_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50)
+      .then(({ data }) => {
+        if (!data?.length) { setStatsChargees(true); return }
+        const derniereDate = data[0].created_at
+        const counts = {}
+        data.forEach(o => {
+          if (o.restaurant_id) counts[o.restaurant_id] = (counts[o.restaurant_id] ?? 0) + 1
+        })
+        const favId = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0]
+        const restaurantFavori = data.find(o => o.restaurant_id === favId)?.restaurant ?? null
+        setStatsCommandes({ total: data.length, derniereDate, restaurantFavori })
+        setStatsChargees(true)
+      })
+      .catch(() => setStatsChargees(true))
+  }, [user?.id])
+
+  // ── Segmentation client ──────────────────────────────────
+  const joursDepuisCommande = statsCommandes.derniereDate
+    ? Math.floor((Date.now() - new Date(statsCommandes.derniereDate).getTime()) / 86400000)
+    : null
+
+  const clientStatut = (() => {
+    if (statsCommandes.total === 0)
+      return { label: 'Nouveau', bg: 'bg-blue-500/20', text: 'text-white', emoji: '👋' }
+    if (points >= 1000 || statsCommandes.total >= 20)
+      return { label: 'VIP', bg: 'bg-yellow-400/30', text: 'text-white', emoji: '⭐' }
+    if (statsCommandes.total >= 5)
+      return { label: 'Fidèle', bg: 'bg-green-500/20', text: 'text-white', emoji: '💚' }
+    return { label: 'Actif', bg: 'bg-white/20', text: 'text-white', emoji: '✓' }
+  })()
+
+  // Bannière d'activation : 0 commande ou inactif > 14 jours
+  const showBannerNouveauClient = statsCommandes.total === 0
+  const showBannerReactivation  = !showBannerNouveauClient && joursDepuisCommande !== null && joursDepuisCommande > 3
 
   // ── Charger adresses quand section ouvre ─────────────────
   useEffect(() => {
@@ -406,7 +469,6 @@ export default function Profile() {
     setSavingInfos(false)
   }
 
-  // Vérifie si l'email Supabase est un email interne généré
   const emailInterne = user?.email?.endsWith('@brazzaeats.local')
 
   // ── Sauvegarder adresse ──────────────────────────────────
@@ -500,15 +562,33 @@ export default function Profile() {
             {profile.username ? `@${profile.username}` : profile.telephone}
           </p>
 
-          <div className="mt-3 bg-white/20 backdrop-blur-sm rounded-full px-4 py-1.5 flex items-center gap-2">
-            <span className="text-base">{tier.emoji}</span>
-            <span className="text-white font-bold text-sm">Membre {tier.nom}</span>
+          {/* Badges tier + statut */}
+          <div className="mt-3 flex items-center gap-2 flex-wrap justify-center">
+            <div className="bg-white/20 backdrop-blur-sm rounded-full px-4 py-1.5 flex items-center gap-2">
+              <span className="text-base">{tier.emoji}</span>
+              <span className="text-white font-bold text-sm">Membre {tier.nom}</span>
+            </div>
+            <div className={`${clientStatut.bg} backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-1.5`}>
+              <span className="text-sm">{clientStatut.emoji}</span>
+              <span className={`${clientStatut.text} font-bold text-xs`}>{clientStatut.label}</span>
+            </div>
           </div>
+
+          {/* Dernière commande */}
+          {statsCommandes.derniereDate && (
+            <p className="text-white/50 text-xs mt-2">
+              Dernière commande {tempsDepuis(statsCommandes.derniereDate)}
+            </p>
+          )}
         </div>
       </div>
 
       {/* ── Stats ────────────────────────────────────────── */}
       <div className="mx-4 -mt-5 bg-white rounded-2xl shadow-md p-4 flex divide-x divide-gray-100">
+        <div className="flex-1 text-center px-2">
+          <p className="font-black text-2xl text-gray-800">{statsCommandes.total}</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">Commandes</p>
+        </div>
         <div className="flex-1 text-center px-2">
           <p className="font-black text-2xl text-brand-500">{points.toLocaleString()}</p>
           <p className="text-[11px] text-gray-400 mt-0.5">Points fidélité</p>
@@ -518,6 +598,74 @@ export default function Profile() {
           <p className="text-[11px] text-gray-400 mt-0.5">Mon solde</p>
         </div>
       </div>
+
+      {/* ── CTA boutons principaux ────────────────────────── */}
+      <div className="mx-4 mt-4 flex gap-3">
+        <Link
+          to="/"
+          className="flex-1 bg-brand-500 text-white rounded-2xl py-3.5 flex items-center
+                     justify-center gap-2 font-bold text-sm shadow-md active:scale-[0.97] transition-transform"
+        >
+          <Utensils className="w-4 h-4" />
+          Commander
+        </Link>
+        {statsCommandes.restaurantFavori ? (
+          <Link
+            to={`/restaurant/${statsCommandes.restaurantFavori.id}`}
+            className="flex-1 bg-white rounded-2xl py-3.5 flex items-center justify-center gap-2
+                       font-bold text-sm border border-gray-200 shadow-sm text-gray-700
+                       active:scale-[0.97] transition-transform min-w-0"
+          >
+            <Star className="w-4 h-4 text-yellow-500 shrink-0" />
+            <span className="truncate">{statsCommandes.restaurantFavori.nom}</span>
+          </Link>
+        ) : (
+          <Link
+            to="/mes-commandes"
+            className="flex-1 bg-white rounded-2xl py-3.5 flex items-center justify-center gap-2
+                       font-bold text-sm border border-gray-200 shadow-sm text-gray-700
+                       active:scale-[0.97] transition-transform"
+          >
+            <ShoppingBag className="w-4 h-4 text-purple-500" />
+            Commandes
+          </Link>
+        )}
+      </div>
+
+      {/* ── Bannière activation / réactivation ───────────── */}
+      {statsChargees && showBannerNouveauClient && (
+        <div className="mx-4 mt-4 bg-brand-500 rounded-2xl p-4 shadow-md">
+          <p className="text-white font-bold text-sm">Passez votre 1ère commande !</p>
+          <p className="text-white/80 text-xs mt-1">
+            Gagnez des points de bienvenue dès votre première commande.
+          </p>
+          <Link
+            to="/"
+            className="mt-3 inline-flex items-center gap-1.5 bg-white text-brand-600
+                       px-4 py-2 rounded-xl text-xs font-bold"
+          >
+            Découvrir les restaurants <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      )}
+
+      {statsChargees && showBannerReactivation && (
+        <div className="mx-4 mt-4 bg-amber-50 border border-amber-200 rounded-2xl p-4">
+          <p className="text-amber-800 font-bold text-sm">
+            {joursDepuisCommande > 30 ? 'Ça fait longtemps !' : 'On pense à vous !'}
+          </p>
+          <p className="text-amber-600 text-xs mt-1">
+            Dernière commande {tempsDepuis(statsCommandes.derniereDate)}. Vos restaurants favoris vous attendent.
+          </p>
+          <Link
+            to="/"
+            className="mt-3 inline-flex items-center gap-1.5 bg-amber-500 text-white
+                       px-4 py-2 rounded-xl text-xs font-bold"
+          >
+            Commander maintenant <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      )}
 
       {/* ── MON COMPTE ───────────────────────────────────── */}
       <div className="mx-4 mt-5">
@@ -675,7 +823,6 @@ export default function Profile() {
                   </div>
                 ))}
 
-                {/* Formulaire modification */}
                 {formAdresse && formAdresse !== 'new' && (
                   <div className="p-3 bg-white rounded-xl border border-brand-200">
                     <p className="text-sm font-semibold text-gray-800 mb-1">Modifier l'adresse</p>
@@ -687,7 +834,6 @@ export default function Profile() {
                   </div>
                 )}
 
-                {/* Formulaire nouvelle adresse */}
                 {formAdresse === 'new' && (
                   <div className="p-3 bg-white rounded-xl border border-brand-200">
                     <p className="text-sm font-semibold text-gray-800 mb-1">Nouvelle adresse</p>
@@ -730,7 +876,12 @@ export default function Profile() {
           </div>
           <div className="flex-1">
             <p className="font-semibold text-gray-900 text-sm">Mes commandes</p>
-            <p className="text-xs text-gray-400 mt-0.5">Voir mon historique</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {statsCommandes.total > 0
+                ? `${statsCommandes.total} commande${statsCommandes.total > 1 ? 's' : ''} passée${statsCommandes.total > 1 ? 's' : ''}`
+                : 'Voir mon historique'
+              }
+            </p>
           </div>
           <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
         </Link>
@@ -817,20 +968,38 @@ export default function Profile() {
             )}
           </div>
 
-          {/* Barre de progression vers niveau suivant */}
+          {/* Barre de progression + motivation */}
           {tierSuivant && (
             <div className="mt-4">
               <div className="flex justify-between text-xs text-gray-500 mb-1.5">
                 <span className="font-semibold">{tier.nom}</span>
                 <span className="font-semibold">{tierSuivant.nom}</span>
               </div>
-              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
                 <div
                   className={`h-full bg-gradient-to-r ${tier.gradient} rounded-full transition-all duration-500`}
                   style={{
                     width: `${Math.min(100, ((points - tier.min) / (tierSuivant.min - tier.min)) * 100)}%`,
                   }}
                 />
+              </div>
+              {/* Motivational nudge */}
+              <div className="mt-3 bg-brand-50 rounded-xl p-3 flex items-center gap-3">
+                <span className="text-2xl shrink-0">{tierSuivant.emoji}</span>
+                <div>
+                  <p className="text-xs font-bold text-brand-700">
+                    Plus que {(tierSuivant.min - points).toLocaleString()} pts pour {tierSuivant.nom} !
+                  </p>
+                  <p className="text-xs text-brand-500 mt-0.5">
+                    Continuez à commander pour débloquer plus d'avantages.
+                  </p>
+                </div>
+                <Link
+                  to="/"
+                  className="shrink-0 bg-brand-500 text-white text-xs font-bold px-3 py-1.5 rounded-xl"
+                >
+                  Commander
+                </Link>
               </div>
             </div>
           )}

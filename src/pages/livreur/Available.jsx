@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { MapPin, Clock, Loader2, RefreshCw, Navigation, Bike } from 'lucide-react'
+import { MapPin, Clock, Loader2, RefreshCw, Navigation, Bike, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { supabase } from '@/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import {
   getAvailableOrders,
@@ -8,7 +9,9 @@ import {
   updatePosition,
   getActiveDelivery,
 } from '@/services/livreurService'
+import { getPlatformSettings } from '@/services/adminService'
 import { formatCurrency } from '@/utils/formatCurrency'
+import { sons, resumeAudio } from '@/utils/notificationSound'
 
 // ── Durée depuis création ──────────────────────────────────
 function dureeDepuis(isoDate) {
@@ -87,26 +90,75 @@ function CarteCommande({ commande, onAccepter, loading }) {
 export default function Available() {
   const { user } = useAuth()
 
-  const [commandes,       setCommandes]       = useState([])
-  const [commandeActive,  setCommandeActive]  = useState(null) // livraison déjà en cours
-  const [loading,         setLoading]         = useState(true)
-  const [acceptantId,     setAcceptantId]     = useState(null) // id en cours d'acceptation
-  const [positionLoading, setPositionLoading] = useState(false)
+  const [commandes,        setCommandes]        = useState([])
+  const [commandeActive,   setCommandeActive]   = useState(null)
+  const [loading,          setLoading]          = useState(true)
+  const [acceptantId,      setAcceptantId]      = useState(null)
+  const [positionLoading,  setPositionLoading]  = useState(false)
+  const [modeIndependants, setModeIndependants] = useState(true)
 
   // ── Chargement ─────────────────────────────────────────
   const charger = useCallback(async () => {
     if (!user?.id) return
     setLoading(true)
-    const [{ data: disponibles }, { data: active }] = await Promise.all([
+    const [{ data: disponibles }, { data: active }, { data: settings }] = await Promise.all([
       getAvailableOrders(),
       getActiveDelivery(user.id),
+      getPlatformSettings(),
     ])
+    setModeIndependants((settings?.mode_livraison ?? 'independants') === 'independants')
     setCommandes(disponibles ?? [])
     setCommandeActive(active ?? null)
     setLoading(false)
   }, [user?.id])
 
   useEffect(() => { charger() }, [charger])
+
+  // ── Abonnement Realtime commandes disponibles ──────────
+  useEffect(() => {
+    const activerAudio = () => resumeAudio()
+    document.addEventListener('click', activerAudio, { once: true })
+
+    const canal = supabase
+      .channel('livreur_available_orders')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders' },
+        async (payload) => {
+          const { new: nouv, old: anc } = payload
+
+          // Commande qui devient 'prête' sans livreur → ajouter à la liste
+          if (nouv.statut === 'prête' && !nouv.livreur_id && anc.statut !== 'prête') {
+            // Récupérer les détails complets (restaurant, adresse)
+            const { data: cmd } = await supabase
+              .from('orders')
+              .select('*, restaurant:restaurants(nom, adresse)')
+              .eq('id', nouv.id)
+              .single()
+
+            if (cmd) {
+              setCommandes(prev => {
+                if (prev.some(c => c.id === cmd.id)) return prev
+                return [cmd, ...prev]
+              })
+              sons.commandePrete()
+              if (navigator.vibrate) navigator.vibrate([150, 80, 150])
+            }
+          }
+
+          // Commande prise par un autre livreur ou plus disponible → retirer
+          if (nouv.livreur_id || (anc.statut === 'prête' && nouv.statut !== 'prête')) {
+            setCommandes(prev => prev.filter(c => c.id !== nouv.id))
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(canal)
+      document.removeEventListener('click', activerAudio)
+    }
+  }, [])
 
   // ── Accepter une livraison ─────────────────────────────
   async function handleAccepter(orderId) {
@@ -183,6 +235,20 @@ export default function Available() {
 
       <div className="px-4 pt-5 space-y-4">
 
+        {/* ── Mode propres livreurs — accès bloqué ─────────── */}
+        {!modeIndependants && !commandeActive && (
+          <div className="bg-white rounded-2xl shadow-card p-8 text-center">
+            <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Lock className="w-7 h-7 text-blue-500" strokeWidth={1.5} />
+            </div>
+            <p className="font-bold text-gray-800 text-base">Commandes assignées</p>
+            <p className="text-sm text-gray-500 mt-2 leading-relaxed">
+              L'administrateur assigne les commandes directement aux livreurs.
+              Vous serez notifié lorsqu'une commande vous est attribuée.
+            </p>
+          </div>
+        )}
+
         {/* ── Livraison en cours ───────────────────────────── */}
         {commandeActive && (
           <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4">
@@ -221,7 +287,7 @@ export default function Available() {
         )}
 
         {/* ── Liste des commandes disponibles ─────────────── */}
-        {!commandeActive && commandes.length === 0 && (
+        {modeIndependants && !commandeActive && commandes.length === 0 && (
           <div className="bg-white rounded-2xl p-8 shadow-card text-center">
             <Bike className="w-10 h-10 mx-auto mb-3 text-gray-300" strokeWidth={1.5} />
             <p className="font-semibold text-gray-600">Aucune commande disponible</p>
@@ -237,7 +303,7 @@ export default function Available() {
           </div>
         )}
 
-        {!commandeActive && commandes.map(cmd => (
+        {modeIndependants && !commandeActive && commandes.map(cmd => (
           <CarteCommande
             key={cmd.id}
             commande={cmd}

@@ -1,5 +1,5 @@
 import { supabase } from '@/supabase/client'
-import { incrementPromoUsage } from '@/services/promotionService'
+import { incrementPromoUsage, incrementPlatformPromoUsage } from '@/services/promotionService'
 
 /**
  * Crée une commande complète avec ses lignes.
@@ -19,8 +19,12 @@ export async function createOrder({
   notes           = null,
   fraisLivraison  = 1000,
   remise          = 0,
-  promoId         = null, // ID de la promo appliquée (pour incrémenter l'usage)
-  promoNbActuel   = 0,    // nb_utilisations actuel (pour l'incrément atomique)
+  soldeUtilise    = 0,  // montant du solde Zandofood utilisé
+  promoId         = null,
+  promoNbActuel   = 0,
+  promoSource     = 'restaurant', // 'restaurant' | 'platform'
+  promoCode       = null,
+  livraisonGratuite = false,
 }) {
   try {
     // 1. Récupérer le taux de commission du restaurant
@@ -32,7 +36,7 @@ export async function createOrder({
 
     const commissionRate = resto?.commission_rate ?? 10
     const sousTotal      = items.reduce((acc, i) => acc + i.prix_unitaire * i.quantite, 0)
-    const fraisReels     = type === 'retrait' ? 0 : fraisLivraison
+    const fraisReels     = type === 'retrait' ? 0 : (livraisonGratuite ? 0 : fraisLivraison)
     const montantTotal   = Math.max(0, sousTotal - remise) + fraisReels
     const commission     = Math.round(sousTotal * commissionRate / 100)
 
@@ -68,13 +72,20 @@ export async function createOrder({
     const { error: itemsError } = await supabase.from('order_items').insert(orderItems)
 
     if (itemsError) {
-      // Rollback : supprimer la commande orpheline
       await supabase.from('orders').delete().eq('id', order.id)
       throw itemsError
     }
 
-    // Incrémenter le compteur d'utilisation de la promo (best-effort, sans bloquer)
-    if (promoId) {
+    // 4. Déduire le solde utilisé du profil client (best-effort)
+    if (soldeUtilise > 0) {
+      supabase.rpc('deduire_solde', { p_client_id: clientId, p_montant: soldeUtilise })
+        .catch(() => {})
+    }
+
+    // 5. Incrémenter le compteur d'utilisation de la promo (best-effort)
+    if (promoSource === 'platform' && promoCode) {
+      incrementPlatformPromoUsage(promoCode).catch(() => {})
+    } else if (promoId) {
       incrementPromoUsage(promoId, promoNbActuel).catch(() => {})
     }
 
