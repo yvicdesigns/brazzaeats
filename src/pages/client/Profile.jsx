@@ -128,7 +128,11 @@ function CropModal({ imageUrl, onSave, onClose, saving }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80">
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl p-6 w-full max-w-sm mx-4">
+      <div
+        className="bg-white rounded-t-3xl sm:rounded-3xl p-6 w-full max-w-sm mx-4
+                    max-h-[92dvh] overflow-y-auto"
+        style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
+      >
         <h3 className="font-bold text-gray-900 text-center mb-1">Recadrer la photo</h3>
         <p className="text-xs text-center text-gray-400 mb-5">Glissez · Zoomez avec le curseur</p>
 
@@ -159,7 +163,8 @@ function CropModal({ imageUrl, onSave, onClose, saving }) {
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm"
+            className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm
+                       active:scale-[0.97] transition-transform"
           >
             Annuler
           </button>
@@ -167,7 +172,8 @@ function CropModal({ imageUrl, onSave, onClose, saving }) {
             onClick={handleSave}
             disabled={saving}
             className="flex-1 py-3 rounded-xl bg-brand-500 text-white font-semibold text-sm
-                       disabled:opacity-60 flex items-center justify-center gap-2"
+                       disabled:opacity-60 flex items-center justify-center gap-2
+                       active:scale-[0.97] transition-transform"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
             Enregistrer
@@ -266,7 +272,7 @@ function SectionCard({ icon, iconBg, title, subtitle, expanded, onToggle, childr
     <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
       <button
         onClick={onToggle}
-        className="w-full flex items-center gap-3 px-4 py-4 hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center gap-3 px-4 py-4 hover:bg-gray-50 active:bg-gray-100 transition-colors"
       >
         <div className={`w-9 h-9 ${iconBg} rounded-xl flex items-center justify-center shrink-0`}>
           {icon}
@@ -543,8 +549,8 @@ export default function Profile() {
             </div>
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="absolute bottom-0 right-0 w-8 h-8 bg-white rounded-full shadow-md
-                         flex items-center justify-center hover:bg-gray-50 transition-colors"
+              className="absolute bottom-0 right-0 w-10 h-10 bg-white rounded-full shadow-md
+                         flex items-center justify-center hover:bg-gray-50 active:scale-90 transition-all"
             >
               <Camera className="w-4 h-4 text-gray-600" />
             </button>
@@ -797,11 +803,11 @@ export default function Profile() {
                       <p className="text-xs text-gray-500 truncate">{a.rue}, {a.quartier}</p>
                       {a.indication && <p className="text-[11px] text-gray-400 truncate">{a.indication}</p>}
                     </div>
-                    <div className="flex gap-0.5 shrink-0">
+                    <div className="flex gap-1.5 shrink-0">
                       {!a.is_default && (
                         <button
                           onClick={() => handleSetDefaut(a.id)}
-                          className="p-1.5 hover:bg-gray-200 rounded-lg"
+                          className="p-2.5 hover:bg-gray-200 active:scale-90 rounded-lg transition-all"
                           title="Définir par défaut"
                         >
                           <Star className="w-3.5 h-3.5 text-gray-400" />
@@ -809,13 +815,13 @@ export default function Profile() {
                       )}
                       <button
                         onClick={() => setFormAdresse(formAdresse?.id === a.id ? null : a)}
-                        className="p-1.5 hover:bg-gray-200 rounded-lg"
+                        className="p-2.5 hover:bg-gray-200 active:scale-90 rounded-lg transition-all"
                       >
                         <Edit2 className="w-3.5 h-3.5 text-gray-400" />
                       </button>
                       <button
                         onClick={() => handleDeleteAdresse(a.id)}
-                        className="p-1.5 hover:bg-red-50 rounded-lg"
+                        className="p-2.5 hover:bg-red-50 active:scale-90 rounded-lg transition-all"
                       >
                         <Trash2 className="w-3.5 h-3.5 text-red-400" />
                       </button>
@@ -869,7 +875,7 @@ export default function Profile() {
         <Link
           to="/mes-commandes"
           className="bg-white rounded-2xl shadow-sm flex items-center gap-3 px-4 py-4
-                     hover:bg-gray-50 transition-colors"
+                     hover:bg-gray-50 active:bg-gray-100 transition-colors"
         >
           <div className="w-9 h-9 bg-purple-100 rounded-xl flex items-center justify-center shrink-0">
             <ShoppingBag className="w-4 h-4 text-purple-500" />
@@ -915,7 +921,7 @@ export default function Profile() {
                       titreChat: o.restaurant?.nom ?? 'Restaurant',
                     })}
                     className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50
-                               hover:bg-gray-100 transition-colors text-left"
+                               hover:bg-gray-100 active:bg-gray-200 transition-colors text-left"
                   >
                     <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center shrink-0 text-base">
                       💬
@@ -1052,7 +1058,7 @@ export default function Profile() {
         <button
           onClick={handlePartager}
           className="mt-3 w-full bg-white rounded-2xl shadow-sm flex items-center gap-3 px-4 py-4
-                     hover:bg-gray-50 transition-colors"
+                     hover:bg-gray-50 active:bg-gray-100 transition-colors"
         >
           <div className="w-9 h-9 bg-pink-100 rounded-xl flex items-center justify-center shrink-0">
             <Share2 className="w-4 h-4 text-pink-500" />

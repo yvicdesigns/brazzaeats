@@ -224,7 +224,7 @@ export default function AdminCommandes() {
       <div className="px-4 pt-4 space-y-4">
 
         {/* Filtres */}
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
           {FILTRES.map(f => (
             <button
               key={f.key}

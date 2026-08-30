@@ -85,7 +85,7 @@ export default function RestaurantLayout() {
 
       {/* ── Navigation mobile en bas ─────────────────────── */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-200
-                      shadow-bottom z-40 pb-safe">
+                      shadow-bottom z-40 pb-safe-only">
         <div className="flex h-16">
           {NAV_ITEMS.map(({ to, label, Icon }) => (
             <NavLink

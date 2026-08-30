@@ -118,7 +118,7 @@ export default function ChatModal({ orderId, monRole, monId, titreChat, onClose 
     >
       <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg
                       flex flex-col shadow-2xl"
-           style={{ height: 'min(90vh, 600px)' }}>
+           style={{ height: 'min(90dvh, 600px)' }}>
 
         {/* ── Header ───────────────────────────────────── */}
         <div className="flex items-center gap-3 px-4 py-3.5 border-b border-gray-100 shrink-0">
@@ -194,7 +194,8 @@ export default function ChatModal({ orderId, monRole, monId, titreChat, onClose 
         {/* ── Zone de saisie ───────────────────────────── */}
         <form
           onSubmit={handleSend}
-          className="flex items-end gap-2 px-4 py-3 border-t border-gray-100 shrink-0"
+          className="flex items-end gap-2 px-4 pt-3 border-t border-gray-100 shrink-0"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
         >
           <textarea
             ref={inputRef}

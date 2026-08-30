@@ -92,7 +92,7 @@ function ModalPlat({ item, restaurantId, restaurantNom, onClose }) {
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[90vh]
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[90dvh]
                       flex flex-col overflow-hidden shadow-2xl">
 
         {/* Image */}
@@ -234,7 +234,10 @@ function ModalPlat({ item, restaurantId, restaurantNom, onClose }) {
         </div>
 
         {/* Bouton ajouter au panier — fixé en bas */}
-        <div className="px-5 py-4 border-t border-gray-100 shrink-0">
+        <div
+          className="px-5 pt-4 border-t border-gray-100 shrink-0"
+          style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
+        >
           {!disponible ? (
             <div className="bg-gray-50 rounded-2xl py-4 px-5 flex items-center gap-3">
               <Clock className="w-5 h-5 text-gray-400 shrink-0" />
@@ -381,8 +384,8 @@ export default function MenuItemCard({ item, restaurantId, restaurantNom }) {
               <button
                 onClick={e => { e.stopPropagation(); setModalOuvert(true) }}
                 className="bg-brand-500 text-white text-xs font-bold
-                           rounded-full w-6 h-6 flex items-center justify-center
-                           hover:bg-brand-600 transition-colors"
+                           rounded-full w-8 h-8 flex items-center justify-center
+                           hover:bg-brand-600 active:scale-95 transition-all"
               >
                 {quantiteEnPanier}
               </button>
@@ -390,7 +393,7 @@ export default function MenuItemCard({ item, restaurantId, restaurantNom }) {
               /* Bouton + — ajoute directement au panier */
               <button
                 onClick={handleAddDirect}
-                className="bg-brand-500 text-white rounded-full w-7 h-7
+                className="bg-brand-500 text-white rounded-full w-9 h-9
                            flex items-center justify-center
                            hover:bg-brand-600 active:scale-95 transition-all"
                 aria-label={`Ajouter ${item.nom} au panier`}

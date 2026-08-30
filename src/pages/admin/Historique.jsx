@@ -221,7 +221,7 @@ export default function AdminHistorique() {
       <div className="px-4 pt-4 space-y-3">
 
         {/* ── Raccourcis période ──────────────────────────── */}
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
           {PERIODES.map(p => (
             <button
               key={p.key}
@@ -264,7 +264,7 @@ export default function AdminHistorique() {
         )}
 
         {/* ── Filtre statut ────────────────────────────────── */}
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
           {STATUTS_FILTRES.map(s => (
             <button
               key={s.key}

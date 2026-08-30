@@ -84,7 +84,7 @@ function SectionRow({ titre, emoji, restaurants, loading, nbSkeletons = 4 }) {
         {/* Ligne de cartes */}
         <div
           ref={scrollRef}
-          className="flex gap-4 overflow-x-auto scrollbar-none px-4 md:px-6
+          className="flex gap-4 overflow-x-auto scrollbar-hide px-4 md:px-6
                      snap-x snap-mandatory"
         >
           {loading
@@ -320,7 +320,7 @@ export default function Home() {
       </header>
 
       {/* ── Filtres ─────────────────────────────────────── */}
-      <div className="flex gap-2 px-4 md:px-6 py-3 overflow-x-auto scrollbar-none max-w-4xl mx-auto">
+      <div className="flex gap-2 px-4 md:px-6 py-3 overflow-x-auto scrollbar-hide max-w-4xl mx-auto">
         {[
           { valeur: 0,   label: 'Tous' },
           { valeur: 4,   label: '★ 4+' },
@@ -416,9 +416,10 @@ export default function Home() {
       {/* ── Bouton WhatsApp flottant ────────────────────── */}
       <button
         onClick={() => contacterSupport()}
-        className="fixed bottom-20 right-4 w-14 h-14 bg-green-500 text-white rounded-full
+        className="fixed right-4 w-14 h-14 bg-green-500 text-white rounded-full
                    flex items-center justify-center shadow-lg hover:bg-green-600
                    active:scale-95 transition-all z-30"
+        style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom))' }}
         aria-label="Contacter le support Zandofood via WhatsApp"
       >
         <MessageCircle className="w-6 h-6" />

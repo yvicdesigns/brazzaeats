@@ -14,7 +14,7 @@ function Etoiles({ valeur, onChange, readonly = false }) {
   const [survol, setSurvol] = useState(0)
 
   return (
-    <div className="flex gap-1" aria-label={`Note : ${valeur} sur 5`}>
+    <div className="flex gap-0.5" aria-label={`Note : ${valeur} sur 5`}>
       {[1, 2, 3, 4, 5].map(n => (
         <button
           key={n}
@@ -23,7 +23,7 @@ function Etoiles({ valeur, onChange, readonly = false }) {
           onClick={() => !readonly && onChange(n)}
           onMouseEnter={() => !readonly && setSurvol(n)}
           onMouseLeave={() => !readonly && setSurvol(0)}
-          className={`text-2xl transition-transform ${!readonly ? 'hover:scale-125 cursor-pointer' : 'cursor-default'}`}
+          className={`text-2xl p-2 transition-transform ${!readonly ? 'hover:scale-125 active:scale-110 cursor-pointer' : 'cursor-default'}`}
           aria-label={`${n} étoile${n > 1 ? 's' : ''}`}
         >
           <span className={n <= (survol || valeur) ? 'text-yellow-400' : 'text-gray-300'}>

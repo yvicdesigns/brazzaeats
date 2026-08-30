@@ -31,7 +31,7 @@ export default function Cart() {
         <Link
           to="/"
           className="bg-brand-500 text-white font-bold py-3.5 px-10 rounded-xl
-                     hover:bg-brand-600 transition-colors shadow-lg"
+                     hover:bg-brand-600 active:scale-[0.98] transition-all shadow-lg"
         >
           Découvrir les restaurants
         </Link>
@@ -44,7 +44,11 @@ export default function Cart() {
 
       {/* ── En-tête ─────────────────────────────────────── */}
       <header className="bg-white border-b border-gray-100 px-4 pt-12 pb-4 flex items-center gap-3">
-        <button onClick={() => navigate(-1)} aria-label="Retour">
+        <button
+          onClick={() => navigate(-1)}
+          aria-label="Retour"
+          className="p-2 -ml-2 active:scale-90 transition-transform"
+        >
           <ArrowLeft className="w-6 h-6 text-gray-700" />
         </button>
         <div className="flex-1 min-w-0">
@@ -58,7 +62,7 @@ export default function Cart() {
           onClick={() => {
             if (window.confirm('Vider le panier ?')) clearCart()
           }}
-          className="text-red-400 hover:text-red-600 p-1 transition-colors"
+          className="text-red-400 hover:text-red-600 active:scale-90 p-2.5 transition-all"
           aria-label="Vider le panier"
         >
           <Trash2 className="w-5 h-5" />
@@ -99,7 +103,7 @@ export default function Cart() {
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => updateQuantite(item.id, item.quantite - 1)}
-                className="bg-gray-100 rounded-full w-7 h-7 flex items-center justify-center
+                className="bg-gray-100 rounded-full w-9 h-9 flex items-center justify-center
                            hover:bg-gray-200 active:scale-95 transition-all"
                 aria-label="Réduire la quantité"
               >
@@ -110,7 +114,7 @@ export default function Cart() {
               </span>
               <button
                 onClick={() => updateQuantite(item.id, item.quantite + 1)}
-                className="bg-brand-500 text-white rounded-full w-7 h-7 flex items-center justify-center
+                className="bg-brand-500 text-white rounded-full w-9 h-9 flex items-center justify-center
                            hover:bg-brand-600 active:scale-95 transition-all"
                 aria-label="Augmenter la quantité"
               >

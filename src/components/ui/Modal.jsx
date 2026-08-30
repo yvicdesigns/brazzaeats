@@ -104,7 +104,10 @@ export default function Modal({
 
               {/* ── Pied de page optionnel ───────────────── */}
               {footer && (
-                <div className="px-5 py-4 border-t border-gray-100 shrink-0">
+                <div
+                  className="px-5 pt-4 border-t border-gray-100 shrink-0"
+                  style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
+                >
                   {footer}
                 </div>
               )}

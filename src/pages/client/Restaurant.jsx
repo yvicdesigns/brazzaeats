@@ -149,7 +149,8 @@ export default function Restaurant() {
         {/* Bouton retour */}
         <button
           onClick={() => navigate(-1)}
-          className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm rounded-full p-2 shadow"
+          className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm rounded-full p-2.5 shadow
+                     active:scale-90 transition-transform"
           aria-label="Retour"
         >
           <ArrowLeft className="w-5 h-5 text-gray-800" />
@@ -180,12 +181,12 @@ export default function Restaurant() {
       {/* ── Onglets catégories + Avis (sticky sous le header) */}
       {!loading && (
         <div className="sticky top-0 z-20 bg-white border-b border-gray-100 shadow-sm">
-          <div className="flex gap-1 px-4 py-2.5 overflow-x-auto scrollbar-none">
+          <div className="flex gap-1 px-4 py-2.5 overflow-x-auto scrollbar-hide">
             {menu.map(cat => (
               <button
                 key={cat.id}
                 onClick={() => { setVoirAvis(false); scrollVers(cat.id) }}
-                className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors
+                className={`shrink-0 px-3 py-2 rounded-full text-sm font-medium transition-all active:scale-95
                   ${!voirAvis && activeCategorie === cat.id
                     ? 'bg-brand-500 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -197,7 +198,7 @@ export default function Restaurant() {
             {/* Onglet Avis */}
             <button
               onClick={() => setVoirAvis(true)}
-              className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors
+              className={`shrink-0 px-3 py-2 rounded-full text-sm font-medium transition-all active:scale-95
                 flex items-center gap-1
                 ${voirAvis
                   ? 'bg-brand-500 text-white'
@@ -334,7 +335,10 @@ export default function Restaurant() {
 
       {/* ── Barre panier flottante ───────────────────────── */}
       {totalItems > 0 && (
-        <div className="fixed bottom-0 inset-x-0 p-4 pointer-events-none z-30">
+        <div
+          className="fixed inset-x-0 px-4 pointer-events-none z-30"
+          style={{ bottom: 'calc(4.25rem + env(safe-area-inset-bottom))' }}
+        >
           <Link
             to="/panier"
             className="flex items-center justify-between bg-brand-500 text-white

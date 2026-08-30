@@ -56,6 +56,11 @@
     padding-bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom));
   }
 
+  /* Safe area seule — pour les sheets/barres fixes qui ne sont pas la bottom nav */
+  .pb-safe-only {
+    padding-bottom: var(--safe-area-bottom);
+  }
+
   /* Cache la scrollbar tout en conservant le scroll */
   .scrollbar-hide {
     -ms-overflow-style: none;

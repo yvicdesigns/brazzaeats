@@ -12,7 +12,7 @@ const NAV_LIVREUR = [
 function LivreurBottomNav() {
   return (
     <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-200
-                    shadow-bottom z-40 pb-safe">
+                    shadow-bottom z-40 pb-safe-only">
       <div className="flex h-16">
         {NAV_LIVREUR.map(({ to, label, Icon }) => (
           <NavLink

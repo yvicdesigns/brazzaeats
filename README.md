@@ -63,11 +63,11 @@ npm run preview  # Prévisualiser le build de production
 
 ## Partie B — Compiler en APK Android avec Capacitor
 
-Capacitor permet d'empaqueter l'application web dans une application Android native (APK).
+Capacitor empaquette l'application web dans une application Android native. La config (`appId: com.zandofood.app`, `appName: Zandofood`, `webDir: dist`, StatusBar/SplashScreen aux couleurs de la marque) est déjà écrite dans `capacitor.config.ts` à la racine — pas besoin de `cap init`.
 
 ### Prérequis supplémentaires
 - [Android Studio](https://developer.android.com/studio) installé
-- JDK 17+
+- JDK 17+ (le JDK fourni avec Android Studio, `Android Studio.app/Contents/jbr`, fonctionne — le JDK système peut être trop récent pour Gradle)
 - SDK Android (API 33+)
 
 ### Étapes
@@ -77,20 +77,22 @@ Capacitor permet d'empaqueter l'application web dans une application Android nat
 npm run build
 ```
 
-**2. Initialiser Capacitor**
-```bash
-npx cap init BrazzaEats com.brazzaeats.app --web-dir dist
-```
-
-**3. Ajouter la plateforme Android**
+**2. Ajouter la plateforme Android** (première fois uniquement)
 ```bash
 npx cap add android
 ```
 
-**4. Copier les fichiers web dans le projet Android**
+**3. Régénérer les icônes/splash si `assets/icon.png` change**
 ```bash
-npx cap copy android
+npx @capacitor/assets generate --android --iconBackgroundColor '#E85D26' --splashBackgroundColor '#E85D26'
 ```
+`assets/icon.png` est pour l'instant un **placeholder** (monogramme "Z") — à remplacer par le vrai logo avant toute publication.
+
+**4. Synchroniser le build web vers le projet natif**
+```bash
+npx cap sync android
+```
+(`cap sync`, pas `cap copy` — nécessaire dès qu'un plugin natif comme StatusBar/SplashScreen est utilisé.)
 
 **5. Ouvrir Android Studio**
 ```bash
@@ -110,13 +112,9 @@ L'APK est généré dans `android/app/release/app-release.apk`
 
 ### Distribution de l'APK
 
-L'APK peut être distribué :
-- **Par WhatsApp** : envoyer le fichier `.apk` directement dans un groupe
-- **Lien de téléchargement** : héberger sur Google Drive, Dropbox ou un serveur et partager le lien
-- **Firebase App Distribution** : pour des tests en équipe
-- **Google Play Store** : pour une distribution officielle (compte développeur requis)
+Pour la distribution officielle, privilégier le **Google Play Store** (compte développeur requis), avec la piste **tests internes** pour valider avant publication publique.
 
-> Sur Android, activer **Paramètres → Sécurité → Sources inconnues** pour installer un APK hors Play Store.
+Pour des tests rapides en interne uniquement, l'APK peut aussi être partagé directement (WhatsApp, Drive, Firebase App Distribution) — activer **Paramètres → Sécurité → Sources inconnues** sur l'appareil pour l'installer hors Play Store. À réserver aux tests, pas à la distribution aux utilisateurs finaux.
 
 ---
 

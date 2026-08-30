@@ -17,7 +17,7 @@ export default function BottomNav() {
   const cartCount = useCartCount()
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 shadow-bottom z-40">
+    <nav className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 shadow-bottom z-40 pb-safe-only">
       <div className="flex h-16">
         {NAV_ITEMS.map(({ to, label, Icon, end }) => (
           <NavLink
@@ -44,7 +44,7 @@ export default function BottomNav() {
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] font-medium leading-none">{label}</span>
+                <span className="text-[11px] font-medium leading-none">{label}</span>
               </>
             )}
           </NavLink>

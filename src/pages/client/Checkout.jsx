@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -68,8 +68,11 @@ function ModalMobileMoney({ operateur, montant, telephone, onSuccess, onClose })
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center">
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-sm overflow-hidden
-                      shadow-2xl">
+      <div
+        className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-sm overflow-y-auto
+                    max-h-[92dvh] shadow-2xl"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
         {/* Header opérateur */}
         <div className={`${couleur} px-6 py-5 text-center`}>
           <p className="text-2xl font-black text-white tracking-wide">{nomOp}</p>
@@ -218,8 +221,11 @@ export default function Checkout() {
   }
 
   // ── Redirige si panier vide (dans useEffect pour éviter navigate pendant le rendu)
+  // Ignoré juste après une commande réussie — clearCart() viderait sinon la course
+  // avec la redirection vers /suivi/:id et renverrait l'utilisateur à l'accueil.
+  const commandePasseeRef = useRef(false)
   useEffect(() => {
-    if (items.length === 0) navigate('/', { replace: true })
+    if (items.length === 0 && !commandePasseeRef.current) navigate('/', { replace: true })
   }, [items.length, navigate])
 
   // ── Soumission finale (après confirmation paiement) ─────
@@ -232,6 +238,8 @@ export default function Checkout() {
       toast.error(`Erreur : ${error}`)
       return
     }
+
+    commandePasseeRef.current = true
 
     clearCart()
     toast.success('Commande envoyée ! 🎉')
@@ -288,7 +296,11 @@ export default function Checkout() {
 
       {/* ── En-tête ─────────────────────────────────────── */}
       <header className="bg-white border-b border-gray-100 px-4 pt-12 pb-4 flex items-center gap-3">
-        <button onClick={() => navigate(-1)} aria-label="Retour">
+        <button
+          onClick={() => navigate(-1)}
+          aria-label="Retour"
+          className="p-2 -ml-2 active:scale-90 transition-transform"
+        >
           <ArrowLeft className="w-6 h-6 text-gray-700" />
         </button>
         <h1 className="font-bold text-gray-900 text-lg">Finaliser la commande</h1>
@@ -309,7 +321,8 @@ export default function Checkout() {
             ].map(({ val, emoji, titre, sub }) => (
               <label
                 key={val}
-                className={`flex flex-col items-center p-4 rounded-xl border-2 cursor-pointer transition-colors
+                className={`flex flex-col items-center p-4 rounded-xl border-2 cursor-pointer
+                  transition-all active:scale-[0.97]
                   ${type === val
                     ? 'border-brand-500 bg-brand-50'
                     : 'border-gray-200 bg-white hover:border-brand-200'
@@ -386,7 +399,8 @@ export default function Checkout() {
             ].map(({ val, emoji, titre, sub }) => (
               <label
                 key={val}
-                className={`flex items-center gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-colors
+                className={`flex items-center gap-3 p-3.5 rounded-xl border-2 cursor-pointer
+                  transition-all active:scale-[0.98]
                   ${modePaiement === val
                     ? 'border-brand-500 bg-brand-50'
                     : 'border-gray-200 hover:border-brand-200'
@@ -411,7 +425,8 @@ export default function Checkout() {
                 {['MTN', 'Airtel'].map(op => (
                   <label
                     key={op}
-                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-colors
+                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 cursor-pointer
+                      transition-all active:scale-[0.97]
                       ${operateur === op
                         ? op === 'MTN' ? 'border-yellow-400 bg-yellow-50' : 'border-red-400 bg-red-50'
                         : 'border-gray-200 hover:border-gray-300'
@@ -510,7 +525,7 @@ export default function Checkout() {
                 <p className="text-sm font-bold text-green-700 font-mono">{promoApplied.promo.code}</p>
                 <p className="text-xs text-green-600 mt-0.5">−{formatCurrency(remise)} appliqués</p>
               </div>
-              <button onClick={retirerCode} className="p-1.5 hover:bg-green-100 rounded-lg transition-colors">
+              <button onClick={retirerCode} className="p-2.5 hover:bg-green-100 active:scale-90 rounded-lg transition-all">
                 <X className="w-4 h-4 text-green-600" />
               </button>
             </div>

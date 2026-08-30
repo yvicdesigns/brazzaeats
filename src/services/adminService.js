@@ -1,10 +1,21 @@
 import { supabase } from '@/supabase/client'
-import { supabaseAdmin } from '@/supabase/adminClient'
 
 // ============================================================
 // ADMIN — requêtes Supabase
 // Toutes ces fonctions nécessitent le rôle 'admin' (RLS)
+// Les opérations privilégiées (comptes auth, mots de passe) passent
+// par l'edge function 'admin-users', qui détient seule la clé
+// service_role — jamais exposée au client.
 // ============================================================
+
+async function appelerAdminUsers(action, payload) {
+  const { data, error } = await supabase.functions.invoke('admin-users', {
+    body: { action, payload },
+  })
+  if (error) throw error
+  if (data?.error) throw new Error(data.error)
+  return data?.data
+}
 
 // ── KPIs globaux ───────────────────────────────────────────
 
@@ -342,21 +353,7 @@ export async function adminUpdateRestaurant(id, updates) {
  */
 export async function deleteRestaurant(restaurantId, ownerId) {
   try {
-    // 1. Supprimer le restaurant
-    const { error: restoError } = await supabase
-      .from('restaurants')
-      .delete()
-      .eq('id', restaurantId)
-    if (restoError) throw restoError
-
-    // 2. Supprimer le profil
-    await supabase.from('profiles').delete().eq('id', ownerId)
-
-    // 3. Supprimer le compte auth (nécessite service_role)
-    if (supabaseAdmin) {
-      await supabaseAdmin.auth.admin.deleteUser(ownerId)
-    }
-
+    await appelerAdminUsers('deleteRestaurant', { restaurantId, ownerId })
     return { error: null }
   } catch (err) {
     return { error: err.message }
@@ -389,44 +386,10 @@ export async function updateCommissionRate(id, commissionRate) {
  *   3. Insère le restaurant en statut 'en_attente'
  */
 export async function createRestaurant({ nom, adresse, telephone, motDePasse, commissionRate = 10 }) {
-  if (!supabaseAdmin) {
-    return { data: null, error: 'Clé service_role manquante (VITE_SUPABASE_SERVICE_KEY)' }
-  }
   try {
-    const email = `p${telephone.replace(/[^0-9]/g, '')}@brazzaeats.local`
-
-    // 1. Créer le compte auth via Admin API — ne change PAS la session admin courante
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password:      motDePasse,
-      email_confirm: true,  // pas besoin de vérification email
-      user_metadata: { nom, telephone, role: 'restaurant' },
+    const resto = await appelerAdminUsers('createRestaurant', {
+      nom, adresse, telephone, motDePasse, commissionRate,
     })
-    if (authError) throw authError
-
-    const userId = authData.user?.id
-    if (!userId) throw new Error('Impossible de créer le compte')
-
-    // 2. Upsert profil (via supabaseAdmin pour bypasser RLS)
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .upsert({ id: userId, nom, telephone, role: 'restaurant' }, { onConflict: 'id' })
-    if (profileError) throw profileError
-
-    // 3. Créer le restaurant en statut en_attente
-    const { data: resto, error: restoError } = await supabaseAdmin
-      .from('restaurants')
-      .insert({
-        owner_id:        userId,
-        nom,
-        adresse:         adresse || null,
-        statut:          'en_attente',
-        commission_rate: commissionRate,
-      })
-      .select()
-      .single()
-    if (restoError) throw restoError
-
     return { data: resto, error: null }
   } catch (err) {
     return { data: null, error: err.message }
@@ -449,36 +412,11 @@ export async function getAllLivreurs() {
 }
 
 export async function createLivreur({ nom, telephone, motDePasse, vehicule = 'moto', zone = null }) {
-  if (!supabaseAdmin) {
-    return { data: null, error: 'Clé service_role manquante (VITE_SUPABASE_SERVICE_KEY)' }
-  }
   try {
-    const email = `p${telephone.replace(/[^0-9]/g, '')}@brazzaeats.local`
-
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password:      motDePasse,
-      email_confirm: true,
-      user_metadata: { nom, telephone, role: 'livreur' },
+    const livreur = await appelerAdminUsers('createLivreur', {
+      nom, telephone, motDePasse, vehicule, zone,
     })
-    if (authError) throw authError
-
-    const userId = authData.user?.id
-    if (!userId) throw new Error('Impossible de créer le compte')
-
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .upsert({ id: userId, nom, telephone, role: 'livreur' }, { onConflict: 'id' })
-    if (profileError) throw profileError
-
-    const { data: livreur, error: livreurError } = await supabaseAdmin
-      .from('livreurs')
-      .insert({ id: userId, statut: 'en_attente', vehicule, zone })
-      .select()
-      .single()
-    if (livreurError) throw livreurError
-
-    return { data: { ...livreur, profile: { id: userId, nom, telephone } }, error: null }
+    return { data: livreur, error: null }
   } catch (err) {
     return { data: null, error: err.message }
   }
@@ -565,12 +503,8 @@ export async function updateLivreurStatus(id, statut) {
 }
 
 export async function deleteLivreur(id) {
-  if (!supabaseAdmin) return { error: 'Clé service_role manquante' }
   try {
-    await supabaseAdmin.from('livreurs').delete().eq('id', id)
-    await supabaseAdmin.from('profiles').delete().eq('id', id)
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(id)
-    if (error) throw error
+    await appelerAdminUsers('deleteLivreur', { id })
     return { error: null }
   } catch (err) {
     return { error: err.message }
@@ -584,14 +518,8 @@ export async function deleteLivreur(id) {
  * @param {string} newPassword — nouveau mot de passe (min 6 chars)
  */
 export async function adminChangePassword(userId, newPassword) {
-  if (!supabaseAdmin) {
-    return { error: 'Clé service_role manquante (VITE_SUPABASE_SERVICE_KEY)' }
-  }
   try {
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-      password: newPassword,
-    })
-    if (error) throw error
+    await appelerAdminUsers('changePassword', { userId, newPassword })
     return { error: null }
   } catch (err) {
     return { error: err.message }
@@ -614,10 +542,12 @@ export async function adminUpdateOwnerProfile(ownerId, { nom, telephone }) {
     if (profileError) throw profileError
 
     // 2. Si téléphone modifié → mettre à jour l'email auth
-    if (telephone && supabaseAdmin) {
-      const fakeEmail = `p${telephone.replace(/[^0-9]/g, '')}@brazzaeats.local`
-      await supabaseAdmin.auth.admin.updateUserById(ownerId, { email: fakeEmail })
-      // On ne bloque pas si ça échoue (l'identifiant de connexion reste l'ancien)
+    if (telephone) {
+      try {
+        await appelerAdminUsers('updateOwnerEmail', { ownerId, telephone })
+      } catch {
+        // On ne bloque pas si ça échoue (l'identifiant de connexion reste l'ancien)
+      }
     }
 
     return { error: null }
