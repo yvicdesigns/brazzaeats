@@ -50,7 +50,7 @@ export function useLivreurNotifications() {
 
           if (!surPageDisponible) {
             sons.commandePrete()
-            if (navigator.vibrate) navigator.vibrate([150, 80, 150])
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200, 100, 200])
           }
 
           if ('Notification' in window && Notification.permission === 'granted') {

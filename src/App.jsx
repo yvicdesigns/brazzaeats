@@ -45,6 +45,7 @@ import AdminLivreurs     from '@/pages/admin/Livreurs'
 import AdminUsers        from '@/pages/admin/Users'
 import AdminVersements   from '@/pages/admin/Versements'
 import AdminAvis         from '@/pages/admin/Avis'
+import AdminSignalements from '@/pages/admin/Signalements'
 import AdminCommandes    from '@/pages/admin/Commandes'
 import AdminPromos       from '@/pages/admin/Promos'
 import AdminHistorique   from '@/pages/admin/Historique'
@@ -206,6 +207,7 @@ export default function App() {
             <Route path="/admin/historique"   element={<AdminHistorique />} />
             <Route path="/admin/versements"   element={<AdminVersements />} />
             <Route path="/admin/avis"         element={<AdminAvis />} />
+            <Route path="/admin/signalements" element={<AdminSignalements />} />
             <Route path="/admin/parametres"   element={<AdminSettings />} />
           </Route>
         </Route>

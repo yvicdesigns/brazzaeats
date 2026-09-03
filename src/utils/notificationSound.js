@@ -61,37 +61,46 @@ export async function resumeAudio() {
  * Joue une séquence sonore de notification.
  * @param {'nouvelle_commande'|'commande_prete'|'confirmation'|'alerte'} type
  * @param {number} volume — 0 à 1 (défaut 0.4)
+ * @param {number} repeat — nombre de répétitions de la séquence (défaut 1)
  */
-export function playNotificationSound(type = 'nouvelle_commande', volume = 0.4) {
+export function playNotificationSound(type = 'nouvelle_commande', volume = 0.4, repeat = 1) {
   try {
     const ctx = getAudioContext()
     if (!ctx) return // Navigateur sans support Web Audio
 
-    const sequence = SEQUENCES[type] ?? SEQUENCES.nouvelle_commande
+    const sequence      = SEQUENCES[type] ?? SEQUENCES.nouvelle_commande
+    const dureeSequence = sequence.reduce((total, { duree }) => total + duree * 0.85, 0)
+    // Pause entre deux répétitions — assez longue pour bien distinguer chaque passage
+    const pauseEntreRepets = 0.35
+
     let tempsActuel = ctx.currentTime
 
-    sequence.forEach(({ freq, duree, type: forme }) => {
-      const oscillateur = ctx.createOscillator()
-      const gainNode    = ctx.createGain()
+    for (let i = 0; i < repeat; i++) {
+      sequence.forEach(({ freq, duree, type: forme }) => {
+        const oscillateur = ctx.createOscillator()
+        const gainNode    = ctx.createGain()
 
-      // Chaîne : oscillateur → gain → sortie
-      oscillateur.connect(gainNode)
-      gainNode.connect(ctx.destination)
+        // Chaîne : oscillateur → gain → sortie
+        oscillateur.connect(gainNode)
+        gainNode.connect(ctx.destination)
 
-      oscillateur.type = forme
-      oscillateur.frequency.setValueAtTime(freq, tempsActuel)
+        oscillateur.type = forme
+        oscillateur.frequency.setValueAtTime(freq, tempsActuel)
 
-      // Enveloppe : montée rapide puis descente douce (évite les clics)
-      gainNode.gain.setValueAtTime(0, tempsActuel)
-      gainNode.gain.linearRampToValueAtTime(volume, tempsActuel + 0.01)
-      gainNode.gain.exponentialRampToValueAtTime(0.001, tempsActuel + duree)
+        // Enveloppe : montée rapide puis descente douce (évite les clics)
+        gainNode.gain.setValueAtTime(0, tempsActuel)
+        gainNode.gain.linearRampToValueAtTime(volume, tempsActuel + 0.01)
+        gainNode.gain.exponentialRampToValueAtTime(0.001, tempsActuel + duree)
 
-      oscillateur.start(tempsActuel)
-      oscillateur.stop(tempsActuel + duree + 0.01)
+        oscillateur.start(tempsActuel)
+        oscillateur.stop(tempsActuel + duree + 0.01)
 
-      // Léger chevauchement pour une séquence fluide
-      tempsActuel += duree * 0.85
-    })
+        // Léger chevauchement pour une séquence fluide
+        tempsActuel += duree * 0.85
+      })
+      tempsActuel += pauseEntreRepets
+    }
+    void dureeSequence
   } catch (err) {
     // Son non critique — échec silencieux
     console.warn('[Zandofood] Impossible de jouer le son de notification :', err)
@@ -100,10 +109,14 @@ export function playNotificationSound(type = 'nouvelle_commande', volume = 0.4) 
 
 /**
  * Raccourcis nommés pour une utilisation lisible dans les composants.
+ *
+ * commandePrete et confirmation sont répétés plusieurs fois — signal
+ * "nouvelle livraison" / "commande arrivée" bien plus difficile à manquer
+ * qu'un bip unique très court.
  */
 export const sons = {
-  nouvelleCommande: () => playNotificationSound('nouvelle_commande'),
-  commandePrete:    () => playNotificationSound('commande_prete'),
-  confirmation:     () => playNotificationSound('confirmation'),
-  alerte:           () => playNotificationSound('alerte'),
+  nouvelleCommande: () => playNotificationSound('nouvelle_commande', 0.45, 2),
+  commandePrete:    () => playNotificationSound('commande_prete',    0.5,  4),
+  confirmation:     () => playNotificationSound('confirmation',      0.45, 3),
+  alerte:           () => playNotificationSound('alerte',            0.45, 2),
 }

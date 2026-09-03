@@ -142,7 +142,7 @@ export default function Available() {
                 return [cmd, ...prev]
               })
               sons.commandePrete()
-              if (navigator.vibrate) navigator.vibrate([150, 80, 150])
+              if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200, 100, 200])
             }
           }
 

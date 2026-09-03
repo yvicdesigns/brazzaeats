@@ -58,7 +58,7 @@ export function useRestaurantNotifications(restaurantId) {
           // Son + vibration (Orders.jsx gère déjà ça sur la page commandes)
           if (!surPageCommandes) {
             sons.nouvelleCommande()
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200])
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200])
           }
 
           // Browser Notification (Notification API)

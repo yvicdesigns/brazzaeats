@@ -222,3 +222,23 @@ export async function submitReview({ clientId, restaurantId, orderId, note, comm
     return { data: null, error: err.message }
   }
 }
+
+/**
+ * Signale un problème sur une commande livrée (ex : rien reçu, erreur de plat).
+ * Ne bloque pas le statut de la commande — sert de couche de confiance
+ * a posteriori pour l'équipe support, sans retarder le livreur.
+ */
+export async function reportOrderIssue(orderId, clientId, motif) {
+  try {
+    const { data, error } = await supabase
+      .from('signalements')
+      .insert({ order_id: orderId, client_id: clientId, motif })
+      .select()
+      .single()
+
+    if (error) throw error
+    return { data, error: null }
+  } catch (err) {
+    return { data: null, error: err.message }
+  }
+}

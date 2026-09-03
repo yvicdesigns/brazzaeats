@@ -4,6 +4,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Bike, History, Settings,
   Users, Store, LogOut, ChevronRight, Wallet, Star, ShoppingBag, Tag, CalendarRange,
+  TriangleAlert,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -24,6 +25,7 @@ const NAV_PAR_ROLE = {
     { to: '/admin/promos',       label: 'Promos',       Icon: Tag             },
     { to: '/admin/versements',   label: 'Versements',   Icon: Wallet          },
     { to: '/admin/avis',         label: 'Avis',         Icon: Star            },
+    { to: '/admin/signalements', label: 'Signalements', Icon: TriangleAlert   },
     { to: '/admin/parametres',   label: 'Paramètres',   Icon: Settings        },
   ],
 }

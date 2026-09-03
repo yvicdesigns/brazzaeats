@@ -915,3 +915,41 @@ export async function updatePlatformSettings(updates) {
     return { data: null, error: err.message }
   }
 }
+
+// ── Signalements clients ─────────────────────────────────────
+
+/**
+ * Liste les signalements clients (rien reçu, erreur de commande...).
+ */
+export async function getAllSignalements({ statut } = {}) {
+  try {
+    let q = supabase
+      .from('signalements')
+      .select('*, order:orders(id, restaurant:restaurants(nom)), client:profiles!client_id(nom, telephone)')
+      .order('created_at', { ascending: false })
+    if (statut !== undefined) q = q.eq('statut', statut)
+    const { data, error } = await q
+    if (error) throw error
+    return { data: data ?? [], error: null }
+  } catch (err) {
+    return { data: [], error: err.message }
+  }
+}
+
+/**
+ * Marque un signalement comme traité (ou le rouvre).
+ */
+export async function toggleSignalementStatut(id, statut) {
+  try {
+    const { data, error } = await supabase
+      .from('signalements')
+      .update({ statut })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return { data, error: null }
+  } catch (err) {
+    return { data: null, error: err.message }
+  }
+}

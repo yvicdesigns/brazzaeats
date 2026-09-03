@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, MapPin, Phone, Loader2, MessageSquare } from 'lucide-react'
+import { ArrowLeft, MapPin, Phone, Loader2, MessageSquare, TriangleAlert } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { useRealtimeRow } from '@/hooks/useRealtime'
-import { getOrderById } from '@/services/orderService'
+import { getOrderById, reportOrderIssue } from '@/services/orderService'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { STATUTS_COMMANDE } from '@/utils/constants'
 import { contacterSupport } from '@/utils/whatsappMessage'
 import { useAuth } from '@/hooks/useAuth'
 import ChatModal from '@/components/shared/ChatModal'
+import Modal from '@/components/ui/Modal'
 
 // Étapes ordonnées de la timeline (hors "annulée")
 const ETAPES = [
@@ -99,6 +101,10 @@ export default function Tracking() {
   const [loading,    setLoading]    = useState(true)
   const [erreur,     setErreur]     = useState(null)
   const [chatOuvert, setChatOuvert] = useState(false)
+  const [signalementOuvert, setSignalementOuvert] = useState(false)
+  const [motifSignalement,  setMotifSignalement]  = useState('')
+  const [envoiEnCours,      setEnvoiEnCours]      = useState(false)
+  const [dejaSignale,       setDejaSignale]       = useState(false)
 
   // Écoute Realtime pour les mises à jour de statut uniquement
   const { row: update } = useRealtimeRow('orders', id)
@@ -194,6 +200,16 @@ export default function Tracking() {
               ? "Profitez de votre repas ! N'oubliez pas de laisser un avis."
               : `${estLivraison ? 'Livraison' : 'Retrait'} prévu vers ${heurePrevueStr} (~${tempsTotal} min)`}
           </p>
+          {livree && (
+            <button
+              onClick={() => setSignalementOuvert(true)}
+              disabled={dejaSignale}
+              className="mt-2 text-xs font-semibold text-green-700 underline
+                         underline-offset-2 disabled:no-underline disabled:text-green-500"
+            >
+              {dejaSignale ? 'Signalement envoyé ✓' : 'Un souci avec cette commande ?'}
+            </button>
+          )}
         </div>
       )}
 
@@ -327,6 +343,52 @@ export default function Tracking() {
           onClose={() => setChatOuvert(false)}
         />
       )}
+
+      {/* ── Modal signalement ───────────────────────────────── */}
+      <Modal
+        ouvert={signalementOuvert}
+        onClose={() => setSignalementOuvert(false)}
+        titre="Signaler un problème"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">
+            Décrivez ce qui ne va pas (rien reçu, plat manquant, erreur...).
+            Notre équipe vous recontactera rapidement.
+          </p>
+          <textarea
+            value={motifSignalement}
+            onChange={e => setMotifSignalement(e.target.value)}
+            placeholder="Ex : je n'ai rien reçu, le livreur n'est jamais venu..."
+            rows={4}
+            maxLength={1000}
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm
+                       focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+          />
+          <button
+            onClick={async () => {
+              if (!motifSignalement.trim() || !user) return
+              setEnvoiEnCours(true)
+              const { error } = await reportOrderIssue(id, user.id, motifSignalement.trim())
+              setEnvoiEnCours(false)
+              if (error) {
+                toast.error("Impossible d'envoyer le signalement.")
+                return
+              }
+              toast.success('Signalement envoyé — notre équipe vous recontacte bientôt.')
+              setDejaSignale(true)
+              setSignalementOuvert(false)
+              setMotifSignalement('')
+            }}
+            disabled={!motifSignalement.trim() || envoiEnCours}
+            className="w-full flex items-center justify-center gap-2 bg-red-500 text-white
+                       font-semibold py-3.5 rounded-xl hover:bg-red-600 active:scale-[0.98]
+                       transition-all disabled:opacity-50 disabled:active:scale-100"
+          >
+            <TriangleAlert className="w-4 h-4" />
+            {envoiEnCours ? 'Envoi...' : 'Envoyer le signalement'}
+          </button>
+        </div>
+      </Modal>
     </div>
   )
 }

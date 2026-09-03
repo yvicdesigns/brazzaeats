@@ -62,7 +62,7 @@ export function useClientOrderNotifications() {
           if (surPageSuivi) return
 
           sons.confirmation()
-          if (navigator.vibrate) navigator.vibrate([150, 80, 150])
+          if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200])
 
           if ('Notification' in window && Notification.permission === 'granted') {
             const notif = new Notification(`Zandofood — ${msg.titre}`, {
