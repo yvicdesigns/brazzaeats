@@ -17,6 +17,14 @@ const config: CapacitorConfig = {
       backgroundColor: '#E85D26',
       overlaysWebView: false,
     },
+    // resize:'none' — le WebView ne se redimensionne plus du tout à
+    // l'apparition du clavier (le clavier se contente de recouvrir le bas
+    // de l'écran). Évite les incohérences observées avec le redimensionnement
+    // natif Android (adjustResize), qui pouvait faire disparaître tout le
+    // contenu au-dessus du clavier sur certains appareils.
+    Keyboard: {
+      resize: 'none',
+    },
   },
 }
 
