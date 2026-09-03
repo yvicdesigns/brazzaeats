@@ -9,6 +9,7 @@ import Sidebar          from '@/components/layout/Sidebar'
 import RestaurantLayout from '@/components/layout/RestaurantLayout'
 import LivreurLayout    from '@/components/layout/LivreurLayout'
 import InstallBanner    from '@/components/ui/InstallBanner'
+import { useClientOrderNotifications } from '@/hooks/useClientOrderNotifications'
 
 // ── Pages Auth ─────────────────────────────────────────────
 import Login    from '@/pages/auth/Login'
@@ -109,6 +110,8 @@ function PrivateRoute({ role: roleRequis }) {
 
 // ── Layout espace client (Navbar + contenu + BottomNav) ───
 function ClientLayout() {
+  useClientOrderNotifications()
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navbar visible uniquement sur desktop — mobile utilise la BottomNav */}

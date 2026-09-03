@@ -34,3 +34,5 @@ pnpm-debug.log*
 Thumbs.db
 .vercel
 supabase/.temp/
+ios/App/build-device/
+.playwright-mcp/

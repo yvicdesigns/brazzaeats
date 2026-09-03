@@ -74,7 +74,7 @@ function Timeline({ statutActuel }) {
               <p className={`font-semibold text-sm ${fait ? 'text-gray-900' : 'text-gray-400'}`}>
                 {etape.label}
               </p>
-              {actif && (
+              {actif && !dernier && (
                 <p className="text-xs text-brand-500 font-medium mt-0.5 animate-pulse">
                   En cours…
                 </p>
