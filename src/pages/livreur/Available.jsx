@@ -3,6 +3,7 @@ import { MapPin, Clock, Loader2, RefreshCw, Navigation, Bike, Lock } from 'lucid
 import toast from 'react-hot-toast'
 import { supabase } from '@/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
+import LienCarte from '@/components/shared/LienCarte'
 import {
   getAvailableOrders,
   acceptDelivery,
@@ -55,6 +56,7 @@ function CarteCommande({ commande, onAccepter, loading }) {
               : '—'
             }
           </p>
+          <LienCarte adresseLivraison={commande.adresse_livraison} className="mt-1" />
         </div>
 
         {/* Gain livreur */}
@@ -264,6 +266,7 @@ export default function Available() {
                 : '—'
               }
             </p>
+            <LienCarte adresseLivraison={commandeActive.adresse_livraison} className="mt-1" />
 
             {/* Bouton mise à jour position GPS simulée */}
             <button

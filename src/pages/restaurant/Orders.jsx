@@ -10,6 +10,7 @@ import { formatCurrency } from '@/utils/formatCurrency'
 import { STATUTS_COMMANDE, STATUTS_ACTIFS } from '@/utils/constants'
 import { resumeAudio } from '@/utils/notificationSound'
 import ChatModal from '@/components/shared/ChatModal'
+import LienCarte from '@/components/shared/LienCarte'
 
 // ── Transitions de statut autorisées côté restaurant ───────
 const TRANSITIONS = {
@@ -134,9 +135,12 @@ function ModalCommande({ commande, onClose, onStatusChange, userId }) {
                 {commande.type === 'livraison' ? 'Livraison à domicile' : 'Retrait en boutique'}
               </p>
               {commande.type === 'livraison' && commande.adresse_livraison && (
-                <p className="text-sm font-medium text-gray-800">
-                  {commande.adresse_livraison.rue}, {commande.adresse_livraison.quartier}
-                </p>
+                <>
+                  <p className="text-sm font-medium text-gray-800">
+                    {commande.adresse_livraison.rue}, {commande.adresse_livraison.quartier}
+                  </p>
+                  <LienCarte adresseLivraison={commande.adresse_livraison} className="mt-0.5" />
+                </>
               )}
             </div>
           </div>

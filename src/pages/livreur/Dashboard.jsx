@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { getLivreurStats, getActiveDelivery, markDelivered } from '@/services/livreurService'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { ouvrirWhatsApp } from '@/utils/whatsappMessage'
+import LienCarte from '@/components/shared/LienCarte'
 
 // ── Carte KPI ───────────────────────────────────────────────
 function KpiCard({ titre, valeur, sousTitre, Icon, couleur = 'brand' }) {
@@ -157,6 +158,7 @@ export default function LivreurDashboard() {
                       {commandeActive.adresse_livraison.indication}
                     </p>
                   )}
+                  <LienCarte adresseLivraison={commandeActive.adresse_livraison} className="mt-1" />
                   {commandeActive.client?.nom && (
                     <p className="text-xs text-gray-500 mt-0.5">
                       Client : {commandeActive.client.nom}

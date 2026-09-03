@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { ArrowLeft, MapPin, Check, Loader2, Tag, X, Gift, Wallet } from 'lucide-react'
+import { ArrowLeft, MapPin, Check, Loader2, Tag, X, Gift, Wallet, LocateFixed } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { Geolocation } from '@capacitor/geolocation'
 import useCart, { useCartTempsPrep } from '@/hooks/useCart'
 import { useAuth } from '@/hooks/useAuth'
 import { createOrder } from '@/services/orderService'
@@ -180,6 +181,8 @@ export default function Checkout() {
   const [promoApplied,   setPromoApplied]   = useState(null) // { promo, remise }
   const [validating,     setValidating]     = useState(false)
   const [utiliserSolde,  setUtiliserSolde]  = useState(false)
+  const [position,       setPosition]       = useState(null) // { latitude, longitude }
+  const [chargementGPS,  setChargementGPS]  = useState(false)
 
   const type         = watch('type')
   const modePaiement = watch('modePaiement')
@@ -246,6 +249,28 @@ export default function Checkout() {
     navigate(`/suivi/${data.id}`, { replace: true })
   }
 
+  // ── Capture de la position GPS ──────────────────────────
+  async function handleUtiliserPosition() {
+    setChargementGPS(true)
+    try {
+      const permission = await Geolocation.requestPermissions()
+      if (permission.location === 'denied') {
+        toast.error("Localisation refusée. Active-la dans les réglages du téléphone.")
+        return
+      }
+      const { coords } = await Geolocation.getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 10000,
+      })
+      setPosition({ latitude: coords.latitude, longitude: coords.longitude })
+      toast.success('Position enregistrée ✓')
+    } catch (err) {
+      toast.error("Impossible de récupérer votre position. Vérifiez que la localisation est activée.")
+    } finally {
+      setChargementGPS(false)
+    }
+  }
+
   // ── Traitement du formulaire ────────────────────────────
   async function onSubmit(donnees) {
     if (!user) {
@@ -256,7 +281,12 @@ export default function Checkout() {
 
     const adresseLivraison =
       donnees.type === 'livraison'
-        ? { rue: donnees.rue.trim(), quartier: donnees.quartier, indication: donnees.indication?.trim() || '' }
+        ? {
+            rue: donnees.rue.trim(),
+            quartier: donnees.quartier,
+            indication: donnees.indication?.trim() || '',
+            ...(position ? { latitude: position.latitude, longitude: position.longitude } : {}),
+          }
         : null
 
     const params = {
@@ -348,6 +378,33 @@ export default function Checkout() {
               <MapPin className="w-4 h-4 text-brand-500" />
               Adresse de livraison
             </h2>
+
+            <button
+              type="button"
+              onClick={handleUtiliserPosition}
+              disabled={chargementGPS}
+              className={`w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm
+                         font-semibold transition-colors disabled:opacity-60 ${
+                position
+                  ? 'bg-green-50 text-green-700 border border-green-200'
+                  : 'bg-brand-50 text-brand-600 border border-brand-200 hover:bg-brand-100'
+              }`}
+            >
+              {chargementGPS
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : position
+                  ? <Check className="w-4 h-4" />
+                  : <LocateFixed className="w-4 h-4" />
+              }
+              {chargementGPS
+                ? 'Localisation en cours...'
+                : position
+                  ? 'Position GPS enregistrée'
+                  : 'Utiliser ma position GPS'}
+            </button>
+            <p className="text-xs text-gray-400 -mt-1">
+              Recommandé — le livreur sera guidé précisément jusqu'à vous, en plus de l'adresse écrite.
+            </p>
 
             <div>
               <input

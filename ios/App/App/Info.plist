@@ -66,5 +66,7 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Zandofood utilise votre position pour indiquer précisément au restaurant et au livreur où livrer votre commande.</string>
 </dict>
 </plist>

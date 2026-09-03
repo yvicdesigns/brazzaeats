@@ -10,6 +10,7 @@ import { contacterSupport } from '@/utils/whatsappMessage'
 import { useAuth } from '@/hooks/useAuth'
 import ChatModal from '@/components/shared/ChatModal'
 import Modal from '@/components/ui/Modal'
+import LienCarte from '@/components/shared/LienCarte'
 
 // Étapes ordonnées de la timeline (hors "annulée")
 const ETAPES = [
@@ -261,6 +262,7 @@ export default function Tracking() {
                 {details.adresse_livraison.indication}
               </p>
             )}
+            <LienCarte adresseLivraison={details.adresse_livraison} className="mt-1" />
           </div>
         </section>
       )}
