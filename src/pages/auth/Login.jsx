@@ -92,7 +92,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col overflow-y-auto">
-      <div className="flex-1 flex flex-col items-center justify-center px-6 pt-16 pb-8">
+      <div className="flex-1 flex flex-col items-center justify-start px-6 pt-16 pb-8">
 
         {/* Logo */}
         <div className="mb-8 text-center">
