@@ -24,7 +24,7 @@ function getPeriodeDates(periodeId) {
 }
 
 // ── Graphique barres générique (SVG) ───────────────────────
-function Graphique({ donnees, couleur = '#E85D26', couleurFaible = '#f9c5a8', hauteur = 80 }) {
+function Graphique({ donnees, couleur = '#0B6E4F', couleurFaible = '#BFE6CE', hauteur = 80 }) {
   if (!donnees.length) return null
   const max = Math.max(...donnees.map(d => d.val), 1)
   const W   = Math.max(18, Math.floor(260 / donnees.length) - 4)

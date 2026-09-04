@@ -8,33 +8,39 @@ export default {
 
   theme: {
     extend: {
-      // ── Palette BrazzaEats ─────────────────────────────
+      // ── Palette Zandofood — vert, adoptée depuis la maquette
+      // de suivi de livraison (2026-09). Remplace l'ancien orange.
       colors: {
         brand: {
-          50:  '#fff4ee',
-          100: '#ffe6d5',
-          200: '#ffc9aa',
-          300: '#ffa374',
-          400: '#ff723c',
-          500: '#E85D26', // Couleur principale (theme_color PWA)
-          600: '#d44a14',
-          700: '#b03810',
-          800: '#8c2e12',
-          900: '#712912',
-          950: '#3d1208',
+          50:  '#EAF7EF',
+          100: '#D3EEDD',
+          200: '#A8DDBE',
+          300: '#74C79B',
+          400: '#3DAB79',
+          500: '#12925F', // Couleur principale (theme_color PWA)
+          600: '#0B6E4F',
+          700: '#0A5940',
+          800: '#0A4633',
+          900: '#0A3A2B',
+          950: '#052017',
         },
-        // Couleur secondaire (vert Congo)
-        secondary: {
-          50:  '#f0fdf4',
-          100: '#dcfce7',
-          200: '#bbf7d0',
-          300: '#86efac',
-          400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
-          700: '#15803d',
-          800: '#166534',
-          900: '#14532d',
+        // Accent "en direct" (moto en mouvement, badges live, succès)
+        live: {
+          50:  '#EEFDF5',
+          100: '#D6FBE7',
+          300: '#8FF0BC',
+          400: '#4FDE8F',
+          500: '#2AC479',
+          600: '#1EA164',
+        },
+        // Chaleur locale (avis étoiles, alertes douces) — anciennement "secondary"
+        amber: {
+          50:  '#FDF6EA',
+          100: '#FAEBCE',
+          300: '#F0C57D',
+          400: '#E8A23D',
+          500: '#D98B22',
+          600: '#B8721A',
         },
       },
 

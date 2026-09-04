@@ -46,7 +46,7 @@ function Graphique7j({ cmd7j }) {
           <g key={i}>
             <rect
               x={x} y={y} width={W_BARRE} height={hBarre} rx={5}
-              fill={jour.estAujourdhui ? '#E85D26' : '#f9c5a8'}
+              fill={jour.estAujourdhui ? '#0B6E4F' : '#BFE6CE'}
             />
             {jour.nb > 0 && (
               <text x={x + W_BARRE / 2} y={y - 5} textAnchor="middle"
@@ -56,12 +56,12 @@ function Graphique7j({ cmd7j }) {
             )}
             <text x={x + W_BARRE / 2} y={H_MAX + 14} textAnchor="middle"
               fontSize="9"
-              fill={jour.estAujourdhui ? '#E85D26' : '#9ca3af'}
+              fill={jour.estAujourdhui ? '#0B6E4F' : '#9ca3af'}
               fontWeight={jour.estAujourdhui ? '700' : '400'}>
               {jour.label}
             </text>
             {jour.estAujourdhui && (
-              <circle cx={x + W_BARRE / 2} cy={H_MAX + 24} r={2.5} fill="#E85D26" />
+              <circle cx={x + W_BARRE / 2} cy={H_MAX + 24} r={2.5} fill="#0B6E4F" />
             )}
           </g>
         )

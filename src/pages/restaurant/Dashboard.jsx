@@ -56,7 +56,7 @@ function GraphiqueCommandes({ commandesBrutes }) {
                 x={x} y={y}
                 width={W_BARRE} height={hBarre}
                 rx={5}
-                fill={jour.estAujourdhui ? '#E85D26' : '#f9c5a8'}
+                fill={jour.estAujourdhui ? '#0B6E4F' : '#BFE6CE'}
               />
               {/* Valeur au-dessus */}
               {jour.total > 0 && (
@@ -73,14 +73,14 @@ function GraphiqueCommandes({ commandesBrutes }) {
                 x={x + W_BARRE / 2} y={H_MAX + 16}
                 textAnchor="middle"
                 fontSize="9"
-                fill={jour.estAujourdhui ? '#E85D26' : '#9ca3af'}
+                fill={jour.estAujourdhui ? '#0B6E4F' : '#9ca3af'}
                 fontWeight={jour.estAujourdhui ? '700' : '400'}
               >
                 {jour.label}
               </text>
               {/* Indicateur "aujourd'hui" */}
               {jour.estAujourdhui && (
-                <circle cx={x + W_BARRE / 2} cy={H_MAX + 26} r={2.5} fill="#E85D26" />
+                <circle cx={x + W_BARRE / 2} cy={H_MAX + 26} r={2.5} fill="#0B6E4F" />
               )}
             </g>
           )

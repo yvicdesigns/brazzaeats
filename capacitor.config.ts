@@ -7,14 +7,14 @@ const config: CapacitorConfig = {
   plugins: {
     SplashScreen: {
       launchShowDuration: 1500,
-      backgroundColor: '#E85D26',
+      backgroundColor: '#0B6E4F',
       showSpinner: false,
       androidSplashResourceName: 'splash',
       androidScaleType: 'CENTER_CROP',
     },
     StatusBar: {
       style: 'DARK',
-      backgroundColor: '#E85D26',
+      backgroundColor: '#0B6E4F',
       overlaysWebView: false,
     },
     // resize:'none' — le WebView ne se redimensionne plus du tout à

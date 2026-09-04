@@ -54,7 +54,7 @@ function Mini30j({ par30j }) {
             key={i}
             x={i * (W + GAP)} y={H - h}
             width={W} height={h} rx={2}
-            fill={isToday ? '#E85D26' : j.nb > 0 ? '#f9c5a8' : '#f3f4f6'}
+            fill={isToday ? '#0B6E4F' : j.nb > 0 ? '#BFE6CE' : '#f3f4f6'}
           />
         )
       })}
