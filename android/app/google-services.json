@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "313890808855",
+    "project_id": "zandofood",
+    "storage_bucket": "zandofood.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:313890808855:android:7f2e08613d60d4f566a852",
+        "android_client_info": {
+          "package_name": "com.zandofood.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBgWMPv_OPwCUTDFqq4lx76kMQzn-COuTo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

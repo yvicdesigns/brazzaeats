@@ -10,6 +10,7 @@ import RestaurantLayout from '@/components/layout/RestaurantLayout'
 import LivreurLayout    from '@/components/layout/LivreurLayout'
 import InstallBanner    from '@/components/ui/InstallBanner'
 import { useClientOrderNotifications } from '@/hooks/useClientOrderNotifications'
+import { usePushNotifications } from '@/hooks/usePushNotifications'
 
 // ── Pages Auth ─────────────────────────────────────────────
 import Login    from '@/pages/auth/Login'
@@ -147,9 +148,18 @@ function AdminLayout() {
 // ══════════════════════════════════════════════════════════
 // App — arbre de routes complet
 // ══════════════════════════════════════════════════════════
+// Enregistrement push — doit être sous BrowserRouter (utilise useNavigate),
+// mais indépendant du rôle : couvre client, restaurant, livreur et admin
+// depuis un seul point de montage.
+function PushNotificationsBootstrap() {
+  usePushNotifications()
+  return null
+}
+
 export default function App() {
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <PushNotificationsBootstrap />
       <Routes>
 
         {/* ── Routes publiques (auth) ───────────────────── */}
