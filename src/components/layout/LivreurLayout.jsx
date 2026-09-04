@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { LayoutDashboard, Bike, History } from 'lucide-react'
 import { useLivreurNotifications } from '@/hooks/useLivreurNotifications'
+import { useLivreurPositionReporter } from '@/hooks/useLivreurPositionReporter'
 import Sidebar from '@/components/layout/Sidebar'
 
 const NAV_LIVREUR = [
@@ -39,6 +40,8 @@ function LivreurBottomNav() {
 export default function LivreurLayout() {
   // Notifications globales — son + browser notif + toast sur toutes les pages livreur
   useLivreurNotifications()
+  // Remonte la position GPS réelle au serveur pendant une livraison active
+  useLivreurPositionReporter()
 
   return (
     <div className="min-h-screen bg-gray-50 flex">

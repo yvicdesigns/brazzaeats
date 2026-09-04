@@ -135,7 +135,7 @@ export async function getOrderById(id) {
       .from('orders')
       .select(`
         *,
-        restaurant:restaurants(id, nom, logo_url, adresse),
+        restaurant:restaurants(id, nom, logo_url, adresse, latitude, longitude),
         order_items(
           quantite,
           prix_unitaire,
@@ -157,6 +157,14 @@ export async function getOrderById(id) {
         .single()
       data.livreur = livreur ?? null
     }
+
+    // Position en direct du livreur (nullable — tant qu'aucun point GPS n'a été reçu)
+    const { data: livraison } = await supabase
+      .from('deliveries')
+      .select('position_actuelle, statut')
+      .eq('order_id', id)
+      .maybeSingle()
+    data.delivery = livraison ?? null
 
     return { data, error: null }
   } catch (err) {

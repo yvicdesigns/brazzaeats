@@ -1,87 +1,74 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, MapPin, Phone, Loader2, MessageSquare, TriangleAlert } from 'lucide-react'
+import { ArrowLeft, Phone, Loader2, MessageSquare, TriangleAlert, Check, LocateFixed } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useRealtimeRow } from '@/hooks/useRealtime'
+import { supabase } from '@/supabase/client'
 import { getOrderById, reportOrderIssue } from '@/services/orderService'
 import { formatCurrency } from '@/utils/formatCurrency'
-import { STATUTS_COMMANDE } from '@/utils/constants'
 import { contacterSupport } from '@/utils/whatsappMessage'
 import { useAuth } from '@/hooks/useAuth'
 import ChatModal from '@/components/shared/ChatModal'
 import Modal from '@/components/ui/Modal'
-import LienCarte from '@/components/shared/LienCarte'
+import LivreurMap from '@/components/shared/LivreurMap'
 
 // Étapes ordonnées de la timeline (hors "annulée")
 const ETAPES = [
-  { statut: 'en_attente',     label: 'Commande envoyée',    emoji: '📋' },
-  { statut: 'acceptée',       label: 'Commande acceptée',   emoji: '✅' },
-  { statut: 'en_préparation', label: 'En préparation',      emoji: '👨‍🍳' },
-  { statut: 'prête',          label: 'Prête à partir',      emoji: '🎉' },
-  { statut: 'en_livraison',   label: 'En route vers vous',  emoji: '🛵' },
-  { statut: 'livrée',         label: 'Livrée',              emoji: '🏠' },
+  { statut: 'en_attente',     label: 'Commande confirmée' },
+  { statut: 'acceptée',       label: 'En préparation' },
+  { statut: 'en_préparation', label: 'En préparation' },
+  { statut: 'prête',          label: 'Commande récupérée' },
+  { statut: 'en_livraison',   label: 'En route vers vous' },
+  { statut: 'livrée',         label: 'Livrée' },
 ]
+// Certaines étapes serveur partagent un même libellé visuel — on ne
+// garde que la première occurrence pour la timeline affichée.
+const ETAPES_AFFICHEES = ETAPES.filter((e, i) => ETAPES.findIndex(x => x.label === e.label) === i)
 
-// ── Composant Timeline ─────────────────────────────────────
+function indexEtapeAffichee(statut) {
+  const idxReel = ETAPES.findIndex(e => e.statut === statut)
+  if (idxReel === -1) return -1
+  const label = ETAPES[idxReel].label
+  return ETAPES_AFFICHEES.findIndex(e => e.label === label)
+}
+
+function distanceKm(a, b) {
+  const R = 6371
+  const dLat = (b.lat - a.lat) * Math.PI / 180
+  const dLng = (b.lng - a.lng) * Math.PI / 180
+  const s = Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180) * Math.cos(b.lat*Math.PI/180) * Math.sin(dLng/2)**2
+  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s))
+}
+
+// ── Timeline verticale ───────────────────────────────────────
 function Timeline({ statutActuel }) {
-  if (statutActuel === 'annulée') {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-xl p-5 text-center">
-        <p className="text-4xl mb-2">❌</p>
-        <p className="font-bold text-red-700 text-lg">Commande annulée</p>
-        <p className="text-sm text-red-500 mt-1">
-          Si vous avez une question, contactez notre support.
-        </p>
-      </div>
-    )
-  }
-
-  const indexActuel = ETAPES.findIndex(e => e.statut === statutActuel)
+  const indexActuel = indexEtapeAffichee(statutActuel)
 
   return (
     <div>
-      {ETAPES.map((etape, index) => {
-        const fait  = index <= indexActuel
-        const actif = index === indexActuel
-        const dernier = index === ETAPES.length - 1
+      {ETAPES_AFFICHEES.map((etape, index) => {
+        const fait  = index < indexActuel || (index === indexActuel && statutActuel === 'livrée')
+        const actif = index === indexActuel && statutActuel !== 'livrée'
+        const dernier = index === ETAPES_AFFICHEES.length - 1
 
         return (
-          <div key={etape.statut} className="flex gap-4">
-            {/* Ligne verticale + cercle */}
+          <div key={etape.statut} className="flex gap-3">
             <div className="flex flex-col items-center">
               <div
-                className={`w-9 h-9 rounded-full flex items-center justify-center text-base shrink-0 z-10
-                  ${actif
-                    ? 'bg-brand-500 ring-4 ring-brand-100 shadow-md'
-                    : fait
-                      ? 'bg-brand-400'
-                      : 'bg-gray-200'
-                  }`}
+                className={`w-5 h-5 rounded-full shrink-0 grid place-items-center transition-all duration-300
+                  ${fait ? 'bg-brand-600' : actif ? 'border-2 border-brand-600 shadow-[0_0_0_4px_theme(colors.brand.50)]' : 'bg-gray-100 border-2 border-gray-200'}`}
               >
-                {fait
-                  ? <span>{etape.emoji}</span>
-                  : <span className="w-2.5 h-2.5 rounded-full bg-gray-400 block" />
-                }
+                {fait && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                {actif && <span className="w-2 h-2 rounded-full bg-brand-600 animate-pulse" />}
               </div>
-              {/* Connecteur vertical */}
               {!dernier && (
-                <div
-                  className={`w-0.5 flex-1 min-h-[2.5rem]
-                    ${index < indexActuel ? 'bg-brand-300' : 'bg-gray-200'}`}
-                />
+                <div className={`w-0.5 flex-1 min-h-[2rem] transition-colors duration-300 ${fait ? 'bg-brand-600' : 'bg-gray-200'}`} />
               )}
             </div>
-
-            {/* Texte de l'étape */}
-            <div className={`pt-1.5 ${!dernier ? 'pb-6' : 'pb-0'}`}>
-              <p className={`font-semibold text-sm ${fait ? 'text-gray-900' : 'text-gray-400'}`}>
+            <div className={`${!dernier ? 'pb-5' : ''}`}>
+              <p className={`text-[13px] font-bold transition-colors ${fait || actif ? 'text-gray-900' : 'text-gray-400'}`}>
                 {etape.label}
               </p>
-              {actif && !dernier && (
-                <p className="text-xs text-brand-500 font-medium mt-0.5 animate-pulse">
-                  En cours…
-                </p>
-              )}
             </div>
           </div>
         )
@@ -97,7 +84,6 @@ export default function Tracking() {
   const { id } = useParams()
   const { user } = useAuth()
 
-  // Données riches (restaurant, livreur, items) — chargées une seule fois
   const [details,    setDetails]    = useState(null)
   const [loading,    setLoading]    = useState(true)
   const [erreur,     setErreur]     = useState(null)
@@ -106,23 +92,24 @@ export default function Tracking() {
   const [motifSignalement,  setMotifSignalement]  = useState('')
   const [envoiEnCours,      setEnvoiEnCours]      = useState(false)
   const [dejaSignale,       setDejaSignale]       = useState(false)
+  const [livreurPos,        setLivreurPos]        = useState(null)
 
-  // Écoute Realtime pour les mises à jour de statut uniquement
   const { row: update } = useRealtimeRow('orders', id)
 
-  // Chargement initial des détails
   useEffect(() => {
     async function charger() {
       setLoading(true)
       const { data, error } = await getOrderById(id)
       if (error) setErreur(error)
-      else       setDetails(data)
+      else {
+        setDetails(data)
+        if (data?.delivery?.position_actuelle) setLivreurPos(data.delivery.position_actuelle)
+      }
       setLoading(false)
     }
     charger()
   }, [id])
 
-  // Mise à jour du statut depuis le flux Realtime
   useEffect(() => {
     if (update?.statut && details) {
       setDetails(prev => ({ ...prev, statut: update.statut }))
@@ -130,7 +117,33 @@ export default function Tracking() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [update?.statut])
 
-  // ── Chargement ─────────────────────────────────────────
+  // Position live du livreur — table `deliveries`, indépendante de `orders`
+  useEffect(() => {
+    if (!id) return
+    const canal = supabase
+      .channel(`delivery_position:${id}`)
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'deliveries', filter: `order_id=eq.${id}` },
+        (payload) => {
+          if (payload.new?.position_actuelle) setLivreurPos(payload.new.position_actuelle)
+        }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(canal) }
+  }, [id])
+
+  const restaurantPos = useMemo(() => (
+    details?.restaurant?.latitude && details?.restaurant?.longitude
+      ? { lat: details.restaurant.latitude, lng: details.restaurant.longitude }
+      : null
+  ), [details])
+
+  const destinationPos = useMemo(() => (
+    details?.adresse_livraison?.latitude && details?.adresse_livraison?.longitude
+      ? { lat: details.adresse_livraison.latitude, lng: details.adresse_livraison.longitude }
+      : null
+  ), [details])
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -139,7 +152,6 @@ export default function Tracking() {
     )
   }
 
-  // ── Erreur / non trouvée ────────────────────────────────
   if (erreur || !details) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center">
@@ -152,190 +164,222 @@ export default function Tracking() {
     )
   }
 
-  const infosStatut = STATUTS_COMMANDE[details.statut]
   const livree      = details.statut === 'livrée'
   const annulee     = details.statut === 'annulée'
+  const enLivraison = details.statut === 'en_livraison'
   const refCourte   = details.id.slice(0, 8).toUpperCase()
+  const afficherCarte = details.type === 'livraison' && !annulee && (restaurantPos || destinationPos)
 
-  // Estimation de livraison
   const tempsPrep = Math.max(
     ...(details.order_items ?? []).map(oi => oi.menu_item?.temps_preparation ?? 15),
     15
   )
   const estLivraison = details.type === 'livraison'
-  const tempsTotal   = tempsPrep + (estLivraison ? 15 : 0) // +15 min pour la livraison
+  const tempsTotal   = tempsPrep + (estLivraison ? 15 : 0)
   const heureCommande = new Date(details.created_at)
   const heurePrevue   = new Date(heureCommande.getTime() + tempsTotal * 60_000)
-  const heurePrevueStr = heurePrevue.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+
+  // ETA dynamique : distance réelle livreur→domicile si on a une position live,
+  // sinon estimation basée sur le temps de préparation.
+  let etaLabel = heurePrevue.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+  let etaSous = `Arrivée est. vers`
+  if (enLivraison && livreurPos && destinationPos) {
+    const km = distanceKm(livreurPos, destinationPos)
+    const minutes = Math.max(1, Math.round((km / 22) * 60)) // ~22 km/h en ville
+    etaLabel = minutes <= 1 ? '< 1 min' : `${minutes} min`
+    etaSous = 'Arrivée estimée dans'
+  }
+
+  const statusTitle = annulee ? 'Commande annulée'
+    : livree ? 'Commande livrée 🎉'
+    : enLivraison ? 'Votre commande est en route'
+    : details.statut === 'prête' ? 'Récupération en cours'
+    : details.statut === 'en_préparation' ? 'En préparation'
+    : details.statut === 'acceptée' ? 'Commande acceptée'
+    : 'Commande envoyée'
+
+  const statusSub = annulee ? 'Contactez le support si besoin'
+    : livree ? "Bon appétit ! N'oubliez pas de laisser un avis"
+    : details.livreur ? `${details.livreur.nom.split(' ')[0]} s'occupe de votre commande`
+    : `${estLivraison ? 'Livraison' : 'Retrait'} · ${details.restaurant?.nom ?? ''}`
 
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
 
-      {/* ── En-tête ─────────────────────────────────────── */}
-      <header className="bg-white border-b border-gray-100 px-4 pt-12 pb-4 flex items-center gap-3">
-        <Link to="/mes-commandes" aria-label="Retour aux commandes">
-          <ArrowLeft className="w-6 h-6 text-gray-700" />
-        </Link>
-        <div className="flex-1 min-w-0">
-          <h1 className="font-bold text-gray-900 text-lg">Suivi commande</h1>
-          <p className="text-xs text-gray-400">Réf. #{refCourte}</p>
-        </div>
-        {/* Badge statut dynamique */}
-        <span className={`shrink-0 px-3 py-1 rounded-full text-xs font-bold ${infosStatut?.couleur}`}>
-          {infosStatut?.label}
-        </span>
-      </header>
-
-      {/* ── Bandeau état principal ───────────────────────── */}
-      {!annulee && (
-        <div className={`mx-4 mt-4 rounded-xl p-4
-          ${livree
-            ? 'bg-green-50 border border-green-200'
-            : 'bg-brand-50 border border-brand-200'}`}
-        >
-          <p className={`font-bold text-base ${livree ? 'text-green-700' : 'text-brand-700'}`}>
-            {livree ? '🎉 Votre commande est arrivée !' : '⏳ Votre commande est en cours'}
-          </p>
-          <p className={`text-sm mt-1 ${livree ? 'text-green-600' : 'text-brand-600'}`}>
-            {livree
-              ? "Profitez de votre repas ! N'oubliez pas de laisser un avis."
-              : `${estLivraison ? 'Livraison' : 'Retrait'} prévu vers ${heurePrevueStr} (~${tempsTotal} min)`}
-          </p>
-          {livree && (
-            <button
-              onClick={() => setSignalementOuvert(true)}
-              disabled={dejaSignale}
-              className="mt-2 text-xs font-semibold text-green-700 underline
-                         underline-offset-2 disabled:no-underline disabled:text-green-500"
-            >
-              {dejaSignale ? 'Signalement envoyé ✓' : 'Un souci avec cette commande ?'}
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* ── Timeline ────────────────────────────────────── */}
-      <section className="mx-4 mt-4 bg-white rounded-xl p-5 shadow-sm">
-        <h2 className="font-semibold text-gray-800 mb-5">Progression</h2>
-        <Timeline statutActuel={details.statut} />
-      </section>
-
-      {/* ── Infos restaurant ────────────────────────────── */}
-      {details.restaurant && (
-        <section className="mx-4 mt-4 bg-white rounded-xl p-4 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 shrink-0">
-            {details.restaurant.logo_url ? (
-              <img
-                src={details.restaurant.logo_url}
-                alt={details.restaurant.nom}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-xl">🍽️</div>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-gray-900 text-sm truncate">
-              {details.restaurant.nom}
-            </p>
-            {details.restaurant.adresse && (
-              <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5 truncate">
-                <MapPin className="w-3 h-3 shrink-0" />
-                {details.restaurant.adresse}
-              </p>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* ── Adresse de livraison ─────────────────────────── */}
-      {details.type === 'livraison' && details.adresse_livraison && (
-        <section className="mx-4 mt-4 bg-white rounded-xl p-4 shadow-sm flex gap-3">
-          <MapPin className="w-5 h-5 text-brand-500 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold text-sm text-gray-800">Adresse de livraison</p>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {details.adresse_livraison.rue}, {details.adresse_livraison.quartier}
-            </p>
-            {details.adresse_livraison.indication && (
-              <p className="text-xs text-gray-400 mt-0.5">
-                {details.adresse_livraison.indication}
-              </p>
-            )}
-            <LienCarte adresseLivraison={details.adresse_livraison} className="mt-1" />
-          </div>
-        </section>
-      )}
-
-      {/* ── Récapitulatif tarifaire ─────────────────────── */}
-      <section className="mx-4 mt-4 bg-white rounded-xl p-4 shadow-sm space-y-2">
-        <h2 className="font-semibold text-gray-800 mb-2">Récapitulatif</h2>
-
-        {(details.order_items ?? []).map((oi, i) => (
-          <div key={i} className="flex justify-between text-sm text-gray-600">
-            <span className="truncate pr-2">{oi.quantite}× {oi.menu_item?.nom ?? '—'}</span>
-            <span className="shrink-0 tabular-nums">{formatCurrency(oi.sous_total)}</span>
-          </div>
-        ))}
-
-        {details.frais_livraison > 0 && (
-          <div className="flex justify-between text-sm text-gray-500">
-            <span>Frais de livraison</span>
-            <span className="tabular-nums">{formatCurrency(details.frais_livraison)}</span>
-          </div>
-        )}
-
-        <div className="border-t border-gray-100 pt-2 flex justify-between font-bold text-gray-900">
-          <span>Total payé</span>
-          <span className="tabular-nums">
-            {formatCurrency(details.montant_total + details.frais_livraison)}
-          </span>
-        </div>
-
-        <p className="text-xs text-gray-400">
-          Paiement : {details.mode_paiement === 'cash' ? 'Espèces' : 'Mobile Money'}
-        </p>
-      </section>
-
-      {/* ── Actions ─────────────────────────────────────── */}
-      <div className="mx-4 mt-5 space-y-3">
-        {/* Laisser un avis → redirige vers historique */}
-        {livree && (
+      {/* ── Carte (élément principal) ─────────────────────── */}
+      {afficherCarte ? (
+        <div className="relative">
+          <LivreurMap
+            restaurantPos={restaurantPos}
+            destinationPos={destinationPos}
+            livreurPos={enLivraison ? livreurPos : null}
+            className="h-[38vh] min-h-[240px]"
+          />
           <Link
             to="/mes-commandes"
-            className="block w-full text-center bg-brand-500 text-white font-bold py-4
-                       rounded-xl hover:bg-brand-600 active:scale-[0.98] transition-all shadow-lg"
+            aria-label="Retour aux commandes"
+            className="absolute top-4 left-4 z-[500] w-10 h-10 rounded-full bg-white shadow-card
+                       flex items-center justify-center"
           >
-            ⭐ Laisser un avis
+            <ArrowLeft className="w-5 h-5 text-gray-700" />
           </Link>
-        )}
+          {enLivraison && (
+            <div className="absolute top-4 right-4 z-[500] bg-white/90 backdrop-blur px-3 py-1.5
+                            rounded-full shadow-card flex items-center gap-1.5">
+              <LocateFixed className="w-3 h-3 text-brand-600 animate-pulse" />
+              <span className="text-[11px] font-bold text-brand-700 uppercase tracking-wide">En direct</span>
+            </div>
+          )}
+        </div>
+      ) : (
+        <header className="bg-white border-b border-gray-100 px-4 pt-12 pb-4 flex items-center gap-3">
+          <Link to="/mes-commandes" aria-label="Retour aux commandes">
+            <ArrowLeft className="w-6 h-6 text-gray-700" />
+          </Link>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-bold text-gray-900 text-lg">Suivi commande</h1>
+            <p className="text-xs text-gray-400">Réf. #{refCourte}</p>
+          </div>
+        </header>
+      )}
 
-        {/* Chat avec le restaurant */}
-        {!annulee && (
+      <div className={`bg-white rounded-t-3xl ${afficherCarte ? '-mt-5 relative z-10 shadow-card' : ''} px-4 pt-5 pb-2`}>
+        {afficherCarte && <div className="w-9 h-1 rounded-full bg-gray-200 mx-auto mb-4" />}
+
+        {/* ── Statut + ETA ──────────────────────────────── */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className={`font-black text-lg ${annulee ? 'text-red-600' : 'text-gray-900'}`}>{statusTitle}</h2>
+            <p className="text-[13px] text-gray-500 mt-0.5 truncate">{statusSub}</p>
+          </div>
+          {!annulee && !livree && (
+            <div className="text-right shrink-0">
+              <p className="font-black text-xl text-brand-600 tabular-nums leading-none">{etaLabel}</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">{etaSous}</p>
+            </div>
+          )}
+        </div>
+
+        {livree && (
           <button
-            onClick={() => setChatOuvert(true)}
-            className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200
-                       text-gray-700 font-semibold py-3.5 rounded-xl hover:bg-gray-50
-                       active:scale-[0.98] transition-all shadow-sm"
+            onClick={() => setSignalementOuvert(true)}
+            disabled={dejaSignale}
+            className="mt-2 text-xs font-semibold text-brand-600 underline
+                       underline-offset-2 disabled:no-underline disabled:text-gray-400"
           >
-            <MessageSquare className="w-4 h-4 text-brand-500" />
-            Contacter le restaurant
+            {dejaSignale ? 'Signalement envoyé ✓' : 'Un souci avec cette commande ?'}
           </button>
         )}
 
-        {/* Support WhatsApp */}
-        <button
-          onClick={() => contacterSupport(`commande #${refCourte}`)}
-          className="w-full flex items-center justify-center gap-2 bg-green-500 text-white
-                     font-semibold py-3.5 rounded-xl hover:bg-green-600
-                     active:scale-[0.98] transition-all"
-        >
-          <Phone className="w-4 h-4" />
-          Contacter le support
-        </button>
+        {/* ── Fiche livreur ─────────────────────────────── */}
+        {details.livreur && !annulee && (
+          <div className="mt-4 flex items-center gap-3 bg-gray-50 rounded-2xl p-3">
+            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-brand-500 to-brand-700
+                            text-white grid place-items-center font-bold text-sm shrink-0 shadow-sm">
+              {details.livreur.nom.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-[13.5px] text-gray-900 truncate">{details.livreur.nom}</p>
+              <p className="text-xs text-gray-500">🛵 Votre livreur</p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <a
+                href={`tel:${details.livreur.telephone}`}
+                aria-label="Appeler le livreur"
+                className="w-9 h-9 rounded-full bg-brand-600 text-white grid place-items-center shadow-sm"
+              >
+                <Phone className="w-4 h-4" />
+              </a>
+              <button
+                onClick={() => setChatOuvert(true)}
+                aria-label="Envoyer un message"
+                className="w-9 h-9 rounded-full bg-gray-900 text-white grid place-items-center shadow-sm"
+              >
+                <MessageSquare className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-4 flex items-center justify-between text-xs text-gray-400">
+          <span>Commande <b className="text-gray-600 font-bold tabular-nums">#{refCourte}</b></span>
+          {details.restaurant?.adresse && <span className="truncate max-w-[50%]">{details.restaurant.adresse}</span>}
+        </div>
+
+        {/* ── Timeline ──────────────────────────────────── */}
+        {!annulee ? (
+          <div className="mt-5 pt-5 border-t border-gray-100">
+            <Timeline statutActuel={details.statut} />
+          </div>
+        ) : (
+          <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+            <p className="text-3xl mb-1">❌</p>
+            <p className="text-sm text-red-600">Contactez le support pour plus d'infos.</p>
+          </div>
+        )}
+
+        {/* ── Récapitulatif ─────────────────────────────── */}
+        <div className="mt-5 pt-5 border-t border-gray-100 space-y-2">
+          <h3 className="font-bold text-gray-800 text-sm mb-1">Résumé de la commande</h3>
+          {(details.order_items ?? []).map((oi, i) => (
+            <div key={i} className="flex justify-between text-sm text-gray-600">
+              <span className="truncate pr-2">{oi.quantite}× {oi.menu_item?.nom ?? '—'}</span>
+              <span className="shrink-0 tabular-nums">{formatCurrency(oi.sous_total)}</span>
+            </div>
+          ))}
+          {details.frais_livraison > 0 && (
+            <div className="flex justify-between text-sm text-gray-500">
+              <span>Frais de livraison</span>
+              <span className="tabular-nums">{formatCurrency(details.frais_livraison)}</span>
+            </div>
+          )}
+          <div className="border-t border-gray-100 pt-2 flex justify-between font-black text-gray-900">
+            <span>Total payé</span>
+            <span className="tabular-nums text-brand-700">
+              {formatCurrency(details.montant_total + details.frais_livraison)}
+            </span>
+          </div>
+          <p className="text-xs text-gray-400">
+            Paiement : {details.mode_paiement === 'cash' ? 'Espèces' : 'Mobile Money'}
+          </p>
+        </div>
+
+        {/* ── Actions ───────────────────────────────────── */}
+        <div className="mt-5 space-y-3">
+          {livree && (
+            <Link
+              to="/mes-commandes"
+              className="block w-full text-center bg-brand-600 text-white font-bold py-4
+                         rounded-xl hover:bg-brand-700 active:scale-[0.98] transition-all shadow-lg"
+            >
+              ⭐ Laisser un avis
+            </Link>
+          )}
+
+          {!annulee && !details.livreur && (
+            <button
+              onClick={() => setChatOuvert(true)}
+              className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200
+                         text-gray-700 font-semibold py-3.5 rounded-xl hover:bg-gray-50
+                         active:scale-[0.98] transition-all shadow-sm"
+            >
+              <MessageSquare className="w-4 h-4 text-brand-500" />
+              Contacter le restaurant
+            </button>
+          )}
+
+          <button
+            onClick={() => contacterSupport(`commande #${refCourte}`)}
+            className="w-full flex items-center justify-center gap-2 bg-live-500 text-white
+                       font-semibold py-3.5 rounded-xl hover:bg-live-600
+                       active:scale-[0.98] transition-all"
+          >
+            <Phone className="w-4 h-4" />
+            Contacter le support
+          </button>
+        </div>
       </div>
 
-      {/* ── Chat modal ──────────────────────────────────────── */}
       {chatOuvert && user && (
         <ChatModal
           orderId={id}
@@ -346,7 +390,6 @@ export default function Tracking() {
         />
       )}
 
-      {/* ── Modal signalement ───────────────────────────────── */}
       <Modal
         ouvert={signalementOuvert}
         onClose={() => setSignalementOuvert(false)}

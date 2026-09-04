@@ -7,7 +7,6 @@ import LienCarte from '@/components/shared/LienCarte'
 import {
   getAvailableOrders,
   acceptDelivery,
-  updatePosition,
   getActiveDelivery,
 } from '@/services/livreurService'
 import { getPlatformSettings } from '@/services/adminService'
@@ -96,7 +95,6 @@ export default function Available() {
   const [commandeActive,   setCommandeActive]   = useState(null)
   const [loading,          setLoading]          = useState(true)
   const [acceptantId,      setAcceptantId]      = useState(null)
-  const [positionLoading,  setPositionLoading]  = useState(false)
   const [modeIndependants, setModeIndependants] = useState(true)
 
   // ── Chargement ─────────────────────────────────────────
@@ -181,25 +179,6 @@ export default function Available() {
     setCommandes(prev => prev.filter(c => c.id !== orderId))
   }
 
-  // ── Mettre à jour la position GPS (simulée) ────────────
-  async function handleUpdatePosition() {
-    if (!commandeActive) return
-    setPositionLoading(true)
-
-    // Coordonnées simulées autour du centre de Brazzaville
-    const position = {
-      lat: -4.2769 + (Math.random() - 0.5) * 0.05,
-      lng: 15.2714 + (Math.random() - 0.5) * 0.05,
-    }
-
-    const { error } = await updatePosition(commandeActive.id, position)
-    setPositionLoading(false)
-
-    if (error) { toast.error('Erreur position : ' + error); return }
-    toast.success(
-      `Position mise à jour (${position.lat.toFixed(4)}, ${position.lng.toFixed(4)})`
-    )
-  }
 
   if (loading) {
     return (
@@ -268,23 +247,9 @@ export default function Available() {
             </p>
             <LienCarte adresseLivraison={commandeActive.adresse_livraison} className="mt-1" />
 
-            {/* Bouton mise à jour position GPS simulée */}
-            <button
-              onClick={handleUpdatePosition}
-              disabled={positionLoading}
-              className="mt-3 w-full flex items-center justify-center gap-2 bg-white border
-                         border-brand-300 text-brand-600 rounded-xl py-3 text-sm font-semibold
-                         hover:bg-brand-50 transition-colors disabled:opacity-60 min-h-[48px]"
-            >
-              {positionLoading
-                ? <Loader2 className="w-4 h-4 animate-spin" />
-                : <Navigation className="w-4 h-4" />
-              }
-              Mettre à jour ma position
-            </button>
-
-            <p className="text-xs text-gray-400 text-center mt-2">
-              Livraison active — accédez au dashboard pour la confirmer.
+            <p className="text-xs text-gray-400 text-center mt-3 flex items-center justify-center gap-1.5">
+              <Navigation className="w-3 h-3 text-brand-500" />
+              Votre position GPS est partagée automatiquement avec le client
             </p>
           </div>
         )}
