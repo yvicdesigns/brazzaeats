@@ -3,14 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, Lock, AtSign } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth, useAuthStore } from '@/hooks/useAuth'
-
-// ── Redirection par rôle ──────────────────────────────────
-const REDIRECT_PAR_ROLE = {
-  client:     '/',
-  restaurant: '/restaurant/dashboard',
-  livreur:    '/livreur/dashboard',
-  admin:      '/admin/dashboard',
-}
+import { REDIRECT_PAR_ROLE } from '@/utils/constants'
 
 // ══════════════════════════════════════════════════════════
 // Page Login

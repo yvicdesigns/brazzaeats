@@ -11,6 +11,7 @@ import LivreurLayout    from '@/components/layout/LivreurLayout'
 import InstallBanner    from '@/components/ui/InstallBanner'
 import { useClientOrderNotifications } from '@/hooks/useClientOrderNotifications'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
+import { REDIRECT_PAR_ROLE } from '@/utils/constants'
 
 // ── Pages Auth ─────────────────────────────────────────────
 import Login    from '@/pages/auth/Login'
@@ -111,8 +112,16 @@ function PrivateRoute({ role: roleRequis }) {
 }
 
 // ── Layout espace client (Navbar + contenu + BottomNav) ───
+// Un compte livreur/restaurant/admin qui rouvre l'app (session persistée,
+// lancement direct sur "/") ne doit jamais se retrouver dans l'espace
+// client — on le renvoie vers son propre tableau de bord.
 function ClientLayout() {
+  const { role, loading } = useAuth()
   useClientOrderNotifications()
+
+  if (!loading && role && role !== 'client' && REDIRECT_PAR_ROLE[role]) {
+    return <Navigate to={REDIRECT_PAR_ROLE[role]} replace />
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

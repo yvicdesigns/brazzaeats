@@ -12,6 +12,15 @@ export const ROLES = {
   ADMIN:      'admin',
 }
 
+// Tableau de bord vers lequel chaque rôle est redirigé après connexion
+// (et depuis lequel un rôle non-client est renvoyé s'il erre dans l'espace client)
+export const REDIRECT_PAR_ROLE = {
+  client:     '/',
+  restaurant: '/restaurant/dashboard',
+  livreur:    '/livreur/dashboard',
+  admin:      '/admin/dashboard',
+}
+
 // ------------------------------------------------------------
 // Statuts de commande
 // Chaque statut expose : label (FR), couleur Tailwind, ordre dans le flux
