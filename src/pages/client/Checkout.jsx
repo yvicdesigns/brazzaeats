@@ -10,8 +10,39 @@ import useCart, { useCartTempsPrep } from '@/hooks/useCart'
 import { useAuth } from '@/hooks/useAuth'
 import { createOrder } from '@/services/orderService'
 import { validatePromoCode } from '@/services/promotionService'
+import { getAdresses } from '@/services/adresseService'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { QUARTIERS_BRAZZAVILLE, TARIFS } from '@/utils/constants'
+
+// ── Opérateurs Mobile Money — préfixes réels (Congo-Brazzaville) ──
+const PREFIXE_OPERATEUR = { MTN: '06', Airtel: '05' }
+
+// ── Reverse geocoding (OpenStreetMap Nominatim, pas de clé requise) ──
+// Sert uniquement à pré-remplir rue/quartier de CETTE commande à partir
+// du GPS — ne touche jamais l'adresse enregistrée dans le profil du client.
+function normaliser(txt) {
+  return (txt ?? '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+async function localiserAdresse(latitude, longitude) {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&addressdetails=1&accept-language=fr`
+    )
+    if (!res.ok) return null
+    const { address: a } = await res.json()
+    if (!a) return null
+    const candidats = [a.suburb, a.neighbourhood, a.quarter, a.city_district, a.town].filter(Boolean)
+    const quartier = QUARTIERS_BRAZZAVILLE.find(q =>
+      candidats.some(c => normaliser(c).includes(normaliser(q)) || normaliser(q).includes(normaliser(c)))
+    )
+    return { rue: a.road || null, quartier: quartier ?? null }
+  } catch {
+    return null
+  }
+}
 
 // ── Avantages par niveau de fidélité ──────────────────────
 const AVANTAGES_TIER = {
@@ -40,14 +71,24 @@ const schema = z
     telephone:    z.string().optional(),
     notes:        z.string().optional(),
   })
-  .refine(
-    d => d.type !== 'livraison' || (d.rue && d.rue.trim().length >= 4 && d.quartier),
-    { message: 'Rue et quartier requis pour la livraison', path: ['rue'] }
-  )
-  .refine(
-    d => d.modePaiement !== 'mobile_money' || (d.operateur && d.telephone && d.telephone.replace(/\s/g, '').length >= 9),
-    { message: 'Numéro requis pour Mobile Money', path: ['telephone'] }
-  )
+  .superRefine((d, ctx) => {
+    if (d.type === 'livraison' && (!d.rue || d.rue.trim().length < 4 || !d.quartier)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['rue'], message: 'Rue et quartier requis pour la livraison' })
+    }
+    if (d.modePaiement === 'mobile_money') {
+      if (!d.operateur) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['operateur'], message: 'Choisissez un opérateur' })
+        return
+      }
+      const chiffres = (d.telephone ?? '').replace(/\D/g, '')
+      const prefixeAttendu = PREFIXE_OPERATEUR[d.operateur]
+      if (chiffres.length !== 9) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['telephone'], message: 'Le numéro doit contenir exactement 9 chiffres' })
+      } else if (!chiffres.startsWith(prefixeAttendu)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['telephone'], message: `Un numéro ${d.operateur} commence par ${prefixeAttendu}` })
+      }
+    }
+  })
 
 // ══════════════════════════════════════════════════════════
 // Modal paiement Mobile Money (simulation MTN / Airtel)
@@ -168,6 +209,7 @@ export default function Checkout() {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm({
     resolver:      zodResolver(schema),
@@ -223,6 +265,23 @@ export default function Checkout() {
     setCodeInput('')
   }
 
+  // ── Pré-remplit rue/quartier avec l'adresse par défaut du profil ────
+  // Le client n'a pas à retaper une adresse déjà enregistrée. Le GPS
+  // (handleUtiliserPosition) peut ensuite l'ajuster pour cette commande
+  // précise, sans jamais modifier l'adresse enregistrée elle-même.
+  useEffect(() => {
+    if (!user?.id) return
+    let annule = false
+    getAdresses(user.id).then(({ data }) => {
+      if (annule || !data?.length) return
+      const defaut = data.find(a => a.is_default) ?? data[0]
+      setValue('rue', defaut.rue)
+      setValue('quartier', defaut.quartier)
+      if (defaut.indication) setValue('indication', defaut.indication)
+    })
+    return () => { annule = true }
+  }, [user?.id, setValue])
+
   // ── Redirige si panier vide (dans useEffect pour éviter navigate pendant le rendu)
   // Ignoré juste après une commande réussie — clearCart() viderait sinon la course
   // avec la redirection vers /suivi/:id et renverrait l'utilisateur à l'accueil.
@@ -263,7 +322,15 @@ export default function Checkout() {
         timeout: 10000,
       })
       setPosition({ latitude: coords.latitude, longitude: coords.longitude })
-      toast.success('Position enregistrée ✓')
+
+      // Ajuste rue/quartier pour CETTE commande selon la position réelle
+      // (utile si le client commande depuis un autre endroit que son adresse
+      // habituelle) — l'adresse enregistrée dans le profil n'est jamais modifiée.
+      const lieu = await localiserAdresse(coords.latitude, coords.longitude)
+      if (lieu?.rue) setValue('rue', lieu.rue, { shouldValidate: true })
+      if (lieu?.quartier) setValue('quartier', lieu.quartier, { shouldValidate: true })
+
+      toast.success(lieu?.quartier ? `Position enregistrée — ${lieu.quartier} ✓` : 'Position enregistrée ✓')
     } catch (err) {
       toast.error("Impossible de récupérer votre position. Vérifiez que la localisation est activée.")
     } finally {
@@ -505,9 +572,13 @@ export default function Checkout() {
                     +242
                   </span>
                   <input
-                    {...register('telephone')}
+                    {...register('telephone', {
+                      onChange: e => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 9) },
+                    })}
                     type="tel"
-                    placeholder="06 XXX XXXX"
+                    inputMode="numeric"
+                    maxLength={9}
+                    placeholder={operateur ? `${PREFIXE_OPERATEUR[operateur]} XXX XXXX` : '06 XXX XXXX'}
                     className="flex-1 px-3 py-3 text-sm focus:outline-none bg-white"
                   />
                 </div>
