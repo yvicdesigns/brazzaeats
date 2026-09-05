@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client'
-import { Toaster } from 'react-hot-toast'
+import toast, { Toaster } from 'react-hot-toast'
 import { registerSW } from 'virtual:pwa-register'
 import { Capacitor } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
@@ -31,16 +31,31 @@ if (Capacitor.isNativePlatform()) {
   })
 }
 
-// ── Mise à jour PWA — recharge auto quand nouvelle version dispo ──
-// registerType: 'prompt' laisse le nouveau service worker en attente tant
-// qu'on ne l'active pas explicitement. Recharger sans appeler updateSW()
-// ne fait JAMAIS passer la main au nouveau SW : l'ancien reste actif, la
-// vérification détecte à nouveau une mise à jour en attente, et on obtient
-// une boucle de rechargement infinie (observé sur le site déployé).
+// ── Mise à jour PWA — propose la mise à jour, ne recharge jamais seul ──
+// vite-plugin-pwa revérifie une nouvelle version à chaque fois que l'onglet
+// redevient visible. En période de déploiements fréquents, un rechargement
+// automatique à ce moment-là (updateSW(true) direct) interrompait l'utilisateur
+// sans prévenir dès qu'il revenait sur l'onglet — perçu comme "ça recharge
+// tout seul en boucle". On affiche maintenant un toast persistant et c'est
+// l'utilisateur qui déclenche la mise à jour, quand il le souhaite.
 const updateSW = registerSW({
   onNeedRefresh() {
-    // Active le nouveau SW puis recharge une seule fois.
-    updateSW(true)
+    toast((t) => (
+      <div className="flex items-center gap-3">
+        <span className="text-xl">🚀</span>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-gray-900 text-sm">Nouvelle version disponible</p>
+          <p className="text-xs text-gray-500">Mettez à jour quand vous êtes prêt.</p>
+        </div>
+        <button
+          onClick={() => { toast.dismiss(t.id); updateSW(true) }}
+          className="shrink-0 bg-brand-500 text-white text-xs font-bold px-3 py-1.5
+                     rounded-lg hover:bg-brand-600 transition-colors"
+        >
+          Mettre à jour
+        </button>
+      </div>
+    ), { duration: Infinity, style: { maxWidth: '380px' } })
   },
   onOfflineReady() {},
 })

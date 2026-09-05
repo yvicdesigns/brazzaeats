@@ -126,28 +126,42 @@ export default function Dashboard() {
   useEffect(() => {
     if (!restaurant?.id) return
 
-    async function charger() {
-      setLoading(true)
-      const [{ data, error }, { data: vers }] = await Promise.all([
-        getDashboardData(restaurant.id),
-        getVersementsRestaurant(restaurant.id),
-      ])
-      if (error) toast.error('Impossible de charger le tableau de bord')
-      else       setKpis(data)
-      setVersements(vers ?? [])
-      setLoading(false)
+    let annule = false
+
+    // silencieux=true : rafraîchissement en arrière-plan, on ne remplace jamais
+    // le contenu déjà affiché par le spinner plein écran — sinon, si la requête
+    // reste bloquée (session Supabase à ré-authentifier après une mise en veille
+    // de l'onglet, connexion réseau restée ouverte mais morte, etc.), la page
+    // entière reste figée indéfiniment sur le spinner sans aucune erreur console.
+    async function charger(silencieux = false) {
+      if (!silencieux) setLoading(true)
+      try {
+        const [{ data, error }, { data: vers }] = await Promise.all([
+          getDashboardData(restaurant.id),
+          getVersementsRestaurant(restaurant.id),
+        ])
+        if (annule) return
+        if (error) toast.error('Impossible de charger le tableau de bord')
+        else       setKpis(data)
+        setVersements(vers ?? [])
+      } catch {
+        if (!annule) toast.error('Impossible de charger le tableau de bord')
+      } finally {
+        if (!annule) setLoading(false)
+      }
     }
 
     charger()
 
     // Rafraîchissement toutes les 2 minutes
-    const intervalle = setInterval(charger, 2 * 60 * 1000)
+    const intervalle = setInterval(() => charger(true), 2 * 60 * 1000)
 
     // Rafraîchissement immédiat quand l'utilisateur revient sur l'onglet
-    const onVisible = () => { if (!document.hidden) charger() }
+    const onVisible = () => { if (!document.hidden) charger(true) }
     document.addEventListener('visibilitychange', onVisible)
 
     return () => {
+      annule = true
       clearInterval(intervalle)
       document.removeEventListener('visibilitychange', onVisible)
     }

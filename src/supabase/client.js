@@ -17,8 +17,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    // Désactive le Navigator Lock (cause des conflits avec le HMR de Vite).
-    // On remplace par un lock no-op : un seul onglet de dev, donc pas de concurrence.
-    lock: (name, acquireTimeout, fn) => fn(),
+    // Désactive le Navigator Lock UNIQUEMENT en dev (conflits avec le HMR de Vite,
+    // un seul onglet donc pas de concurrence réelle). En production on garde le
+    // vrai lock de Supabase : il coordonne le rafraîchissement de session entre
+    // onglets/webviews, ce qui compte quand plusieurs contextes partagent la
+    // même session (ex. PWA + navigateur ouverts en même temps).
+    ...(import.meta.env.DEV ? { lock: (name, acquireTimeout, fn) => fn() } : {}),
   },
 })
