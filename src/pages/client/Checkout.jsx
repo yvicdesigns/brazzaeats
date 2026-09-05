@@ -16,6 +16,7 @@ import { QUARTIERS_BRAZZAVILLE, TARIFS } from '@/utils/constants'
 
 // ── Opérateurs Mobile Money — préfixes réels (Congo-Brazzaville) ──
 const PREFIXE_OPERATEUR = { MTN: '06', Airtel: '05' }
+const LOGO_OPERATEUR    = { MTN: '/logos/mtn-money.jpg', Airtel: '/logos/airtel-money.jpg' }
 
 // ── Reverse geocoding (OpenStreetMap Nominatim, pas de clé requise) ──
 // Sert uniquement à pré-remplir rue/quartier de CETTE commande à partir
@@ -116,10 +117,14 @@ function ModalMobileMoney({ operateur, montant, telephone, onSuccess, onClose })
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         {/* Header opérateur */}
-        <div className={`${couleur} px-6 py-5 text-center`}>
-          <p className="text-2xl font-black text-white tracking-wide">{nomOp}</p>
+        <div className={`${couleur} px-6 pt-5 pb-4 text-center`}>
+          <img
+            src={LOGO_OPERATEUR[operateur]}
+            alt={nomOp}
+            className="h-16 mx-auto rounded-xl shadow-sm"
+          />
           {etape === 'saisie' && (
-            <p className="text-white/80 text-xs mt-1">Paiement sécurisé</p>
+            <p className="text-white/80 text-xs mt-2">Paiement sécurisé</p>
           )}
         </div>
 
@@ -557,8 +562,7 @@ export default function Checkout() {
                       }`}
                   >
                     <input type="radio" value={op} {...register('operateur')} className="sr-only" />
-                    <span className="text-lg">{op === 'MTN' ? '🟡' : '🔴'}</span>
-                    <span className="font-bold text-sm">{op}</span>
+                    <img src={LOGO_OPERATEUR[op]} alt={op} className="h-9 w-auto rounded-md" />
                   </label>
                 ))}
               </div>
