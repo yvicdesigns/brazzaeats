@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { ArrowLeft, MapPin, Check, Loader2, Tag, X, Gift, Wallet, LocateFixed } from 'lucide-react'
+import { ArrowLeft, MapPin, Check, Loader2, Tag, X, Gift, Wallet, LocateFixed, ImagePlus } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Geolocation } from '@capacitor/geolocation'
 import useCart, { useCartTempsPrep } from '@/hooks/useCart'
 import { useAuth } from '@/hooks/useAuth'
-import { createOrder } from '@/services/orderService'
+import { createOrder, uploadPaymentProof } from '@/services/orderService'
 import { validatePromoCode } from '@/services/promotionService'
 import { getAdresses } from '@/services/adresseService'
 import { formatCurrency } from '@/utils/formatCurrency'
@@ -82,11 +82,30 @@ const schema = z
 // ══════════════════════════════════════════════════════════
 // Modal paiement Mobile Money — transfert manuel vers le restaurant
 // ══════════════════════════════════════════════════════════
-function ModalMobileMoney({ operateur, montant, numeroResto, restaurantNom, onSuccess, onClose }) {
+function ModalMobileMoney({ operateur, montant, numeroResto, restaurantNom, clientId, onSuccess, onClose }) {
   const isMTN  = operateur === 'MTN'
   const couleur = isMTN ? 'bg-yellow-400' : 'bg-red-500'
   const nomOp   = isMTN ? 'MTN Mobile Money' : 'Airtel Money'
   const numAff  = numeroResto?.replace(/(.{2})(?=.)/g, '$1 ')
+
+  const [preuveUrl,    setPreuveUrl]    = useState(null)
+  const [preuveApercu, setPreuveApercu] = useState(null)
+  const [envoiPreuve,  setEnvoiPreuve]  = useState(false)
+
+  async function handlePreuveChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 8 * 1024 * 1024) { toast.error('Image trop lourde (max 8 Mo)'); return }
+
+    setPreuveApercu(URL.createObjectURL(file))
+    setPreuveUrl(null)
+    setEnvoiPreuve(true)
+    const { url, error } = await uploadPaymentProof(file, clientId)
+    setEnvoiPreuve(false)
+
+    if (error) { toast.error("Impossible d'envoyer l'image, réessayez"); setPreuveApercu(null); return }
+    setPreuveUrl(url)
+  }
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center">
@@ -118,15 +137,50 @@ function ModalMobileMoney({ operateur, montant, numeroResto, restaurantNom, onSu
           <div className="bg-brand-50 rounded-xl p-4 text-sm text-brand-800 leading-relaxed">
             <p className="font-semibold mb-1">Comment envoyer l'argent :</p>
             <p>
-              Depuis votre téléphone, envoyez {formatCurrency(montant)} via {nomOp} au numéro
-              ci-dessus, puis appuyez sur « J'ai envoyé le paiement ». Le restaurant vérifiera
-              la réception avant de préparer votre commande.
+              1. Depuis votre téléphone, envoyez {formatCurrency(montant)} via {nomOp} au numéro
+              ci-dessus.<br />
+              2. {nomOp} vous envoie un SMS de confirmation — prenez-en une capture d'écran.<br />
+              3. Ajoutez cette capture ci-dessous, puis confirmez.
             </p>
           </div>
 
+          <div>
+            <p className="text-sm font-semibold text-gray-700 mb-2">
+              Capture du SMS de confirmation *
+            </p>
+            <label
+              className="flex flex-col items-center justify-center gap-2 border-2 border-dashed
+                         border-gray-300 rounded-xl p-4 cursor-pointer hover:border-brand-300
+                         transition-colors min-h-[96px]"
+            >
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePreuveChange}
+              />
+              {preuveApercu ? (
+                <img src={preuveApercu} alt="Capture du paiement" className="max-h-40 rounded-lg object-contain" />
+              ) : (
+                <>
+                  <ImagePlus className="w-6 h-6 text-gray-400" />
+                  <span className="text-xs text-gray-500">Ajouter une capture d'écran</span>
+                </>
+              )}
+              {envoiPreuve && <Loader2 className="w-4 h-4 animate-spin text-brand-500" />}
+              {preuveUrl && !envoiPreuve && (
+                <span className="text-xs text-green-600 font-semibold flex items-center gap-1">
+                  <Check className="w-3.5 h-3.5" /> Capture ajoutée — touchez pour changer
+                </span>
+              )}
+            </label>
+          </div>
+
           <button
-            onClick={onSuccess}
+            onClick={() => onSuccess(preuveUrl)}
+            disabled={!preuveUrl || envoiPreuve}
             className={`w-full py-4 rounded-xl font-bold text-base text-white transition-colors
+              disabled:opacity-50 disabled:cursor-not-allowed
               ${isMTN ? 'bg-yellow-400 hover:bg-yellow-500' : 'bg-red-500 hover:bg-red-600'}`}
           >
             J'ai envoyé le paiement
@@ -714,9 +768,10 @@ export default function Checkout() {
           montant={total}
           numeroResto={numerosOperateur[operateur]}
           restaurantNom={restaurant?.nom ?? 'ce restaurant'}
-          onSuccess={() => {
+          clientId={user?.id}
+          onSuccess={(preuvePaiementUrl) => {
             setModalMM(false)
-            soumettre(paramsCommande)
+            soumettre({ ...paramsCommande, preuvePaiementUrl })
           }}
           onClose={() => setModalMM(false)}
         />

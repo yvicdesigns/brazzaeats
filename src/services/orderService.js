@@ -2,6 +2,31 @@ import { supabase } from '@/supabase/client'
 import { incrementPromoUsage, incrementPlatformPromoUsage } from '@/services/promotionService'
 
 /**
+ * Upload la capture d'écran de confirmation SMS Mobile Money du client
+ * et retourne son URL publique — preuve que l'argent a bien été envoyé,
+ * à vérifier par le restaurant avant d'accepter la commande.
+ */
+export async function uploadPaymentProof(file, clientId) {
+  try {
+    const ext    = file.name.split('.').pop().toLowerCase()
+    const chemin = `${clientId}/${Date.now()}.${ext}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('payment-proofs')
+      .upload(chemin, file, { upsert: true, contentType: file.type })
+    if (uploadError) throw uploadError
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('payment-proofs')
+      .getPublicUrl(chemin)
+
+    return { url: publicUrl, error: null }
+  } catch (err) {
+    return { url: null, error: err.message }
+  }
+}
+
+/**
  * Crée une commande complète avec ses lignes.
  * Effectue deux insertions séquentielles (orders → order_items).
  * En cas d'échec de la 2ème, la commande est supprimée (rollback manuel).
@@ -16,6 +41,7 @@ export async function createOrder({
   type            = 'livraison',
   modePaiement    = 'cash',
   operateurPaiement = null,
+  preuvePaiementUrl = null,
   adresseLivraison = null,
   notes           = null,
   fraisLivraison  = 1000,
@@ -54,6 +80,7 @@ export async function createOrder({
         commission,
         mode_paiement:     modePaiement,
         operateur_paiement: operateurPaiement,
+        preuve_paiement_url: preuvePaiementUrl,
         adresse_livraison: adresseLivraison,
         notes,
       })
