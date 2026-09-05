@@ -12,11 +12,10 @@ import { createOrder } from '@/services/orderService'
 import { validatePromoCode } from '@/services/promotionService'
 import { getAdresses } from '@/services/adresseService'
 import { formatCurrency } from '@/utils/formatCurrency'
+import { getRestaurantById } from '@/services/restaurantService'
 import { QUARTIERS_BRAZZAVILLE, TARIFS } from '@/utils/constants'
 
-// ── Opérateurs Mobile Money — préfixes réels (Congo-Brazzaville) ──
-const PREFIXE_OPERATEUR = { MTN: '06', Airtel: '05' }
-const LOGO_OPERATEUR    = { MTN: '/logos/mtn-money.jpg', Airtel: '/logos/airtel-money.jpg' }
+const LOGO_OPERATEUR = { MTN: '/logos/mtn-money.jpg', Airtel: '/logos/airtel-money.jpg' }
 
 // ── Reverse geocoding (OpenStreetMap Nominatim, pas de clé requise) ──
 // Sert uniquement à pré-remplir rue/quartier de CETTE commande à partir
@@ -69,45 +68,25 @@ const schema = z
     indication:   z.string().optional(),
     modePaiement: z.enum(['cash', 'mobile_money']),
     operateur:    z.string().optional(),
-    telephone:    z.string().optional(),
     notes:        z.string().optional(),
   })
   .superRefine((d, ctx) => {
     if (d.type === 'livraison' && (!d.rue || d.rue.trim().length < 4 || !d.quartier)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['rue'], message: 'Rue et quartier requis pour la livraison' })
     }
-    if (d.modePaiement === 'mobile_money') {
-      if (!d.operateur) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['operateur'], message: 'Choisissez un opérateur' })
-        return
-      }
-      const chiffres = (d.telephone ?? '').replace(/\D/g, '')
-      const prefixeAttendu = PREFIXE_OPERATEUR[d.operateur]
-      if (chiffres.length !== 9) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['telephone'], message: 'Le numéro doit contenir exactement 9 chiffres' })
-      } else if (!chiffres.startsWith(prefixeAttendu)) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['telephone'], message: `Un numéro ${d.operateur} commence par ${prefixeAttendu}` })
-      }
+    if (d.modePaiement === 'mobile_money' && !d.operateur) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['operateur'], message: 'Choisissez un opérateur' })
     }
   })
 
 // ══════════════════════════════════════════════════════════
-// Modal paiement Mobile Money (simulation MTN / Airtel)
+// Modal paiement Mobile Money — transfert manuel vers le restaurant
 // ══════════════════════════════════════════════════════════
-function ModalMobileMoney({ operateur, montant, telephone, onSuccess, onClose }) {
-  const [etape, setEtape] = useState('saisie') // 'saisie' | 'traitement' | 'succes'
-
-  const isMTN    = operateur === 'MTN'
-  const couleur  = isMTN ? 'bg-yellow-400' : 'bg-red-500'
-  const nomOp    = isMTN ? 'MTN Mobile Money' : 'Airtel Money'
-  const telAff   = telephone?.replace(/\s/g, '').replace(/(.{2})(?=.)/g, '$1 ')
-
-  async function confirmer() {
-    setEtape('traitement')
-    await new Promise(r => setTimeout(r, 3000)) // Simulation 3 secondes
-    setEtape('succes')
-    setTimeout(onSuccess, 1800) // Redirection automatique
-  }
+function ModalMobileMoney({ operateur, montant, numeroResto, restaurantNom, onSuccess, onClose }) {
+  const isMTN  = operateur === 'MTN'
+  const couleur = isMTN ? 'bg-yellow-400' : 'bg-red-500'
+  const nomOp   = isMTN ? 'MTN Mobile Money' : 'Airtel Money'
+  const numAff  = numeroResto?.replace(/(.{2})(?=.)/g, '$1 ')
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center">
@@ -118,84 +97,48 @@ function ModalMobileMoney({ operateur, montant, telephone, onSuccess, onClose })
       >
         {/* Header opérateur */}
         <div className={`${couleur} px-6 pt-5 pb-4 text-center`}>
-          <img
-            src={LOGO_OPERATEUR[operateur]}
-            alt={nomOp}
-            className="h-16 mx-auto rounded-xl shadow-sm"
-          />
-          {etape === 'saisie' && (
-            <p className="text-white/80 text-xs mt-2">Paiement sécurisé</p>
-          )}
+          <img src={LOGO_OPERATEUR[operateur]} alt={nomOp} className="h-16 mx-auto rounded-xl shadow-sm" />
         </div>
 
-        {/* ── Écran de confirmation ────────────────────── */}
-        {etape === 'saisie' && (
-          <div className="p-6 space-y-5">
-            <div className="text-center">
-              <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Montant à payer</p>
-              <p className="text-4xl font-black text-gray-900 tabular-nums">
-                {formatCurrency(montant)}
-              </p>
-            </div>
-
-            <div className="bg-gray-50 rounded-xl p-4 text-center">
-              <p className="text-xs text-gray-400 mb-0.5">Numéro {operateur}</p>
-              <p className="font-bold text-gray-800 text-xl tracking-widest">
-                +242 {telAff}
-              </p>
-            </div>
-
-            <p className="text-xs text-gray-400 text-center leading-relaxed">
-              En confirmant, vous autorisez le débit de votre compte {operateur}.
-              Un SMS de confirmation vous sera envoyé.
+        <div className="p-6 space-y-5">
+          <div className="text-center">
+            <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Montant à envoyer</p>
+            <p className="text-4xl font-black text-gray-900 tabular-nums">
+              {formatCurrency(montant)}
             </p>
-
-            <button
-              onClick={confirmer}
-              className={`w-full py-4 rounded-xl font-bold text-base text-white transition-colors
-                ${isMTN ? 'bg-yellow-400 hover:bg-yellow-500' : 'bg-red-500 hover:bg-red-600'}`}
-            >
-              Confirmer le paiement
-            </button>
-
-            <button
-              onClick={onClose}
-              className="w-full py-3 text-gray-500 text-sm font-medium hover:text-gray-700"
-            >
-              Annuler
-            </button>
           </div>
-        )}
 
-        {/* ── Traitement en cours ──────────────────────── */}
-        {etape === 'traitement' && (
-          <div className="p-12 flex flex-col items-center gap-6">
-            <Loader2 className="w-16 h-16 text-brand-500 animate-spin" strokeWidth={1.5} />
-            <div className="text-center">
-              <p className="font-bold text-gray-900 text-lg">Traitement en cours</p>
-              <p className="text-sm text-gray-500 mt-1">
-                Connexion au réseau {operateur}…
-              </p>
-            </div>
+          <div className="bg-gray-50 rounded-xl p-4 text-center">
+            <p className="text-xs text-gray-400 mb-0.5">Numéro {operateur} de {restaurantNom}</p>
+            <p className="font-bold text-gray-800 text-xl tracking-widest">
+              +242 {numAff}
+            </p>
           </div>
-        )}
 
-        {/* ── Paiement confirmé ───────────────────────── */}
-        {etape === 'succes' && (
-          <div className="p-12 flex flex-col items-center gap-5">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center
-                            ring-8 ring-green-50">
-              <Check className="w-10 h-10 text-green-600" strokeWidth={2.5} />
-            </div>
-            <div className="text-center">
-              <p className="font-black text-green-700 text-2xl">Paiement confirmé !</p>
-              <p className="text-sm text-gray-500 mt-2">
-                {formatCurrency(montant)} débités de votre compte {operateur}
-              </p>
-              <p className="text-xs text-gray-400 mt-1">Redirection en cours…</p>
-            </div>
+          <div className="bg-brand-50 rounded-xl p-4 text-sm text-brand-800 leading-relaxed">
+            <p className="font-semibold mb-1">Comment envoyer l'argent :</p>
+            <p>
+              Depuis votre téléphone, envoyez {formatCurrency(montant)} via {nomOp} au numéro
+              ci-dessus, puis appuyez sur « J'ai envoyé le paiement ». Le restaurant vérifiera
+              la réception avant de préparer votre commande.
+            </p>
           </div>
-        )}
+
+          <button
+            onClick={onSuccess}
+            className={`w-full py-4 rounded-xl font-bold text-base text-white transition-colors
+              ${isMTN ? 'bg-yellow-400 hover:bg-yellow-500' : 'bg-red-500 hover:bg-red-600'}`}
+          >
+            J'ai envoyé le paiement
+          </button>
+
+          <button
+            onClick={onClose}
+            className="w-full py-3 text-gray-500 text-sm font-medium hover:text-gray-700"
+          >
+            Annuler
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -230,11 +173,31 @@ export default function Checkout() {
   const [utiliserSolde,  setUtiliserSolde]  = useState(false)
   const [position,       setPosition]       = useState(null) // { latitude, longitude }
   const [chargementGPS,  setChargementGPS]  = useState(false)
+  const [restaurant,     setRestaurant]     = useState(null)
 
   const type         = watch('type')
   const modePaiement = watch('modePaiement')
   const operateur    = watch('operateur')
-  const telephone    = watch('telephone')
+
+  // ── Numéros Mobile Money du restaurant (pas ceux du client) ──
+  const numerosOperateur = {
+    MTN:    restaurant?.mtn_momo_numero || null,
+    Airtel: restaurant?.airtel_money_numero || null,
+  }
+  const operateursDisponibles = ['MTN', 'Airtel'].filter(op => numerosOperateur[op])
+  const mobileMoneyDisponible = operateursDisponibles.length > 0
+
+  useEffect(() => {
+    if (!restaurantId) return
+    getRestaurantById(restaurantId).then(({ data }) => setRestaurant(data))
+  }, [restaurantId])
+
+  // Retombe sur "espèces" si Mobile Money n'est pas configuré par ce restaurant
+  useEffect(() => {
+    if (restaurant && !mobileMoneyDisponible && modePaiement === 'mobile_money') {
+      setValue('modePaiement', 'cash')
+    }
+  }, [restaurant, mobileMoneyDisponible, modePaiement, setValue])
 
   const sousTotal         = items.reduce((s, i) => s + i.prix * i.quantite, 0)
   const livraisonGratuite = promoApplied?.promo?._source === 'platform' && promoApplied?.promo?.type === 'livraison_gratuite'
@@ -372,6 +335,7 @@ export default function Checkout() {
       })),
       type:             donnees.type,
       modePaiement:     donnees.modePaiement,
+      operateurPaiement: donnees.modePaiement === 'mobile_money' ? donnees.operateur : null,
       adresseLivraison,
       notes:            donnees.notes?.trim() || null,
       fraisLivraison,
@@ -524,7 +488,9 @@ export default function Checkout() {
             {/* Cash — affiché en premier */}
             {[
               { val: 'cash',         emoji: '💵', titre: 'Espèces',       sub: 'Paiement à la livraison' },
-              { val: 'mobile_money', emoji: '📱', titre: 'Mobile Money',  sub: 'MTN ou Airtel' },
+              ...(mobileMoneyDisponible
+                ? [{ val: 'mobile_money', emoji: '📱', titre: 'Mobile Money', sub: operateursDisponibles.join(' ou ') }]
+                : []),
             ].map(({ val, emoji, titre, sub }) => (
               <label
                 key={val}
@@ -547,11 +513,11 @@ export default function Checkout() {
             ))}
           </div>
 
-          {/* Champs Mobile Money */}
+          {/* Choix de l'opérateur Mobile Money */}
           {modePaiement === 'mobile_money' && (
             <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
               <div className="grid grid-cols-2 gap-2">
-                {['MTN', 'Airtel'].map(op => (
+                {operateursDisponibles.map(op => (
                   <label
                     key={op}
                     className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 cursor-pointer
@@ -566,30 +532,16 @@ export default function Checkout() {
                   </label>
                 ))}
               </div>
+              {errors.operateur && (
+                <p className="text-red-500 text-xs">{errors.operateur.message}</p>
+              )}
 
-              <div>
-                <div className={`flex items-center rounded-xl border overflow-hidden
-                  focus-within:ring-2 focus-within:ring-brand-300
-                  ${errors.telephone ? 'border-red-400' : 'border-gray-200'}`}
-                >
-                  <span className="px-3 py-3 text-sm text-gray-500 bg-gray-50 border-r border-gray-200 shrink-0">
-                    +242
-                  </span>
-                  <input
-                    {...register('telephone', {
-                      onChange: e => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 9) },
-                    })}
-                    type="tel"
-                    inputMode="numeric"
-                    maxLength={9}
-                    placeholder={operateur ? `${PREFIXE_OPERATEUR[operateur]} XXX XXXX` : '06 XXX XXXX'}
-                    className="flex-1 px-3 py-3 text-sm focus:outline-none bg-white"
-                  />
-                </div>
-                {errors.telephone && (
-                  <p className="text-red-500 text-xs mt-1">{errors.telephone.message}</p>
-                )}
-              </div>
+              {operateur && (
+                <p className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2.5 leading-relaxed">
+                  Vous enverrez l'argent au numéro {operateur} du restaurant — les détails et le
+                  numéro exact s'affichent à la confirmation.
+                </p>
+              )}
             </div>
           )}
         </fieldset>
@@ -760,7 +712,8 @@ export default function Checkout() {
         <ModalMobileMoney
           operateur={operateur}
           montant={total}
-          telephone={telephone}
+          numeroResto={numerosOperateur[operateur]}
+          restaurantNom={restaurant?.nom ?? 'ce restaurant'}
           onSuccess={() => {
             setModalMM(false)
             soumettre(paramsCommande)

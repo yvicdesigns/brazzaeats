@@ -3,7 +3,7 @@ import { Loader2, ImagePlus, Save, ToggleLeft, ToggleRight, Video, X, UploadClou
 import toast from 'react-hot-toast'
 import { useMyRestaurant } from '@/hooks/useMyRestaurant'
 import { updateRestaurant, uploadRestaurantLogo, uploadRestaurantVideo, uploadRestaurantVideoApercu } from '@/services/menuService'
-import { VILLES_CONGO } from '@/utils/constants'
+import { VILLES_CONGO, PREFIXE_OPERATEUR } from '@/utils/constants'
 
 // ── Jours de la semaine (ordre affiché) ───────────────────
 const JOURS = [
@@ -28,12 +28,14 @@ export default function Profile() {
   const { restaurant, loading: loadingResto, setRestaurant } = useMyRestaurant()
 
   const [form, setForm] = useState({
-    nom:         '',
-    description: '',
-    adresse:     '',
-    ville:       'Brazzaville',
-    logoUrl:     null,
-    ouvert:      true,  // true = statut 'actif', false = statut 'suspendu'
+    nom:               '',
+    description:       '',
+    adresse:           '',
+    ville:             'Brazzaville',
+    logoUrl:           null,
+    ouvert:            true,  // true = statut 'actif', false = statut 'suspendu'
+    mtnMomoNumero:     '',
+    airtelMoneyNumero: '',
   })
   const [horaires, setHoraires] = useState(HORAIRES_DEFAUT)
 
@@ -61,6 +63,8 @@ export default function Profile() {
       ville:       restaurant.ville       ?? 'Brazzaville',
       logoUrl:     restaurant.logo_url    ?? null,
       ouvert:      restaurant.statut === 'actif',
+      mtnMomoNumero:     restaurant.mtn_momo_numero     ?? '',
+      airtelMoneyNumero: restaurant.airtel_money_numero ?? '',
     })
     setLogoPreview(restaurant.logo_url ?? null)
     setVideoUrl(restaurant.video_url ?? null)
@@ -187,6 +191,15 @@ export default function Profile() {
     const nom = form.nom.trim()
     if (!nom) { toast.error('Le nom du restaurant est requis'); return }
 
+    if (form.mtnMomoNumero && (form.mtnMomoNumero.length !== 9 || !form.mtnMomoNumero.startsWith(PREFIXE_OPERATEUR.MTN))) {
+      toast.error(`Numéro MTN invalide — 9 chiffres commençant par ${PREFIXE_OPERATEUR.MTN}`)
+      return
+    }
+    if (form.airtelMoneyNumero && (form.airtelMoneyNumero.length !== 9 || !form.airtelMoneyNumero.startsWith(PREFIXE_OPERATEUR.Airtel))) {
+      toast.error(`Numéro Airtel invalide — 9 chiffres commençant par ${PREFIXE_OPERATEUR.Airtel}`)
+      return
+    }
+
     setSaving(true)
     const { data, error } = await updateRestaurant(restaurant.id, {
       nom,
@@ -196,6 +209,8 @@ export default function Profile() {
       logo_url:    form.logoUrl,
       statut:      form.ouvert ? 'actif' : 'suspendu',
       horaires,
+      mtn_momo_numero:     form.mtnMomoNumero.replace(/\D/g, '') || null,
+      airtel_money_numero: form.airtelMoneyNumero.replace(/\D/g, '') || null,
     })
     setSaving(false)
 
@@ -525,6 +540,59 @@ export default function Profile() {
               }
             </button>
           </div>
+        </div>
+
+        {/* ════════════════════════════════════════
+            Mobile Money
+        ════════════════════════════════════════ */}
+        <div className="bg-white rounded-2xl p-5 shadow-card space-y-4">
+          <div>
+            <h2 className="font-bold text-gray-800">Mobile Money</h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Numéros affichés aux clients qui paient par Mobile Money — ils y envoient
+              directement l'argent, à vous de vérifier la réception avant d'accepter la commande.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Numéro MTN Mobile Money</label>
+            <div className="flex items-center rounded-xl border border-gray-300 overflow-hidden
+                             focus-within:ring-2 focus-within:ring-brand-400">
+              <span className="px-3 py-2.5 text-sm text-gray-500 bg-gray-50 border-r border-gray-200 shrink-0">+242</span>
+              <input
+                type="tel"
+                inputMode="numeric"
+                maxLength={9}
+                value={form.mtnMomoNumero}
+                onChange={e => setField('mtnMomoNumero', e.target.value.replace(/\D/g, '').slice(0, 9))}
+                placeholder="06 XXX XXXX"
+                className="flex-1 px-3 py-2.5 text-sm focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Numéro Airtel Money</label>
+            <div className="flex items-center rounded-xl border border-gray-300 overflow-hidden
+                             focus-within:ring-2 focus-within:ring-brand-400">
+              <span className="px-3 py-2.5 text-sm text-gray-500 bg-gray-50 border-r border-gray-200 shrink-0">+242</span>
+              <input
+                type="tel"
+                inputMode="numeric"
+                maxLength={9}
+                value={form.airtelMoneyNumero}
+                onChange={e => setField('airtelMoneyNumero', e.target.value.replace(/\D/g, '').slice(0, 9))}
+                placeholder="05 XXX XXXX"
+                className="flex-1 px-3 py-2.5 text-sm focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {!form.mtnMomoNumero && !form.airtelMoneyNumero && (
+            <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+              Aucun numéro renseigné — l'option Mobile Money ne sera pas proposée à vos clients.
+            </p>
+          )}
         </div>
 
         {/* ════════════════════════════════════════

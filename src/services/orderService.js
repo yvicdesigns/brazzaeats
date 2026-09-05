@@ -15,6 +15,7 @@ export async function createOrder({
   items = [],           // [{ menu_item_id, nom, quantite, prix_unitaire }]
   type            = 'livraison',
   modePaiement    = 'cash',
+  operateurPaiement = null,
   adresseLivraison = null,
   notes           = null,
   fraisLivraison  = 1000,
@@ -52,6 +53,7 @@ export async function createOrder({
         frais_livraison:   fraisReels,
         commission,
         mode_paiement:     modePaiement,
+        operateur_paiement: operateurPaiement,
         adresse_livraison: adresseLivraison,
         notes,
       })

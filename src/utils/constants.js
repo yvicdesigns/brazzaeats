@@ -137,6 +137,11 @@ export const TARIFS = {
 }
 
 // ------------------------------------------------------------
+// Opérateurs Mobile Money — préfixes réels (Congo-Brazzaville)
+// ------------------------------------------------------------
+export const PREFIXE_OPERATEUR = { MTN: '06', Airtel: '05' }
+
+// ------------------------------------------------------------
 // Numéro WhatsApp support (format international sans +)
 // ------------------------------------------------------------
 export const WHATSAPP_SUPPORT = import.meta.env.VITE_WHATSAPP_SUPPORT || '242066000001'

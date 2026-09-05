@@ -183,8 +183,19 @@ function ModalCommande({ commande, onClose, onStatusChange, userId }) {
 
           {/* Mode paiement */}
           <p className="text-xs text-gray-400">
-            Paiement : {commande.mode_paiement === 'cash' ? '💵 Espèces' : '📱 Mobile Money'}
+            Paiement : {commande.mode_paiement === 'cash'
+              ? '💵 Espèces'
+              : `📱 Mobile Money — ${commande.operateur_paiement ?? ''}`}
           </p>
+
+          {/* Rappel vérification paiement Mobile Money avant acceptation */}
+          {commande.statut === 'en_attente' && commande.mode_paiement === 'mobile_money' && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+              <p className="text-xs font-bold text-amber-700">
+                ⚠️ Vérifiez la réception du paiement {commande.operateur_paiement} avant d'accepter
+              </p>
+            </div>
+          )}
 
           {/* Notes client */}
           {commande.notes && (
