@@ -144,8 +144,25 @@ function LigneCommande({ commande }) {
             <span className="tabular-nums">{formatCurrency(montant)}</span>
           </div>
           <p className="text-[10px] text-gray-400 pt-0.5">
-            {commande.mode_paiement === 'cash' ? '💵 Espèces' : '📱 Mobile Money'}
+            {commande.mode_paiement === 'cash'
+              ? '💵 Espèces'
+              : `📱 Mobile Money — ${commande.operateur_paiement ?? ''}`}
           </p>
+          {commande.mode_paiement === 'mobile_money' && commande.preuve_paiement_url && (
+            <a
+              href={commande.preuve_paiement_url}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 pt-1"
+            >
+              <img
+                src={commande.preuve_paiement_url}
+                alt="Capture du SMS de confirmation envoyée par le client"
+                className="h-10 w-10 object-cover rounded-lg border border-gray-200"
+              />
+              <span className="text-[10px] text-gray-500 underline">Voir la preuve de paiement</span>
+            </a>
+          )}
         </div>
       )}
     </div>

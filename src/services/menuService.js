@@ -522,6 +522,7 @@ export async function getHistoriqueRevenu(restaurantId, dateDebut, dateFin) {
       .from('orders')
       .select(`
         id, created_at, statut, montant_total, frais_livraison, type, mode_paiement,
+        operateur_paiement, preuve_paiement_url,
         client:profiles!orders_client_id_fkey(nom)
       `)
       .eq('restaurant_id', restaurantId)

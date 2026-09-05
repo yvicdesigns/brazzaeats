@@ -188,12 +188,18 @@ function ModalCommande({ commande, onClose, onStatusChange, userId }) {
               : `📱 Mobile Money — ${commande.operateur_paiement ?? ''}`}
           </p>
 
-          {/* Rappel vérification paiement Mobile Money avant acceptation */}
-          {commande.statut === 'en_attente' && commande.mode_paiement === 'mobile_money' && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
-              <p className="text-xs font-bold text-amber-700">
-                ⚠️ Vérifiez la réception du paiement {commande.operateur_paiement} avant d'accepter
-              </p>
+          {/* Preuve de paiement Mobile Money — visible sur toute commande, quel que soit son statut */}
+          {commande.mode_paiement === 'mobile_money' && (
+            <div className={`rounded-xl p-3 space-y-2 border ${
+              commande.statut === 'en_attente'
+                ? 'bg-amber-50 border-amber-200'
+                : 'bg-gray-50 border-gray-200'
+            }`}>
+              {commande.statut === 'en_attente' && (
+                <p className="text-xs font-bold text-amber-700">
+                  ⚠️ Vérifiez la réception du paiement {commande.operateur_paiement} avant d'accepter
+                </p>
+              )}
               {commande.preuve_paiement_url ? (
                 <a
                   href={commande.preuve_paiement_url}
@@ -204,9 +210,15 @@ function ModalCommande({ commande, onClose, onStatusChange, userId }) {
                   <img
                     src={commande.preuve_paiement_url}
                     alt="Capture du SMS de confirmation envoyée par le client"
-                    className="h-16 w-16 object-cover rounded-lg border border-amber-200"
+                    className={`h-16 w-16 object-cover rounded-lg border ${
+                      commande.statut === 'en_attente' ? 'border-amber-200' : 'border-gray-200'
+                    }`}
                   />
-                  <span className="text-xs text-amber-700 underline">Voir la capture d'écran envoyée par le client</span>
+                  <span className={`text-xs underline ${
+                    commande.statut === 'en_attente' ? 'text-amber-700' : 'text-gray-500'
+                  }`}>
+                    Voir la capture d'écran envoyée par le client
+                  </span>
                 </a>
               ) : (
                 <p className="text-xs text-amber-600 italic">Aucune capture de confirmation fournie</p>
