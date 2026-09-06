@@ -7,21 +7,16 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { LocateFixed } from 'lucide-react'
 
-// Badge livreur : silhouette moto + coursier, dans le même esprit que les
-// icônes de suivi des apps de livraison (Uber Eats, Glovo…) — un badge fixe,
-// pas une vue de dessus qui tournerait de façon peu lisible avec le cap.
-const MOTO_SVG = `
-<svg width="40" height="40" viewBox="0 0 100 100" style="filter:drop-shadow(0 4px 6px rgba(0,0,0,.35))">
-  <circle cx="50" cy="50" r="47" fill="#0B6E4F" stroke="#fff" stroke-width="5"/>
-  <g fill="#fff">
-    <circle cx="30" cy="68" r="9"/>
-    <circle cx="68" cy="68" r="9"/>
-    <path d="M30 68 L38 50 L60 50 L68 68 Z"/>
-    <rect x="70" y="30" width="18" height="20" rx="3"/>
-    <circle cx="40" cy="26" r="8"/>
-    <path d="M30 48 Q30 32 42 32 Q54 32 54 46 L50 52 L34 52 Z"/>
-  </g>
-</svg>`
+// Badge livreur : illustration fournie, sur fond blanc — le livreur est tout
+// habillé en vert, un fond blanc (plutôt que notre vert de marque habituel)
+// garde le contraste net à 40px. Badge fixe, pas une vue de dessus qui
+// tournerait de façon peu lisible avec le cap.
+const MOTO_HTML = `
+<div style="width:40px;height:40px;border-radius:50%;background:#fff;
+            border:3px solid #0B6E4F;box-shadow:0 4px 10px -3px rgba(0,0,0,.4);
+            display:flex;align-items:center;justify-content:center;overflow:hidden;">
+  <img src="/icons/livreur-marker.png" alt="Livreur" style="width:34px;height:auto;" />
+</div>`
 
 function pinIcon(label, bg) {
   return L.divIcon({
@@ -37,7 +32,7 @@ function pinIcon(label, bg) {
 
 const motoIcon = L.divIcon({
   className: '',
-  html: `<div style="width:40px;height:40px;">${MOTO_SVG}</div>`,
+  html: MOTO_HTML,
   iconSize: [40, 40],
   iconAnchor: [20, 20],
 })
