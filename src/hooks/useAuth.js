@@ -11,6 +11,19 @@ function phoneToFakeEmail(telephone) {
   return `p${digits}@brazzaeats.local`
 }
 
+// ── Empêche un appel Supabase de bloquer l'app indéfiniment ──
+// Le verrou de session interne de Supabase peut rester figé après une
+// reprise d'app en arrière-plan (déjà observé côté web sur le dashboard
+// restaurant) — sans garde-fou ici, "loading" ne repasserait jamais à
+// false et l'app ENTIÈRE resterait bloquée sur l'écran de chargement,
+// pas juste une page.
+function avecDelaiMax(promise, ms = 10000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Délai dépassé')), ms)),
+  ])
+}
+
 const useAuthStore = create((set, get) => ({
   // ── État ────────────────────────────────────────────────
   session:  null,   // Session Supabase brute
@@ -53,11 +66,9 @@ const useAuthStore = create((set, get) => ({
     for (let attempt = 0; attempt < 3; attempt++) {
       if (attempt > 0) await new Promise(r => setTimeout(r, 600))
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .maybeSingle()
+        const { data, error } = await avecDelaiMax(
+          supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
+        )
 
         if (error) { console.error('[useAuth] Erreur profil :', error.message); break }
         if (data) { set({ profile: data, role: data.role }); return }
@@ -174,7 +185,12 @@ async function bootstrapAuth() {
   }
 
   // 1. Charger la session existante depuis localStorage
-  const { data: { session }, error } = await supabase.auth.getSession()
+  let session = null, error = null
+  try {
+    ;({ data: { session }, error } = await avecDelaiMax(supabase.auth.getSession()))
+  } catch (err) {
+    error = err
+  }
 
   if (error || !session) {
     useAuthStore.setState({ loading: false })
