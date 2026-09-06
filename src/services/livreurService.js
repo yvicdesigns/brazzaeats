@@ -104,12 +104,18 @@ export async function acceptDelivery(orderId, livreurId) {
 
     if (error) throw error
 
-    // Créer la ligne deliveries pour tracking GPS (best-effort)
-    await supabase
+    // Créer la ligne deliveries pour tracking GPS (best-effort : la commande
+    // reste acceptée même si ça échoue, mais on log — un échec silencieux ici
+    // a déjà fait tourner le suivi GPS "à vide" sans qu'on s'en aperçoive).
+    const { error: deliveryError } = await supabase
       .from('deliveries')
       .insert({ order_id: orderId, livreur_id: livreurId })
       .select()
-      .maybeSingle()               // pas d'erreur si la table n'existe pas encore
+      .maybeSingle()
+
+    if (deliveryError) {
+      console.error('[acceptDelivery] Échec création ligne deliveries — le suivi GPS ne fonctionnera pas :', deliveryError.message)
+    }
 
     return { data, error: null }
   } catch (err) {
