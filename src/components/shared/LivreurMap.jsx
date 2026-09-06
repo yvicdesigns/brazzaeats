@@ -7,15 +7,19 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { LocateFixed } from 'lucide-react'
 
+// Badge livreur : silhouette moto + coursier, dans le même esprit que les
+// icônes de suivi des apps de livraison (Uber Eats, Glovo…) — un badge fixe,
+// pas une vue de dessus qui tournerait de façon peu lisible avec le cap.
 const MOTO_SVG = `
-<svg width="40" height="40" viewBox="-20 -20 40 40" style="overflow:visible">
-  <ellipse cx="0" cy="13" rx="15" ry="5" fill="rgba(10,30,20,.18)"/>
-  <g id="motoBody">
-    <ellipse cx="-8" cy="6" rx="4.2" ry="4.2" fill="#1B2420"/>
-    <ellipse cx="9" cy="6" rx="4.2" ry="4.2" fill="#1B2420"/>
-    <path d="M -9 3 Q -10 -6 -2 -7 L 6 -7 Q 12 -6 10 3 Q 9 6 3 6 L -6 6 Q -9 6 -9 3 Z" fill="#0B6E4F"/>
-    <rect x="-3" y="-13" width="9" height="7" rx="2" fill="#10201A"/>
-    <circle cx="11" cy="0" r="2.1" fill="#4FDE8F"/>
+<svg width="40" height="40" viewBox="0 0 100 100" style="filter:drop-shadow(0 4px 6px rgba(0,0,0,.35))">
+  <circle cx="50" cy="50" r="47" fill="#0B6E4F" stroke="#fff" stroke-width="5"/>
+  <g fill="#fff">
+    <circle cx="30" cy="68" r="9"/>
+    <circle cx="68" cy="68" r="9"/>
+    <path d="M30 68 L38 50 L60 50 L68 68 Z"/>
+    <rect x="70" y="30" width="18" height="20" rx="3"/>
+    <circle cx="40" cy="26" r="8"/>
+    <path d="M30 48 Q30 32 42 32 Q54 32 54 46 L50 52 L34 52 Z"/>
   </g>
 </svg>`
 
@@ -33,18 +37,12 @@ function pinIcon(label, bg) {
 
 const motoIcon = L.divIcon({
   className: '',
-  html: `<div id="motoRotor" style="width:40px;height:40px;transform-origin:50% 50%;">${MOTO_SVG}</div>`,
+  html: `<div style="width:40px;height:40px;">${MOTO_SVG}</div>`,
   iconSize: [40, 40],
   iconAnchor: [20, 20],
 })
 
 function lerp(a, b, t) { return a + (b - a) * t }
-function bearing(a, b) {
-  const y = Math.sin((b.lng - a.lng) * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180)
-  const x = Math.cos(a.lat * Math.PI / 180) * Math.sin(b.lat * Math.PI / 180) -
-            Math.sin(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * Math.cos((b.lng - a.lng) * Math.PI / 180)
-  return Math.atan2(y, x) * 180 / Math.PI
-}
 
 /**
  * @param {{ restaurantPos: {lat,lng}|null, destinationPos: {lat,lng}|null,
@@ -138,10 +136,6 @@ export default function LivreurMap({ restaurantPos, destinationPos, livreurPos, 
     const from = marker.getLatLng()
     const to = L.latLng(livreurPos.lat, livreurPos.lng)
     if (from.equals(to)) return
-
-    const angle = bearing({ lat: from.lat, lng: from.lng }, { lat: to.lat, lng: to.lng })
-    const el = marker.getElement()?.querySelector('#motoRotor')
-    if (el) el.style.transform = `rotate(${angle + 90}deg)`
 
     cancelAnimationFrame(animRef.current.raf)
     animRef.current = { from, to, start: performance.now(), raf: null }
