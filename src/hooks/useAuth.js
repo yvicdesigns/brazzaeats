@@ -89,10 +89,11 @@ const useAuthStore = create((set, get) => ({
   },
 
   // ── Inscription + création du profil ────────────────────
-  register: async ({ nom, telephone, username, password, role = 'client' }) => {
+  register: async ({ nom, telephone, username, emailContact, password, role = 'client' }) => {
     set({ error: null })
     try {
-      // Email interne dérivé du numéro de téléphone
+      // Email interne dérivé du numéro de téléphone (utilisé par Supabase Auth,
+      // distinct de l'email de contact optionnel saisi par l'utilisateur)
       const email = phoneToFakeEmail(telephone)
 
       // 1. Créer le compte dans auth.users
@@ -110,7 +111,11 @@ const useAuthStore = create((set, get) => ({
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert(
-          { id: userId, nom, telephone, username: username?.trim() || null, role },
+          {
+            id: userId, nom, telephone, role,
+            username: username?.trim() || null,
+            email:    emailContact?.trim() || null,
+          },
           { onConflict: 'id' }
         )
       if (profileError) throw profileError

@@ -48,13 +48,12 @@ export default function Register() {
   } = useForm({ resolver: zodResolver(schema), defaultValues: { accepteConditions: false } })
 
   // ── Inscription ────────────────────────────────────────
-  async function onSubmit({ nom, telephoneLocal, username, password }) {
-    // NOTE : l'email (optionnel) est collecté ci-dessous mais pas encore transmis —
-    // la colonne profiles.email n'existe pas encore en base (migration en attente).
+  async function onSubmit({ nom, telephoneLocal, username, email, password }) {
     const { error } = await registerUser({
       nom,
       telephone: `+242${telephoneLocal}`,
       username: username?.trim() || null,
+      emailContact: email?.trim() || null,
       password,
       role: 'client',
     })

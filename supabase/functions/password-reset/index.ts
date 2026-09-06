@@ -24,11 +24,6 @@ function json(body, status = 200) {
   })
 }
 
-function phoneToFakeEmail(telephone) {
-  const digits = telephone.replace(/[^0-9]/g, '')
-  return `p${digits}@brazzaeats.local`
-}
-
 function normaliserTelephone(telephone) {
   // Uniformise en +242XXXXXXXXX pour que "demander" et "verifier" ciblent la même ligne
   const digits = telephone.replace(/[^0-9]/g, '')
@@ -150,15 +145,17 @@ Deno.serve(async (req) => {
         if (fetchErr) throw fetchErr
         if (!ligne) return json({ error: 'Session de réinitialisation expirée, recommencez' }, 400)
 
-        const { data: authUsers, error: listErr } =
-          await supabase.auth.admin.listUsers({ page: 1, perPage: 1, email: phoneToFakeEmail(telephone) })
-        if (listErr) throw listErr
-
-        const utilisateur = authUsers?.users?.[0]
-        if (!utilisateur) return json({ error: 'Compte introuvable' }, 404)
+        // profiles.id == auth.users.id (même convention que partout ailleurs dans l'app)
+        const { data: profil, error: profilErr } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('telephone', telephone)
+          .maybeSingle()
+        if (profilErr) throw profilErr
+        if (!profil) return json({ error: 'Compte introuvable' }, 404)
 
         const { error: updateAuthErr } =
-          await supabase.auth.admin.updateUserById(utilisateur.id, { password: nouveauMdp })
+          await supabase.auth.admin.updateUserById(profil.id, { password: nouveauMdp })
         if (updateAuthErr) throw updateAuthErr
 
         await supabase
