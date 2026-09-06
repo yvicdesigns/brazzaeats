@@ -77,6 +77,54 @@ function Timeline({ statutActuel }) {
   )
 }
 
+// ── Barre de progression linéaire du trajet ─────────────────
+// Complète la carte : même avancement réel (distance parcourue vs distance
+// totale restaurant → adresse), mais visualisé comme une simple barre — plus
+// lisible d'un coup d'œil que la carte pour "où en est le livreur ?".
+function BarreProgressionTrajet({ restaurantPos, livreurPos, destinationPos }) {
+  if (!restaurantPos || !livreurPos || !destinationPos) return null
+
+  const totalKm = distanceKm(restaurantPos, destinationPos)
+  const resteKm = distanceKm(livreurPos, destinationPos)
+  const progression = totalKm > 0
+    ? Math.min(1, Math.max(0.02, 1 - resteKm / totalKm))
+    : 0.02
+
+  return (
+    <div className="pt-1 pb-3">
+      <div className="relative h-20 px-2">
+        {/* Avatar du livreur — sa position horizontale reflète l'avancement réel */}
+        <div
+          className="absolute top-0 -translate-x-1/2 transition-[left] duration-700 ease-out"
+          style={{ left: `calc(6px + (100% - 12px) * ${progression})` }}
+        >
+          <img
+            src="/icons/livreur-avatar.png"
+            alt="Livreur en route"
+            className="w-16 h-auto drop-shadow-md"
+          />
+        </div>
+
+        {/* Piste */}
+        <div className="absolute inset-x-1.5 bottom-2 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-brand-500 rounded-full transition-all duration-700 ease-out"
+            style={{ width: `${progression * 100}%` }}
+          />
+        </div>
+
+        {/* Points de départ / arrivée */}
+        <div className="absolute left-1.5 bottom-2 -translate-x-1/2 translate-y-1/2 w-3 h-3 rounded-full bg-gray-800 border-2 border-white shadow" />
+        <div className="absolute right-1.5 bottom-2 translate-x-1/2 translate-y-1/2 w-3 h-3 rounded-full bg-brand-600 border-2 border-white shadow" />
+      </div>
+      <div className="flex justify-between text-[10px] text-gray-400 font-medium px-0.5 -mt-1">
+        <span>Restaurant</span>
+        <span>Chez vous</span>
+      </div>
+    </div>
+  )
+}
+
 // ══════════════════════════════════════════════════════════
 // Page Tracking principale
 // ══════════════════════════════════════════════════════════
@@ -259,6 +307,14 @@ export default function Tracking() {
             </div>
           )}
         </div>
+
+        {enLivraison && livreurPos && (
+          <BarreProgressionTrajet
+            restaurantPos={restaurantPos}
+            livreurPos={livreurPos}
+            destinationPos={destinationPos}
+          />
+        )}
 
         {livree && (
           <button
