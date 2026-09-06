@@ -6,6 +6,7 @@ import { useMyRestaurant } from '@/hooks/useMyRestaurant'
 import { useAuth } from '@/hooks/useAuth'
 import { getOrdersByRestaurant } from '@/services/menuService'
 import { updateOrderStatus } from '@/services/orderService'
+import { getPlatformSettings } from '@/services/adminService'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { STATUTS_COMMANDE, STATUTS_ACTIFS } from '@/utils/constants'
 import { resumeAudio } from '@/utils/notificationSound'
@@ -46,11 +47,18 @@ function BadgeStatut({ statut }) {
 }
 
 // ── Modal de détail commande ─────────────────────────────────
-function ModalCommande({ commande, onClose, onStatusChange, userId }) {
+function ModalCommande({ commande, onClose, onStatusChange, userId, modeIndependants }) {
   const [envoi,         setEnvoi]         = useState(false)
   const [chatOuvert,    setChatOuvert]    = useState(false)
   const [confirmerAnnul, setConfirmerAnnul] = useState(false)
-  const transitions = TRANSITIONS[commande.statut] ?? []
+  // En mode "livreurs indépendants", le restaurant ne doit jamais pouvoir
+  // marquer une commande livrée directement depuis "prête" — ça sauterait
+  // toute l'étape de livraison (pas de suivi GPS, le client ne verrait
+  // jamais "En route vers vous"). Cette transition n'a de sens que si le
+  // restaurant gère sa propre livraison.
+  const transitions = (TRANSITIONS[commande.statut] ?? []).filter(t =>
+    !(modeIndependants && commande.statut === 'prête' && t.statut === 'livrée')
+  )
   const refCourte   = commande.id.slice(0, 8).toUpperCase()
   // L'annulation manuelle est disponible pour tout statut actif qui n'a pas déjà ce bouton
   const peutAnnuler = commande.statut !== 'annulée' && commande.statut !== 'livrée'
@@ -338,6 +346,7 @@ export default function RestaurantOrders() {
   const [modalOuverte, setModalOuverte] = useState(null)
   const [nbNouveaux,   setNbNouveaux]   = useState(0)
   const [filtreStatut, setFiltreStatut] = useState('actives')
+  const [modeIndependants, setModeIndependants] = useState(true)
 
   // Titre original de l'onglet (pour restauration au démontage)
   const titreOriginal = useRef(document.title)
@@ -353,6 +362,12 @@ export default function RestaurantOrders() {
   }, [restaurant?.id])
 
   useEffect(() => { charger() }, [charger])
+
+  useEffect(() => {
+    getPlatformSettings().then(({ data }) => {
+      setModeIndependants((data?.mode_livraison ?? 'independants') === 'independants')
+    })
+  }, [])
 
   // ── Abonnement Realtime ─────────────────────────────────
   useEffect(() => {
@@ -592,6 +607,7 @@ export default function RestaurantOrders() {
           commande={modalOuverte}
           onClose={() => setModalOuverte(null)}
           userId={user?.id}
+          modeIndependants={modeIndependants}
           onStatusChange={(id, statut) => {
             handleStatusChange(id, statut)
             // Mettre à jour la commande dans la modal aussi
