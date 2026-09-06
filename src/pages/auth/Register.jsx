@@ -3,23 +3,29 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Lock, User, Phone, AtSign } from 'lucide-react'
+import { Eye, EyeOff, Lock, User, Phone, AtSign, Mail } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/hooks/useAuth'
 
 // ── Schéma de validation ───────────────────────────────────
 const schema = z.object({
   nom: z.string().min(2, 'Au moins 2 caractères').max(80),
-  telephone: z
-    .string()
-    .regex(/^\+242[0-9]{9}$/, 'Format requis : +242XXXXXXXXX (9 chiffres après +242)'),
+  telephoneLocal: z.string().regex(/^\d{9}$/, '9 chiffres requis'),
   username: z
     .string()
     .regex(/^[a-zA-Z0-9_.]{3,30}$/, 'Entre 3 et 30 caractères (lettres, chiffres, _ ou .)')
     .or(z.literal(''))
     .optional(),
-  password: z.string().min(6, 'Au moins 6 caractères').max(72, 'Trop long'),
+  email: z.string().email('Email invalide').or(z.literal('')).optional(),
+  password: z.string()
+    .min(8, 'Au moins 8 caractères')
+    .max(72, 'Trop long')
+    .regex(/[A-Z]/, 'Ajoutez au moins une majuscule')
+    .regex(/[0-9]/, 'Ajoutez au moins un chiffre'),
   confirmation: z.string(),
+  accepteConditions: z.boolean().refine(v => v === true, {
+    message: "Vous devez accepter les conditions d'utilisation",
+  }),
 }).refine(d => d.password === d.confirmation, {
   message: 'Les mots de passe ne correspondent pas',
   path: ['confirmation'],
@@ -39,13 +45,15 @@ export default function Register() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm({ resolver: zodResolver(schema) })
+  } = useForm({ resolver: zodResolver(schema), defaultValues: { accepteConditions: false } })
 
   // ── Inscription ────────────────────────────────────────
-  async function onSubmit({ nom, telephone, username, password }) {
+  async function onSubmit({ nom, telephoneLocal, username, password }) {
+    // NOTE : l'email (optionnel) est collecté ci-dessous mais pas encore transmis —
+    // la colonne profiles.email n'existe pas encore en base (migration en attente).
     const { error } = await registerUser({
       nom,
-      telephone,
+      telephone: `+242${telephoneLocal}`,
       username: username?.trim() || null,
       password,
       role: 'client',
@@ -77,7 +85,8 @@ export default function Register() {
         </div>
 
         <div className="w-full max-w-sm">
-          <h2 className="text-xl font-bold text-gray-800 mb-6">Créer un compte</h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-1">Créer un compte</h2>
+          <p className="text-sm text-gray-500 mb-6">Il vous faut moins d'une minute pour commencer.</p>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
 
@@ -101,25 +110,34 @@ export default function Register() {
               {errors.nom && <p className="text-xs text-red-500 mt-1">{errors.nom.message}</p>}
             </div>
 
-            {/* Téléphone */}
+            {/* Téléphone — préfixe +242 fixe, l'utilisateur ne saisit que le numéro local */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Numéro de téléphone
               </label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <div className={`flex items-center rounded-xl border overflow-hidden
+                focus-within:ring-2 focus-within:ring-brand-400
+                ${errors.telephoneLocal ? 'border-red-400' : 'border-gray-300'}`}
+              >
+                <span className="flex items-center gap-1.5 px-3 py-3 text-sm text-gray-500
+                                  bg-gray-50 border-r border-gray-200 shrink-0">
+                  <Phone className="w-4 h-4 text-gray-400" />
+                  +242
+                </span>
                 <input
                   type="tel"
-                  autoComplete="tel"
-                  placeholder="+242066000000"
-                  {...register('telephone')}
-                  className={`w-full border rounded-xl pl-9 pr-4 py-3 text-sm
-                              focus:outline-none focus:ring-2 focus:ring-brand-400
-                              ${errors.telephone ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+                  inputMode="numeric"
+                  autoComplete="tel-national"
+                  maxLength={9}
+                  placeholder="06 123 4567"
+                  {...register('telephoneLocal', {
+                    onChange: e => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 9) },
+                  })}
+                  className="flex-1 px-3 py-3 text-sm focus:outline-none bg-white min-w-0"
                 />
               </div>
-              {errors.telephone && (
-                <p className="text-xs text-red-500 mt-1">{errors.telephone.message}</p>
+              {errors.telephoneLocal && (
+                <p className="text-xs text-red-500 mt-1">{errors.telephoneLocal.message}</p>
               )}
               <p className="text-[11px] text-gray-400 mt-1">
                 Ce numéro sera votre identifiant de connexion
@@ -148,6 +166,28 @@ export default function Register() {
               )}
             </div>
 
+            {/* Email (optionnel) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email <span className="text-gray-400 font-normal">(optionnel)</span>
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="email"
+                  autoComplete="email"
+                  placeholder="jean@exemple.com"
+                  {...register('email')}
+                  className={`w-full border rounded-xl pl-9 pr-4 py-3 text-sm
+                              focus:outline-none focus:ring-2 focus:ring-brand-400
+                              ${errors.email ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+                />
+              </div>
+              {errors.email && (
+                <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>
+              )}
+            </div>
+
             {/* Mot de passe */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -158,7 +198,7 @@ export default function Register() {
                 <input
                   type={mdpVisible ? 'text' : 'password'}
                   autoComplete="new-password"
-                  placeholder="••••••••"
+                  placeholder="Créez un mot de passe"
                   {...register('password')}
                   className={`w-full border rounded-xl pl-9 pr-10 py-3 text-sm
                               focus:outline-none focus:ring-2 focus:ring-brand-400
@@ -173,8 +213,12 @@ export default function Register() {
                   {mdpVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              {errors.password && (
+              {errors.password ? (
                 <p className="text-xs text-red-500 mt-1">{errors.password.message}</p>
+              ) : (
+                <p className="text-[11px] text-gray-400 mt-1">
+                  Au moins 8 caractères, avec une majuscule et un chiffre.
+                </p>
               )}
             </div>
 
@@ -188,7 +232,7 @@ export default function Register() {
                 <input
                   type={confVisible ? 'text' : 'password'}
                   autoComplete="new-password"
-                  placeholder="••••••••"
+                  placeholder="Répétez le mot de passe"
                   {...register('confirmation')}
                   className={`w-full border rounded-xl pl-9 pr-10 py-3 text-sm
                               focus:outline-none focus:ring-2 focus:ring-brand-400
@@ -208,6 +252,31 @@ export default function Register() {
               )}
             </div>
 
+            {/* Conditions d'utilisation */}
+            <div>
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  {...register('accepteConditions')}
+                  className="mt-0.5 w-4 h-4 rounded border-gray-300 text-brand-500
+                             focus:ring-brand-400 shrink-0"
+                />
+                <span className="text-xs text-gray-500 leading-relaxed">
+                  J'accepte les{' '}
+                  <Link to="/conditions-utilisation" target="_blank" className="text-brand-600 font-medium hover:underline">
+                    conditions d'utilisation
+                  </Link>{' '}
+                  et la{' '}
+                  <Link to="/politique-confidentialite" target="_blank" className="text-brand-600 font-medium hover:underline">
+                    politique de confidentialité
+                  </Link>.
+                </span>
+              </label>
+              {errors.accepteConditions && (
+                <p className="text-xs text-red-500 mt-1">{errors.accepteConditions.message}</p>
+              )}
+            </div>
+
             {/* Bouton inscription */}
             <button
               type="submit"
@@ -224,7 +293,7 @@ export default function Register() {
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
               )}
-              {isSubmitting ? 'Création du compte…' : "S'inscrire"}
+              {isSubmitting ? 'Création du compte…' : 'Créer mon compte'}
             </button>
           </form>
 

@@ -127,19 +127,8 @@ const useAuthStore = create((set, get) => ({
     await supabase.auth.signOut()
     set({ session: null, user: null, profile: null, role: null, error: null })
   },
-
-  // ── Réinitialisation mot de passe ────────────────────────
-  resetPassword: async (email) => {
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
-      })
-      if (error) throw error
-      return { error: null }
-    } catch (err) {
-      return { error: err }
-    }
-  },
+  // Réinitialisation du mot de passe : voir services/authService.js (flux par
+  // code SMS, cohérent avec l'authentification par téléphone — pas par email).
 
   // ── Mise à jour profil ───────────────────────────────────
   updateProfile: async (updates) => {

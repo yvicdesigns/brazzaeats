@@ -14,8 +14,16 @@ import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { REDIRECT_PAR_ROLE } from '@/utils/constants'
 
 // ── Pages Auth ─────────────────────────────────────────────
-import Login    from '@/pages/auth/Login'
-import Register from '@/pages/auth/Register'
+import Login            from '@/pages/auth/Login'
+import Register         from '@/pages/auth/Register'
+import ForgotPassword   from '@/pages/auth/ForgotPassword'
+import VerificationCode from '@/pages/auth/VerificationCode'
+import NewPassword      from '@/pages/auth/NewPassword'
+import PasswordChanged  from '@/pages/auth/PasswordChanged'
+
+// ── Pages légales ──────────────────────────────────────────
+import Terms   from '@/pages/legal/Terms'
+import Privacy from '@/pages/legal/Privacy'
 
 // ── Pages Client ───────────────────────────────────────────
 import Home      from '@/pages/client/Home'
@@ -174,6 +182,12 @@ export default function App() {
         {/* ── Routes publiques (auth) ───────────────────── */}
         <Route path="/login"        element={<Login />} />
         <Route path="/register"     element={<Register />} />
+        <Route path="/mot-de-passe-oublie"    element={<ForgotPassword />} />
+        <Route path="/verification-code"      element={<VerificationCode />} />
+        <Route path="/nouveau-mot-de-passe"   element={<NewPassword />} />
+        <Route path="/mot-de-passe-modifie"   element={<PasswordChanged />} />
+        <Route path="/conditions-utilisation"     element={<Terms />} />
+        <Route path="/politique-confidentialite"  element={<Privacy />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
 
         {/* ── Espace client ─────────────────────────────── */}
