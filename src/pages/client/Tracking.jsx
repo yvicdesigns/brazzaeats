@@ -14,8 +14,8 @@ import LivreurMap from '@/components/shared/LivreurMap'
 
 // Étapes ordonnées de la timeline (hors "annulée")
 const ETAPES = [
-  { statut: 'en_attente',     label: 'Commande confirmée' },
-  { statut: 'acceptée',       label: 'En préparation' },
+  { statut: 'en_attente',     label: 'Commande envoyée' },
+  { statut: 'acceptée',       label: 'Commande confirmée' },
   { statut: 'en_préparation', label: 'En préparation' },
   { statut: 'prête',          label: 'Commande récupérée' },
   { statut: 'en_livraison',   label: 'En route vers vous' },
