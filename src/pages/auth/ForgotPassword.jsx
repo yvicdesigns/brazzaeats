@@ -1,38 +1,27 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Phone } from 'lucide-react'
+import { ArrowLeft, Phone, MessageCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { demanderCodeSMS } from '@/services/authService'
+import { ouvrirWhatsApp } from '@/utils/whatsappMessage'
+import { WHATSAPP_SUPPORT } from '@/utils/constants'
 
 // ══════════════════════════════════════════════════════════
-// Page Mot de passe oublié — demande d'un code par SMS
+// Page Mot de passe oublié — réinitialisation manuelle via le support
+// WhatsApp, sans dépendance SMS payante. Le support identifie le compte
+// par le numéro de téléphone et le réinitialise depuis l'espace admin.
 // ══════════════════════════════════════════════════════════
 export default function ForgotPassword() {
   const navigate = useNavigate()
   const [telephoneLocal, setTelephoneLocal] = useState('')
-  const [envoi,          setEnvoi]          = useState(false)
 
-  async function handleSubmit(e) {
+  function handleSubmit(e) {
     e.preventDefault()
     if (telephoneLocal.length !== 9) { toast.error('Numéro invalide — 9 chiffres requis'); return }
 
     const telephone = `+242${telephoneLocal}`
-    setEnvoi(true)
-    const { debugCode, error } = await demanderCodeSMS(telephone)
-    setEnvoi(false)
-
-    if (error) { toast.error(error); return }
-
-    if (debugCode) {
-      // ⚠️ Mode démo — aucun fournisseur SMS n'est encore branché, le code est
-      // affiché ici pour permettre de tester le parcours. À retirer une fois
-      // un vrai envoi SMS en place.
-      toast.success(`Mode démo — votre code est ${debugCode}`, { duration: 8000 })
-    } else {
-      toast.success('Code envoyé par SMS')
-    }
-
-    navigate('/verification-code', { state: { telephone } })
+    const message = `Bonjour Zandofood Support, j'ai oublié mon mot de passe. Mon numéro de compte est ${telephone}. Pouvez-vous le réinitialiser ?`
+    ouvrirWhatsApp(WHATSAPP_SUPPORT, message)
+    navigate('/login')
   }
 
   return (
@@ -45,7 +34,7 @@ export default function ForgotPassword() {
         <div className="w-full max-w-sm mx-auto">
           <h2 className="text-xl font-bold text-gray-800 mb-2">Mot de passe oublié ?</h2>
           <p className="text-sm text-gray-500 mb-6">
-            Pas de souci, indiquez votre numéro et nous vous enverrons un code de vérification par SMS.
+            Indiquez votre numéro et nous ouvrons WhatsApp pour que notre support réinitialise votre mot de passe.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
@@ -75,11 +64,13 @@ export default function ForgotPassword() {
 
             <button
               type="submit"
-              disabled={envoi || telephoneLocal.length !== 9}
-              className="w-full bg-brand-500 text-white rounded-xl py-3.5 font-bold text-sm
-                         hover:bg-brand-600 transition-colors disabled:opacity-60 min-h-[52px]"
+              disabled={telephoneLocal.length !== 9}
+              className="w-full bg-green-500 text-white rounded-xl py-3.5 font-bold text-sm
+                         hover:bg-green-600 transition-colors disabled:opacity-60 min-h-[52px]
+                         flex items-center justify-center gap-2"
             >
-              {envoi ? 'Envoi…' : 'Envoyer le code'}
+              <MessageCircle className="w-4 h-4" />
+              Contacter le support sur WhatsApp
             </button>
           </form>
 

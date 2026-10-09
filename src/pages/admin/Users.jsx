@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Users, Search, UserX, UserCheck, Loader2, ChevronDown, Wallet, X } from 'lucide-react'
+import { Users, Search, UserX, UserCheck, Loader2, ChevronDown, Wallet, X, KeyRound, Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { getAllUsers, toggleUserActive, crediterSoldeClient } from '@/services/adminService'
+import { getAllUsers, toggleUserActive, crediterSoldeClient, adminChangePassword } from '@/services/adminService'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { ROLES } from '@/utils/constants'
 
@@ -93,10 +93,74 @@ function ModalCreditSolde({ utilisateur, onClose, onSuccess }) {
   )
 }
 
+// ── Modal réinitialisation mot de passe (demande reçue par WhatsApp) ──
+function ModalMotDePasse({ utilisateur, onClose }) {
+  const [mdp,        setMdp]        = useState('')
+  const [mdpVisible, setMdpVisible] = useState(false)
+  const [saving,     setSaving]     = useState(false)
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (mdp.length < 6) { toast.error('Minimum 6 caractères'); return }
+    setSaving(true)
+    const { error } = await adminChangePassword(utilisateur.id, mdp)
+    setSaving(false)
+    if (error) { toast.error('Erreur : ' + error); return }
+    toast.success('Mot de passe mis à jour')
+    onClose()
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 shadow-2xl">
+        <h2 className="text-base font-black text-gray-900 mb-1">Changer le mot de passe</h2>
+        <p className="text-xs text-gray-400 mb-5">{utilisateur.nom}</p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="text-xs font-medium text-gray-600">Nouveau mot de passe *</label>
+            <div className="relative mt-1">
+              <input
+                value={mdp}
+                onChange={e => setMdp(e.target.value)}
+                type={mdpVisible ? 'text' : 'password'}
+                placeholder="Min. 6 caractères"
+                autoFocus
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 pr-10 text-sm
+                           focus:outline-none focus:ring-2 focus:ring-brand-300"
+              />
+              <button type="button" onClick={() => setMdpVisible(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                {mdpVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose}
+              className="flex-1 border border-gray-200 text-gray-600 rounded-xl py-3 text-sm font-semibold">
+              Annuler
+            </button>
+            <button type="submit" disabled={mdp.length < 6 || saving}
+              className="flex-1 bg-brand-500 text-white rounded-xl py-3 text-sm font-bold
+                         hover:bg-brand-600 disabled:opacity-40 flex items-center justify-center gap-2">
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              Enregistrer
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ── Ligne utilisateur avec détail déroulant ────────────────
 function LigneUtilisateur({ utilisateur, onToggle, loading, onglet }) {
   const [ouvert,      setOuvert]      = useState(false)
   const [modalSolde,  setModalSolde]  = useState(false)
+  const [modalMdp,    setModalMdp]    = useState(false)
   const [solde,       setSolde]       = useState(utilisateur.solde ?? 0)
 
   return (
@@ -168,6 +232,17 @@ function LigneUtilisateur({ utilisateur, onToggle, loading, onglet }) {
               </button>
             )}
 
+            {/* Réinitialiser le mot de passe — sur demande reçue par WhatsApp */}
+            <button
+              onClick={() => setModalMdp(true)}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl
+                         bg-gray-100 border border-gray-200 text-gray-700 text-xs font-bold
+                         hover:bg-gray-200 transition-colors min-h-[44px]"
+            >
+              <KeyRound className="w-3.5 h-3.5" />
+              Réinitialiser le mot de passe
+            </button>
+
             {/* Action activer / désactiver */}
             <button
               onClick={() => onToggle(utilisateur.id, !utilisateur.actif)}
@@ -196,6 +271,13 @@ function LigneUtilisateur({ utilisateur, onToggle, loading, onglet }) {
           utilisateur={utilisateur}
           onClose={() => setModalSolde(false)}
           onSuccess={val => setSolde(s => s + val)}
+        />
+      )}
+
+      {modalMdp && (
+        <ModalMotDePasse
+          utilisateur={utilisateur}
+          onClose={() => setModalMdp(false)}
         />
       )}
     </div>

@@ -13,11 +13,11 @@ async function appelerAdminUsers(action, payload) {
     body: { action, payload },
   })
   if (error) {
-    // Voir le commentaire équivalent dans authService.js : supabase-js ne
-    // remonte jamais le vrai message d'erreur JSON dans `error.message` pour
-    // une réponse non-2xx — il faut le relire depuis `error.context`. Sans
-    // ça, un admin qui crée un restaurant/livreur voit un message générique
-    // et inexploitable au lieu de la vraie raison (numéro déjà pris, etc.).
+    // supabase-js ne remonte jamais le vrai message d'erreur JSON dans
+    // `error.message` pour une réponse non-2xx — il faut le relire depuis
+    // `error.context`. Sans ça, un admin qui crée un restaurant/livreur voit
+    // un message générique et inexploitable au lieu de la vraie raison
+    // (numéro déjà pris, etc.).
     let messageServeur = null
     try {
       const corps = await error.context?.clone().json()
