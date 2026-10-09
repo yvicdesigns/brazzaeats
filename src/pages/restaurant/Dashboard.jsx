@@ -26,7 +26,7 @@ function GraphiqueCommandes({ commandesBrutes }) {
     const idx = jours.findIndex(j => j.date.getTime() === dc.getTime())
     if (idx >= 0) {
       jours[idx].total++
-      jours[idx].ca += (c.montant_total ?? 0) + (c.frais_livraison ?? 0)
+      jours[idx].ca += c.montant_total ?? 0
     }
   })
 

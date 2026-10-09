@@ -12,7 +12,21 @@ async function appelerAdminUsers(action, payload) {
   const { data, error } = await supabase.functions.invoke('admin-users', {
     body: { action, payload },
   })
-  if (error) throw error
+  if (error) {
+    // Voir le commentaire équivalent dans authService.js : supabase-js ne
+    // remonte jamais le vrai message d'erreur JSON dans `error.message` pour
+    // une réponse non-2xx — il faut le relire depuis `error.context`. Sans
+    // ça, un admin qui crée un restaurant/livreur voit un message générique
+    // et inexploitable au lieu de la vraie raison (numéro déjà pris, etc.).
+    let messageServeur = null
+    try {
+      const corps = await error.context?.clone().json()
+      messageServeur = corps?.error ?? null
+    } catch {
+      // Réponse non-JSON — on retombe sur le message générique ci-dessous.
+    }
+    throw new Error(messageServeur ?? error.message)
+  }
   if (data?.error) throw new Error(data.error)
   return data?.data
 }
@@ -461,7 +475,7 @@ export async function getLivreurStats(profileId) {
     ])
 
     const nb           = livrees?.length ?? 0
-    const caGenere     = (livrees ?? []).reduce((s, o) => s + (o.montant_total ?? 0) + (o.frais_livraison ?? 0), 0)
+    const caGenere     = (livrees ?? []).reduce((s, o) => s + (o.montant_total ?? 0), 0)
     const commissions  = (livrees ?? []).reduce((s, o) => s + (o.commission ?? 0), 0)
     const derniereDate = livrees?.length
       ? livrees.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0].created_at

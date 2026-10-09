@@ -272,7 +272,7 @@ export default function Orders() {
                 {/* Ligne 3 : total + mode paiement */}
                 <div className="flex items-center justify-between mt-2">
                   <span className="text-sm font-bold text-gray-800 tabular-nums">
-                    {formatCurrency(commande.montant_total + commande.frais_livraison)}
+                    {formatCurrency(commande.montant_total)}
                   </span>
                   <span className="text-xs text-gray-400">
                     {commande.mode_paiement === 'cash' ? '💵 Espèces' : '📱 Mobile Money'}

@@ -99,4 +99,36 @@
     background-size: 200% 100%;
     animation: shimmer 1.4s infinite;
   }
+
+  /* Écran "cuisine en direct" (suivi commande, pendant la préparation) */
+  @keyframes respirer {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.035); }
+  }
+  .animate-respire {
+    animation: respirer 3s ease-in-out infinite;
+  }
+
+  @keyframes vapeur-monte {
+    0%   { transform: translateY(0) scale(0.6); opacity: 0; }
+    20%  { opacity: 0.55; }
+    100% { transform: translateY(-70px) scale(1.3); opacity: 0; }
+  }
+  .vapeur {
+    position: absolute;
+    bottom: 0;
+    width: 14px;
+    height: 14px;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.75);
+    filter: blur(4px);
+    animation: vapeur-monte 3.4s ease-in infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-respire,
+    .vapeur {
+      animation: none;
+    }
+  }
 }

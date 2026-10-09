@@ -205,12 +205,14 @@ export async function getOrderById(id) {
  * Met à jour le statut d'une commande.
  * @param {string} orderId
  * @param {string} statut — valeur de l'enum statut_commande
+ * @param {object} champsSupplementaires — champs additionnels à mettre à jour
+ *        en même temps (ex : temps_preparation_minutes à l'acceptation)
  */
-export async function updateOrderStatus(orderId, statut) {
+export async function updateOrderStatus(orderId, statut, champsSupplementaires = {}) {
   try {
     const { data, error } = await supabase
       .from('orders')
-      .update({ statut })
+      .update({ statut, ...champsSupplementaires })
       .eq('id', orderId)
       .select()
       .single()
@@ -238,21 +240,12 @@ export async function submitReview({ clientId, restaurantId, orderId, note, comm
 
     if (error) throw error
 
-    // Recalcul de la note moyenne du restaurant (fallback si le trigger SQL n'existe pas)
-    supabase
-      .from('reviews')
-      .select('note')
-      .eq('restaurant_id', restaurantId)
-      .eq('masque', false)
-      .then(({ data: avis }) => {
-        if (!avis || avis.length === 0) return
-        const moyenne = Math.round(avis.reduce((s, r) => s + r.note, 0) / avis.length * 10) / 10
-        supabase
-          .from('restaurants')
-          .update({ note_moyenne: moyenne })
-          .eq('id', restaurantId)
-          .then(() => {}) // fire-and-forget
-      })
+    // La note moyenne du restaurant est recalculée côté base par un trigger
+    // (recalculer_note_restaurant, SECURITY DEFINER sur la table reviews) —
+    // pas ici. Un essai précédent le faisait via un UPDATE direct sur
+    // `restaurants` depuis le client, mais aucune policy RLS n'autorise un
+    // client à modifier cette table : l'update échouait silencieusement à
+    // chaque avis, et la note affichée ne bougeait jamais.
 
     return { data, error: null }
   } catch (err) {

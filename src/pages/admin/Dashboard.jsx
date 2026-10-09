@@ -361,7 +361,7 @@ export default function AdminDashboard() {
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-sm font-bold text-gray-800 tabular-nums">
-                        {formatCurrency((cmd.montant_total ?? 0) + (cmd.frais_livraison ?? 0))}
+                        {formatCurrency(cmd.montant_total ?? 0)}
                       </p>
                       {cmd.commission > 0 && (
                         <p className="text-xs text-green-600 font-medium">

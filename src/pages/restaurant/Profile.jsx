@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { useMyRestaurant } from '@/hooks/useMyRestaurant'
 import { updateRestaurant, uploadRestaurantLogo, uploadRestaurantVideo, uploadRestaurantVideoApercu } from '@/services/menuService'
 import { VILLES_CONGO, PREFIXE_OPERATEUR } from '@/utils/constants'
+import ReglagesNotifications from '@/components/shared/ReglagesNotifications'
 
 // ── Jours de la semaine (ordre affiché) ───────────────────
 const JOURS = [
@@ -87,6 +88,19 @@ export default function Profile() {
     if (error) { toast.error('Erreur upload : ' + error); return }
     setLogoPreview(url)
     setForm(f => ({ ...f, logoUrl: url }))
+
+    // Sauvegarder immédiatement en base — comme pour les vidéos et la
+    // suppression du logo juste en dessous. Avant ce correctif, le logo
+    // restait seulement en mémoire locale : si le restaurant quittait la
+    // page sans cliquer sur "Enregistrer les modifications", le changement
+    // était perdu silencieusement (et le fichier restait orphelin dans le
+    // stockage) alors que l'interface donnait l'impression que c'était fait.
+    const { error: errSauvegarde } = await updateRestaurant(restaurant.id, { logo_url: url })
+    if (errSauvegarde) {
+      toast.error('Logo envoyé mais non enregistré : ' + errSauvegarde)
+      return
+    }
+    toast.success('Logo mis à jour !')
   }
 
   // ── Upload vidéo ───────────────────────────────────────
@@ -190,6 +204,10 @@ export default function Profile() {
     e.preventDefault()
     const nom = form.nom.trim()
     if (!nom) { toast.error('Le nom du restaurant est requis'); return }
+    // La colonne `adresse` est NOT NULL en base — sans validation ici, un
+    // restaurant qui vide ce champ voyait l'enregistrement échouer avec une
+    // erreur 500 obscure (même bug trouvé et corrigé côté admin).
+    if (!form.adresse.trim()) { toast.error("L'adresse est requise"); return }
 
     if (form.mtnMomoNumero && (form.mtnMomoNumero.length !== 9 || !form.mtnMomoNumero.startsWith(PREFIXE_OPERATEUR.MTN))) {
       toast.error(`Numéro MTN invalide — 9 chiffres commençant par ${PREFIXE_OPERATEUR.MTN}`)
@@ -204,7 +222,7 @@ export default function Profile() {
     const { data, error } = await updateRestaurant(restaurant.id, {
       nom,
       description: form.description.trim() || null,
-      adresse:     form.adresse.trim()     || null,
+      adresse:     form.adresse.trim(),
       ville:       form.ville,
       logo_url:    form.logoUrl,
       statut:      form.ouvert ? 'actif' : 'suspendu',
@@ -509,7 +527,7 @@ export default function Profile() {
 
           {/* Adresse */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Adresse *</label>
             <input
               type="text"
               value={form.adresse}
@@ -673,6 +691,16 @@ export default function Profile() {
           {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
         </button>
       </form>
+
+      {/* ════════════════════════════════════════
+          Notifications
+      ════════════════════════════════════════ */}
+      <div className="px-4 mt-5">
+        <div className="bg-white rounded-2xl p-5 shadow-card">
+          <h2 className="font-bold text-gray-800 mb-4">Notifications</h2>
+          <ReglagesNotifications />
+        </div>
+      </div>
     </div>
   )
 }

@@ -1,13 +1,16 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { LayoutDashboard, Bike, History } from 'lucide-react'
+import { LayoutDashboard, Bike, History, User } from 'lucide-react'
 import { useLivreurNotifications } from '@/hooks/useLivreurNotifications'
 import { useLivreurPositionReporter } from '@/hooks/useLivreurPositionReporter'
 import Sidebar from '@/components/layout/Sidebar'
+import AlarmeNouvelleLivraison from '@/components/livreur/AlarmeNouvelleLivraison'
+import BandeauHorsLigne from '@/components/shared/BandeauHorsLigne'
 
 const NAV_LIVREUR = [
   { to: '/livreur/dashboard',  label: 'Dashboard',   Icon: LayoutDashboard },
   { to: '/livreur/disponible', label: 'Disponibles', Icon: Bike            },
   { to: '/livreur/historique', label: 'Historique',  Icon: History         },
+  { to: '/livreur/profil',     label: 'Profil',      Icon: User            },
 ]
 
 function LivreurBottomNav() {
@@ -38,18 +41,29 @@ function LivreurBottomNav() {
 }
 
 export default function LivreurLayout() {
-  // Notifications globales — son + browser notif + toast sur toutes les pages livreur
-  useLivreurNotifications()
+  // Notifications globales — alarme + compte à rebours sur toutes les pages livreur
+  const { commandeAlarme, nbEnAttente, secondesRestantes, enCours, accepter, refuser } = useLivreurNotifications()
   // Remonte la position GPS réelle au serveur pendant une livraison active
   useLivreurPositionReporter()
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
+      <BandeauHorsLigne />
       <Sidebar />
       <main className="flex-1 md:ml-56 pb-20 md:pb-0">
         <Outlet />
       </main>
       <LivreurBottomNav />
+
+      {/* ── Alarme plein écran nouvelle livraison ────────── */}
+      <AlarmeNouvelleLivraison
+        commande={commandeAlarme}
+        restantes={nbEnAttente}
+        secondesRestantes={secondesRestantes}
+        enCours={enCours}
+        onAccepter={accepter}
+        onRefuser={refuser}
+      />
     </div>
   )
 }

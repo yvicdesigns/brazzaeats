@@ -84,7 +84,7 @@ function CarteCommande({ cmd }) {
         </div>
         <div className="text-right shrink-0">
           <p className="text-sm font-bold text-gray-800 tabular-nums">
-            {formatCurrency((cmd.montant_total ?? 0) + (cmd.frais_livraison ?? 0))}
+            {formatCurrency(cmd.montant_total ?? 0)}
           </p>
           {cmd.commission > 0 && (
             <p className="text-xs text-green-600 font-medium tabular-nums">
@@ -113,7 +113,7 @@ function CarteCommande({ cmd }) {
             {cmd.mode_paiement === 'cash' ? 'Espèces' : 'Mobile Money'}
           </p>
           <div className="pt-1 flex gap-4 text-xs text-gray-500">
-            <span>Sous-total : <strong className="text-gray-700">{formatCurrency(cmd.montant_total ?? 0)}</strong></span>
+            <span>Sous-total : <strong className="text-gray-700">{formatCurrency((cmd.montant_total ?? 0) - (cmd.frais_livraison ?? 0))}</strong></span>
             <span>Frais : <strong className="text-gray-700">{formatCurrency(cmd.frais_livraison ?? 0)}</strong></span>
             <span>Commission : <strong className="text-green-700">{formatCurrency(cmd.commission ?? 0)}</strong></span>
           </div>
@@ -142,7 +142,7 @@ export default function AdminHistorique() {
 
   // Agrégats calculés côté client sur les résultats chargés
   const livrees   = commandes.filter(c => c.statut === 'livrée')
-  const caTotal   = livrees.reduce((s, c) => s + (c.montant_total ?? 0) + (c.frais_livraison ?? 0), 0)
+  const caTotal   = livrees.reduce((s, c) => s + (c.montant_total ?? 0), 0)
   const commTotal = livrees.reduce((s, c) => s + (c.commission ?? 0), 0)
 
   const charger = useCallback(async (reset = true) => {

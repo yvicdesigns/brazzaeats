@@ -14,6 +14,7 @@ import {
   getLivreurStats,
 } from '@/services/adminService'
 import { formatCurrencyShort } from '@/utils/formatCurrency'
+import { VEHICULES_LIVREUR as VEHICULES } from '@/utils/constants'
 
 const STATUTS = {
   en_attente: { label: 'En attente', couleur: 'bg-yellow-100 text-yellow-700' },
@@ -27,8 +28,6 @@ const FILTRES = [
   { key: 'actif',      label: 'Actifs'     },
   { key: 'suspendu',   label: 'Suspendus'  },
 ]
-
-const VEHICULES = ['moto', 'vélo', 'voiture', 'à pied']
 
 function BadgeStatut({ statut }) {
   const cfg = STATUTS[statut] ?? { label: statut, couleur: 'bg-gray-100 text-gray-600' }

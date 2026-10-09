@@ -37,7 +37,7 @@ function ModalAnnulation({ commande, onClose, onConfirm, loading }) {
           <div>
             <h3 className="font-bold text-gray-900">Annuler cette commande ?</h3>
             <p className="text-sm text-gray-500 mt-1">
-              {commande.restaurant?.nom} · {formatCurrency((commande.montant_total ?? 0) + (commande.frais_livraison ?? 0))}
+              {commande.restaurant?.nom} · {formatCurrency(commande.montant_total ?? 0)}
             </p>
           </div>
         </div>
@@ -94,7 +94,7 @@ function CarteCommande({ commande, onAnnuler, actionLoading }) {
 
         <div className="text-right shrink-0">
           <p className="text-sm font-bold text-gray-800 tabular-nums">
-            {formatCurrency((commande.montant_total ?? 0) + (commande.frais_livraison ?? 0))}
+            {formatCurrency(commande.montant_total ?? 0)}
           </p>
           <p className="text-xs text-gray-400 flex items-center gap-0.5 justify-end mt-0.5">
             <Clock className="w-3 h-3" />

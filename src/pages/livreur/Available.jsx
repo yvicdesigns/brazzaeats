@@ -11,7 +11,7 @@ import {
 } from '@/services/livreurService'
 import { getPlatformSettings } from '@/services/adminService'
 import { formatCurrency } from '@/utils/formatCurrency'
-import { sons, resumeAudio } from '@/utils/notificationSound'
+import { resumeAudio } from '@/utils/notificationSound'
 
 // ── Durée depuis création ──────────────────────────────────
 function dureeDepuis(isoDate) {
@@ -136,13 +136,14 @@ export default function Available() {
               .eq('id', nouv.id)
               .single()
 
+            // Le son + l'alarme plein écran sont gérés globalement par
+            // useLivreurNotifications (LivreurLayout) — on ne met à jour
+            // que la liste ici, pour éviter un double signal sonore.
             if (cmd) {
               setCommandes(prev => {
                 if (prev.some(c => c.id === cmd.id)) return prev
                 return [cmd, ...prev]
               })
-              sons.commandePrete()
-              if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200, 100, 200])
             }
           }
 

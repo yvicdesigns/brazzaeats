@@ -48,10 +48,13 @@ function ModaleModifier({ restaurant, onSave, onClose }) {
   async function handleSubmit(e) {
     e.preventDefault()
     if (!form.nom.trim()) { toast.error('Le nom est requis'); return }
+    // La colonne `adresse` est NOT NULL en base — un restaurant sans adresse
+    // n'a de toute façon aucun sens pour un service de livraison.
+    if (!form.adresse.trim()) { toast.error("L'adresse est requise"); return }
     setSaving(true)
     await onSave(restaurant.id, {
       nom:             form.nom.trim(),
-      adresse:         form.adresse.trim() || null,
+      adresse:         form.adresse.trim(),
       description:     form.description.trim() || null,
       commission_rate: Number(form.commission_rate),
     })
@@ -77,7 +80,7 @@ function ModaleModifier({ restaurant, onSave, onClose }) {
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600">Adresse</label>
+            <label className="text-xs font-medium text-gray-600">Adresse *</label>
             <input
               value={form.adresse}
               onChange={e => set('adresse', e.target.value)}
@@ -116,7 +119,7 @@ function ModaleModifier({ restaurant, onSave, onClose }) {
               Annuler
             </button>
             <button
-              type="submit" disabled={saving || !form.nom.trim()}
+              type="submit" disabled={saving || !form.nom.trim() || !form.adresse.trim()}
               className="flex-1 bg-brand-500 text-white rounded-xl py-3 text-sm font-bold
                          hover:bg-brand-600 disabled:opacity-40 flex items-center justify-center gap-2"
             >
@@ -371,7 +374,12 @@ function ModaleCreerRestaurant({ onSave, onClose }) {
   const [saving,     setSaving]     = useState(false)
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-  const valide = form.nom.trim() && form.telephone.trim() && form.motDePasse.length >= 6
+  // adresse est requise — la colonne `restaurants.adresse` est NOT NULL en
+  // base, et un restaurant sans adresse n'a de toute façon aucun sens pour
+  // un service de livraison. Avant ce correctif, ce champ était affiché
+  // comme optionnel dans le formulaire mais faisait échouer la création
+  // avec une erreur 500 obscure si laissé vide.
+  const valide = form.nom.trim() && form.adresse.trim() && form.telephone.trim() && form.motDePasse.length >= 6
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -402,7 +410,7 @@ function ModaleCreerRestaurant({ onSave, onClose }) {
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600">Adresse</label>
+            <label className="text-xs font-medium text-gray-600">Adresse *</label>
             <input
               value={form.adresse}
               onChange={e => set('adresse', e.target.value)}

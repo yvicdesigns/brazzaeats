@@ -1,10 +1,10 @@
 /**
  * Profil client — informations, adresses, messages, fidélité, solde, partage
  */
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  User, Phone, MapPin, ShoppingBag, MessageSquare, Gift,
+  User, Phone, MapPin, ShoppingBag, MessageSquare, Gift, Bell,
   Wallet, Share2, ChevronRight, Plus, Trash2, Star,
   Camera, Check, Edit2, LogOut, Loader2, Home, Briefcase,
   Utensils, ArrowRight, TrendingUp,
@@ -15,6 +15,8 @@ import { supabase } from '@/supabase/client'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { QUARTIERS_BRAZZAVILLE } from '@/utils/constants'
 import ChatModal from '@/components/shared/ChatModal'
+import CropModal from '@/components/shared/CropModal'
+import ReglagesNotifications from '@/components/shared/ReglagesNotifications'
 import {
   getAdresses,
   addAdresse,
@@ -45,143 +47,6 @@ function tempsDepuis(isoDate) {
   if (jours < 30) return `il y a ${Math.floor(jours / 7)} sem.`
   if (jours < 365) return `il y a ${Math.floor(jours / 30)} mois`
   return `il y a plus d'un an`
-}
-
-// ── Recadrage photo ───────────────────────────────────────
-const CROP_SIZE = 260
-
-function CropModal({ imageUrl, onSave, onClose, saving }) {
-  const canvasRef = useRef(null)
-  const [scale, setScale] = useState(1)
-  const [offset, setOffset] = useState({ x: 0, y: 0 })
-  const dragging = useRef(false)
-  const lastPos = useRef(null)
-  const imgEl = useRef(null)
-
-  const draw = useCallback((img, off, sc) => {
-    const canvas = canvasRef.current
-    if (!canvas || !img) return
-    const ctx = canvas.getContext('2d')
-    ctx.clearRect(0, 0, CROP_SIZE, CROP_SIZE)
-
-    const s = sc * Math.max(CROP_SIZE / img.naturalWidth, CROP_SIZE / img.naturalHeight)
-    const w = img.naturalWidth * s
-    const h = img.naturalHeight * s
-    const x = (CROP_SIZE - w) / 2 + off.x
-    const y = (CROP_SIZE - h) / 2 + off.y
-    ctx.drawImage(img, x, y, w, h)
-
-    ctx.save()
-    ctx.fillStyle = 'rgba(0,0,0,0.5)'
-    ctx.fillRect(0, 0, CROP_SIZE, CROP_SIZE)
-    ctx.globalCompositeOperation = 'destination-out'
-    ctx.beginPath()
-    ctx.arc(CROP_SIZE / 2, CROP_SIZE / 2, CROP_SIZE / 2 - 6, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.restore()
-
-    ctx.strokeStyle = 'rgba(255,255,255,0.9)'
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.arc(CROP_SIZE / 2, CROP_SIZE / 2, CROP_SIZE / 2 - 6, 0, Math.PI * 2)
-    ctx.stroke()
-  }, [])
-
-  useEffect(() => {
-    const img = new Image()
-    img.onload = () => { imgEl.current = img; draw(img, { x: 0, y: 0 }, 1) }
-    img.src = imageUrl
-  }, [imageUrl, draw])
-
-  useEffect(() => {
-    if (imgEl.current) draw(imgEl.current, offset, scale)
-  }, [offset, scale, draw])
-
-  const getEventPos = e => e.touches
-    ? { x: e.touches[0].clientX, y: e.touches[0].clientY }
-    : { x: e.clientX, y: e.clientY }
-
-  const onPointerDown = e => { dragging.current = true; lastPos.current = getEventPos(e) }
-  const onPointerMove = e => {
-    if (!dragging.current || !lastPos.current) return
-    const pos = getEventPos(e)
-    setOffset(prev => ({ x: prev.x + pos.x - lastPos.current.x, y: prev.y + pos.y - lastPos.current.y }))
-    lastPos.current = pos
-  }
-  const onPointerUp = () => { dragging.current = false }
-
-  function handleSave() {
-    const out = document.createElement('canvas')
-    out.width = CROP_SIZE; out.height = CROP_SIZE
-    const ctx = out.getContext('2d')
-    ctx.beginPath()
-    ctx.arc(CROP_SIZE / 2, CROP_SIZE / 2, CROP_SIZE / 2, 0, Math.PI * 2)
-    ctx.clip()
-    const img = imgEl.current
-    if (!img) return
-    const s = scale * Math.max(CROP_SIZE / img.naturalWidth, CROP_SIZE / img.naturalHeight)
-    const w = img.naturalWidth * s; const h = img.naturalHeight * s
-    const x = (CROP_SIZE - w) / 2 + offset.x; const y = (CROP_SIZE - h) / 2 + offset.y
-    ctx.drawImage(img, x, y, w, h)
-    out.toBlob(blob => onSave(blob), 'image/jpeg', 0.9)
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80">
-      <div
-        className="bg-white rounded-t-3xl sm:rounded-3xl p-6 w-full max-w-sm mx-4
-                    max-h-[92dvh] overflow-y-auto"
-        style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
-      >
-        <h3 className="font-bold text-gray-900 text-center mb-1">Recadrer la photo</h3>
-        <p className="text-xs text-center text-gray-400 mb-5">Glissez · Zoomez avec le curseur</p>
-
-        <div className="flex justify-center mb-5">
-          <canvas
-            ref={canvasRef}
-            width={CROP_SIZE} height={CROP_SIZE}
-            className="cursor-grab active:cursor-grabbing touch-none"
-            style={{ width: CROP_SIZE, height: CROP_SIZE, borderRadius: '50%', overflow: 'hidden' }}
-            onMouseDown={onPointerDown} onMouseMove={onPointerMove}
-            onMouseUp={onPointerUp} onMouseLeave={onPointerUp}
-            onTouchStart={onPointerDown} onTouchMove={onPointerMove} onTouchEnd={onPointerUp}
-          />
-        </div>
-
-        <div className="px-2 mb-5">
-          <input
-            type="range" min={0.5} max={3} step={0.05}
-            value={scale}
-            onChange={e => setScale(parseFloat(e.target.value))}
-            className="w-full accent-brand-500"
-          />
-          <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-            <span>−</span><span>Zoom</span><span>+</span>
-          </div>
-        </div>
-
-        <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm
-                       active:scale-[0.97] transition-transform"
-          >
-            Annuler
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex-1 py-3 rounded-xl bg-brand-500 text-white font-semibold text-sm
-                       disabled:opacity-60 flex items-center justify-center gap-2
-                       active:scale-[0.97] transition-transform"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-            Enregistrer
-          </button>
-        </div>
-      </div>
-    </div>
-  )
 }
 
 // ── Icône pour le type d'adresse ─────────────────────────
@@ -332,6 +197,9 @@ export default function Profile() {
   // ── Solde ────────────────────────────────────────────────
   const [sectionSolde, setSectionSolde] = useState(false)
 
+  // ── Notifications ────────────────────────────────────────
+  const [sectionNotifs, setSectionNotifs] = useState(false)
+
   // ── Stats commandes ──────────────────────────────────────
   const [statsCommandes, setStatsCommandes] = useState({
     total: 0,
@@ -399,22 +267,55 @@ export default function Profile() {
   }, [sectionAdresses, user?.id])
 
   // ── Charger conversations quand section ouvre ────────────
+  // Deux canaux possibles par commande : livreur (logistique) et support (SAV).
   useEffect(() => {
     if (!sectionMessages || !user?.id) return
     setLoadConversations(true)
     supabase
       .from('orders')
       .select(`
-        id, created_at, statut,
-        restaurant:restaurants(nom),
-        messages(id)
+        id, created_at, livreur_id,
+        messages(id, canal)
       `)
       .eq('client_id', user.id)
       .order('created_at', { ascending: false })
       .limit(30)
-      .then(({ data }) => {
-        const avecMessages = (data ?? []).filter(o => (o.messages?.length ?? 0) > 0)
-        setConversations(avecMessages.slice(0, 10))
+      .then(async ({ data }) => {
+        const orders = data ?? []
+
+        // Noms des livreurs concernés (FK ambiguë sur orders → récupération séparée)
+        const livreurIds = [...new Set(orders.map(o => o.livreur_id).filter(Boolean))]
+        let nomsLivreurs = {}
+        if (livreurIds.length > 0) {
+          const { data: livreurs } = await supabase
+            .from('profiles')
+            .select('id, nom')
+            .in('id', livreurIds)
+          nomsLivreurs = Object.fromEntries((livreurs ?? []).map(l => [l.id, l.nom]))
+        }
+
+        // Une ligne par canal actif sur chaque commande
+        const lignes = []
+        for (const o of orders) {
+          const canaux = new Set((o.messages ?? []).map(m => m.canal))
+          const ref = `#${o.id.slice(0, 8).toUpperCase()}`
+          if (canaux.has('livreur')) {
+            lignes.push({
+              orderId: o.id, canal: 'livreur',
+              titreChat: `Livreur — ${nomsLivreurs[o.livreur_id] ?? 'Livreur'}`,
+              sousTitre: ref, emoji: '🛵',
+            })
+          }
+          if (canaux.has('support')) {
+            lignes.push({
+              orderId: o.id, canal: 'support',
+              titreChat: 'Support Zando',
+              sousTitre: ref, emoji: '💬',
+            })
+          }
+        }
+
+        setConversations(lignes.slice(0, 10))
         setLoadConversations(false)
       })
   }, [sectionMessages, user?.id])
@@ -898,7 +799,7 @@ export default function Profile() {
             icon={<MessageSquare className="w-4 h-4 text-blue-500" />}
             iconBg="bg-blue-100"
             title="Messages"
-            subtitle="Conversations avec les restaurants"
+            subtitle="Livreurs et support Zando"
             expanded={sectionMessages}
             onToggle={() => setSectionMessages(p => !p)}
           >
@@ -913,28 +814,22 @@ export default function Profile() {
               </div>
             ) : (
               <div className="mt-4 space-y-2">
-                {conversations.map(o => (
+                {conversations.map(c => (
                   <button
-                    key={o.id}
-                    onClick={() => setChatOuvert({
-                      orderId: o.id,
-                      titreChat: o.restaurant?.nom ?? 'Restaurant',
-                    })}
+                    key={`${c.orderId}-${c.canal}`}
+                    onClick={() => setChatOuvert(c)}
                     className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50
                                hover:bg-gray-100 active:bg-gray-200 transition-colors text-left"
                   >
                     <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center shrink-0 text-base">
-                      💬
+                      {c.emoji}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 truncate">
-                        {o.restaurant?.nom ?? 'Restaurant'}
+                        {c.titreChat}
                       </p>
-                      <p className="text-xs text-gray-400">#{o.id.slice(0, 8).toUpperCase()}</p>
+                      <p className="text-xs text-gray-400">{c.sousTitre}</p>
                     </div>
-                    <span className="text-[11px] text-gray-400 bg-gray-200 px-2 py-0.5 rounded-full shrink-0">
-                      {o.messages?.length} msg
-                    </span>
                   </button>
                 ))}
               </div>
@@ -1054,6 +949,22 @@ export default function Profile() {
           </SectionCard>
         </div>
 
+        {/* Notifications */}
+        <div className="mt-3">
+          <SectionCard
+            icon={<Bell className="w-4 h-4 text-amber-500" />}
+            iconBg="bg-amber-100"
+            title="Notifications"
+            subtitle="Son, volume, lecture vocale"
+            expanded={sectionNotifs}
+            onToggle={() => setSectionNotifs(p => !p)}
+          >
+            <div className="mt-4">
+              <ReglagesNotifications />
+            </div>
+          </SectionCard>
+        </div>
+
         {/* Partager */}
         <button
           onClick={handlePartager}
@@ -1084,8 +995,23 @@ export default function Profile() {
         </button>
       </div>
 
+      {/* ── Liens légaux ─────────────────────────────────── */}
+      <div className="flex items-center justify-center gap-3 mt-6 text-[11px] text-gray-400">
+        <Link to="/conditions-utilisation" className="underline underline-offset-2">
+          Conditions d'utilisation
+        </Link>
+        <span>·</span>
+        <Link to="/politique-confidentialite" className="underline underline-offset-2">
+          Confidentialité
+        </Link>
+        <span>·</span>
+        <Link to="/mentions-legales" className="underline underline-offset-2">
+          Mentions légales
+        </Link>
+      </div>
+
       {/* ── Version ──────────────────────────────────────── */}
-      <p className="text-center text-[11px] text-gray-300 mt-6">Zandofood v1.0</p>
+      <p className="text-center text-[11px] text-gray-300 mt-2">Zandofood v1.0</p>
 
       {/* ── Modal recadrage photo ─────────────────────────── */}
       {cropImageUrl && (
@@ -1101,6 +1027,7 @@ export default function Profile() {
       {chatOuvert && user && (
         <ChatModal
           orderId={chatOuvert.orderId}
+          canal={chatOuvert.canal}
           monRole="client"
           monId={user.id}
           titreChat={chatOuvert.titreChat}

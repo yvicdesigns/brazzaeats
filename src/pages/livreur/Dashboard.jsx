@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { TrendingUp, Package, Bike, PhoneCall, Loader2, MapPin } from 'lucide-react'
+import { TrendingUp, Package, Bike, Phone, MessageSquare, Loader2, MapPin } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/hooks/useAuth'
 import { getLivreurStats, getActiveDelivery, markDelivered } from '@/services/livreurService'
 import { formatCurrency } from '@/utils/formatCurrency'
-import { ouvrirWhatsApp } from '@/utils/whatsappMessage'
+import { enfiler, estErreurReseau } from '@/utils/offlineQueue'
 import LienCarte from '@/components/shared/LienCarte'
+import ChatModal from '@/components/shared/ChatModal'
 
 // ── Carte KPI ───────────────────────────────────────────────
 function KpiCard({ titre, valeur, sousTitre, Icon, couleur = 'brand' }) {
@@ -40,6 +41,7 @@ export default function LivreurDashboard() {
   const [commandeActive, setCommandeActive] = useState(null)
   const [loading,        setLoading]        = useState(true)
   const [marquage,       setMarquage]       = useState(false) // livraison en cours de validation
+  const [chatOuvert,     setChatOuvert]     = useState(false)
 
   // ── Chargement stats + commande active ────────────────
   useEffect(() => {
@@ -61,13 +63,28 @@ export default function LivreurDashboard() {
   }, [user?.id])
 
   // ── Marquer comme livré ────────────────────────────────
+  // Cette action ne doit jamais se perdre à cause d'une coupure réseau —
+  // c'est typiquement le moment où le livreur est chez le client, en zone
+  // de mauvaise couverture. Si l'appel échoue pour une raison réseau (pas
+  // un vrai rejet serveur), on la met en file pour resynchro automatique
+  // dès que la connexion revient, sans bloquer le livreur.
   async function handleMarquerLivre() {
     if (!commandeActive) return
+    const orderId = commandeActive.id
     setMarquage(true)
-    const { error } = await markDelivered(commandeActive.id)
+    const { error } = await markDelivered(orderId)
     setMarquage(false)
 
-    if (error) { toast.error('Erreur : ' + error); return }
+    if (error) {
+      if (estErreurReseau(error)) {
+        enfiler('markDelivered', { orderId })
+        toast.success('Hors-ligne — sera synchronisé automatiquement 📡')
+        setCommandeActive(null)
+        return
+      }
+      toast.error('Erreur : ' + error)
+      return
+    }
 
     toast.success('Livraison confirmée !')
     setCommandeActive(null)
@@ -177,27 +194,37 @@ export default function LivreurDashboard() {
                 {/* Boutons contact + livré */}
                 <div className="flex gap-3 pt-1">
                   {commandeActive.client?.telephone && (
-                    <button
-                      onClick={() => ouvrirWhatsApp(commandeActive.client.telephone, 'Bonjour, je suis votre livreur Zandofood. Je suis en route avec votre commande.')}
+                    <a
+                      href={`tel:${commandeActive.client.telephone}`}
                       className="flex-1 flex items-center justify-center gap-2 border border-gray-300
                                  text-gray-700 rounded-xl py-3 text-sm font-medium
                                  hover:bg-gray-50 transition-colors min-h-[48px]"
                     >
-                      <PhoneCall className="w-4 h-4" />
-                      Contacter
-                    </button>
+                      <Phone className="w-4 h-4" />
+                      Appeler
+                    </a>
                   )}
                   <button
-                    onClick={handleMarquerLivre}
-                    disabled={marquage}
-                    className="flex-1 bg-green-500 text-white rounded-xl py-3 text-sm font-bold
-                               hover:bg-green-600 transition-colors disabled:opacity-60
-                               flex items-center justify-center gap-2 min-h-[48px]"
+                    onClick={() => setChatOuvert(true)}
+                    className="flex-1 flex items-center justify-center gap-2 border border-gray-300
+                               text-gray-700 rounded-xl py-3 text-sm font-medium
+                               hover:bg-gray-50 transition-colors min-h-[48px]"
                   >
-                    {marquage && <Loader2 className="w-4 h-4 animate-spin" />}
-                    Marquer livré ✓
+                    <MessageSquare className="w-4 h-4" />
+                    Message
                   </button>
                 </div>
+
+                <button
+                  onClick={handleMarquerLivre}
+                  disabled={marquage}
+                  className="w-full bg-green-500 text-white rounded-xl py-3 text-sm font-bold
+                             hover:bg-green-600 transition-colors disabled:opacity-60
+                             flex items-center justify-center gap-2 min-h-[48px]"
+                >
+                  {marquage && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Marquer livré ✓
+                </button>
               </div>
             </div>
           )
@@ -213,6 +240,17 @@ export default function LivreurDashboard() {
           )
         }
       </div>
+
+      {chatOuvert && commandeActive && user && (
+        <ChatModal
+          orderId={commandeActive.id}
+          canal="livreur"
+          monRole="livreur"
+          monId={user.id}
+          titreChat={commandeActive.client?.nom ?? 'Client'}
+          onClose={() => setChatOuvert(false)}
+        />
+      )}
     </div>
   )
 }

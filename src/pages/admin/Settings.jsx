@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Save, Loader2, Percent, Phone, Building2, Truck, AlertCircle, Bike, Wallet, Users } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getPlatformSettings, updatePlatformSettings } from '@/services/adminService'
+import ReglagesNotifications from '@/components/shared/ReglagesNotifications'
 
 // ── Champ de formulaire générique ─────────────────────────
 function Champ({ label, sousTitre, children }) {
@@ -358,6 +359,14 @@ INSERT INTO platform_settings DEFAULT VALUES;`}
           {saving ? 'Enregistrement…' : 'Enregistrer les paramètres'}
         </button>
       </form>
+
+      {/* ── Notifications ─────────────────────────────── */}
+      <div className="px-4 mt-5">
+        <div className="bg-white rounded-2xl p-5 shadow-card">
+          <h2 className="font-bold text-gray-800 mb-4">Notifications</h2>
+          <ReglagesNotifications />
+        </div>
+      </div>
     </div>
   )
 }

@@ -58,6 +58,12 @@ Deno.serve(async (req) => {
     switch (action) {
 
       // ── Créer un compte restaurant ──────────────────────────
+      // En cas d'échec APRÈS la création du compte auth (ex. contrainte
+      // manquante sur `restaurants`), on nettoie ce qu'on a déjà créé plutôt
+      // que de laisser un compte fantôme sans restaurant associé — un tel
+      // compte bloque ensuite toute nouvelle tentative avec le même
+      // téléphone (email synthétique déjà pris), sans qu'aucun restaurant
+      // ne soit visible dans la liste pour comprendre pourquoi.
       case 'createRestaurant': {
         const { nom, adresse, telephone, motDePasse, commissionRate = 10 } = payload
         const email = phoneToFakeEmail(telephone)
@@ -73,25 +79,31 @@ Deno.serve(async (req) => {
         const userId = authData.user?.id
         if (!userId) throw new Error('Impossible de créer le compte')
 
-        const { error: profileError } = await supabaseAdmin
-          .from('profiles')
-          .upsert({ id: userId, nom, telephone, role: 'restaurant' }, { onConflict: 'id' })
-        if (profileError) throw profileError
+        try {
+          const { error: profileError } = await supabaseAdmin
+            .from('profiles')
+            .upsert({ id: userId, nom, telephone, role: 'restaurant' }, { onConflict: 'id' })
+          if (profileError) throw profileError
 
-        const { data: resto, error: restoError } = await supabaseAdmin
-          .from('restaurants')
-          .insert({
-            owner_id: userId,
-            nom,
-            adresse: adresse || null,
-            statut: 'en_attente',
-            commission_rate: commissionRate,
-          })
-          .select()
-          .single()
-        if (restoError) throw restoError
+          const { data: resto, error: restoError } = await supabaseAdmin
+            .from('restaurants')
+            .insert({
+              owner_id: userId,
+              nom,
+              adresse,
+              statut: 'en_attente',
+              commission_rate: commissionRate,
+            })
+            .select()
+            .single()
+          if (restoError) throw restoError
 
-        return json({ data: resto })
+          return json({ data: resto })
+        } catch (err) {
+          await supabaseAdmin.from('profiles').delete().eq('id', userId)
+          await supabaseAdmin.auth.admin.deleteUser(userId)
+          throw err
+        }
       }
 
       // ── Supprimer un restaurant + son compte auth ───────────
@@ -109,6 +121,7 @@ Deno.serve(async (req) => {
       }
 
       // ── Créer un compte livreur ──────────────────────────────
+      // Même précaution de rollback que createRestaurant ci-dessus.
       case 'createLivreur': {
         const { nom, telephone, motDePasse, vehicule = 'moto', zone = null } = payload
         const email = phoneToFakeEmail(telephone)
@@ -124,19 +137,25 @@ Deno.serve(async (req) => {
         const userId = authData.user?.id
         if (!userId) throw new Error('Impossible de créer le compte')
 
-        const { error: profileError } = await supabaseAdmin
-          .from('profiles')
-          .upsert({ id: userId, nom, telephone, role: 'livreur' }, { onConflict: 'id' })
-        if (profileError) throw profileError
+        try {
+          const { error: profileError } = await supabaseAdmin
+            .from('profiles')
+            .upsert({ id: userId, nom, telephone, role: 'livreur' }, { onConflict: 'id' })
+          if (profileError) throw profileError
 
-        const { data: livreur, error: livreurError } = await supabaseAdmin
-          .from('livreurs')
-          .insert({ id: userId, statut: 'en_attente', vehicule, zone })
-          .select()
-          .single()
-        if (livreurError) throw livreurError
+          const { data: livreur, error: livreurError } = await supabaseAdmin
+            .from('livreurs')
+            .insert({ id: userId, statut: 'en_attente', vehicule, zone })
+            .select()
+            .single()
+          if (livreurError) throw livreurError
 
-        return json({ data: { ...livreur, profile: { id: userId, nom, telephone } } })
+          return json({ data: { ...livreur, profile: { id: userId, nom, telephone } } })
+        } catch (err) {
+          await supabaseAdmin.from('profiles').delete().eq('id', userId)
+          await supabaseAdmin.auth.admin.deleteUser(userId)
+          throw err
+        }
       }
 
       // ── Supprimer un livreur + son compte auth ──────────────

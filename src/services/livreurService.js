@@ -217,3 +217,39 @@ export async function getActiveDelivery(livreurId) {
     return { data: null, error: err.message }
   }
 }
+
+/**
+ * Récupère les infos livraison du livreur (véhicule, zone, statut d'agrément).
+ */
+export async function getLivreurInfo(livreurId) {
+  try {
+    const { data, error } = await supabase
+      .from('livreurs')
+      .select('id, statut, vehicule, zone')
+      .eq('id', livreurId)
+      .maybeSingle()
+    if (error) throw error
+    return { data: data ?? null, error: null }
+  } catch (err) {
+    return { data: null, error: err.message }
+  }
+}
+
+/**
+ * Met à jour le véhicule et la zone du livreur (les seuls champs qui lui
+ * appartiennent — `statut` reste géré par l'admin, cf. policy RLS).
+ */
+export async function updateLivreurInfo(livreurId, { vehicule, zone }) {
+  try {
+    const { data, error } = await supabase
+      .from('livreurs')
+      .update({ vehicule, zone })
+      .eq('id', livreurId)
+      .select()
+      .single()
+    if (error) throw error
+    return { data, error: null }
+  } catch (err) {
+    return { data: null, error: err.message }
+  }
+}

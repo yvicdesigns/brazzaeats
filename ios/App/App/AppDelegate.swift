@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import AVFoundation
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -8,6 +9,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
+
+        // Catégorie "playback" — l'alarme sonore "nouvelle commande" (côté
+        // restaurant) doit s'entendre même si l'interrupteur silencieux de
+        // l'iPad/iPhone est activé, sinon elle passe complètement inaperçue
+        // en cuisine. Par défaut, le WebView joue l'audio en catégorie
+        // "ambient" qui respecte le mode silencieux — .playback l'ignore.
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, options: [.mixWithOthers])
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            print("[AppDelegate] Impossible de configurer la session audio :", error)
+        }
+
         return true
     }
 

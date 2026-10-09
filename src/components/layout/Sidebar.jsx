@@ -2,9 +2,9 @@
 
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
-  LayoutDashboard, Bike, History, Settings,
+  LayoutDashboard, Bike, History, Settings, User,
   Users, Store, LogOut, ChevronRight, Wallet, Star, ShoppingBag, Tag, CalendarRange,
-  TriangleAlert,
+  TriangleAlert, MessageSquare,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -14,6 +14,7 @@ const NAV_PAR_ROLE = {
     { to: '/livreur/dashboard',  label: 'Dashboard',   Icon: LayoutDashboard },
     { to: '/livreur/disponible', label: 'Disponibles', Icon: Bike            },
     { to: '/livreur/historique', label: 'Historique',  Icon: History         },
+    { to: '/livreur/profil',     label: 'Profil',      Icon: User            },
   ],
   admin: [
     { to: '/admin/dashboard',    label: 'Dashboard',    Icon: LayoutDashboard },
@@ -26,6 +27,7 @@ const NAV_PAR_ROLE = {
     { to: '/admin/versements',   label: 'Versements',   Icon: Wallet          },
     { to: '/admin/avis',         label: 'Avis',         Icon: Star            },
     { to: '/admin/signalements', label: 'Signalements', Icon: TriangleAlert   },
+    { to: '/admin/messages',     label: 'Messages',     Icon: MessageSquare   },
     { to: '/admin/parametres',   label: 'Paramètres',   Icon: Settings        },
   ],
 }

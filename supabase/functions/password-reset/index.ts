@@ -5,10 +5,11 @@
 // unique, plus une expiration courte et un jeton opaque entre la vérification et le
 // changement effectif du mot de passe.
 //
-// ⚠️ MODE TEMPORAIRE : aucun fournisseur SMS n'est encore connecté. L'action "demander"
-// renvoie le code dans la réponse (debug_code) pour permettre de tester tout le parcours
-// sans SMS réel. Dès qu'un fournisseur (Twilio ou équivalent) est branché, retirer
-// debug_code et envoyer réellement le SMS à cet endroit — le reste du flux ne change pas.
+// Envoi SMS réel via Africa's Talking (voir envoyerSMS ci-dessous) — actif dès que
+// les secrets AT_USERNAME / AT_API_KEY sont configurés sur ce projet Supabase
+// (Dashboard → Edge Functions → Secrets, ou `supabase secrets set`). Tant qu'ils ne
+// le sont pas (ou si l'envoi échoue), on retombe en mode démo : le code est renvoyé
+// directement dans la réponse (debug_code) pour ne pas bloquer les tests.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -31,6 +32,49 @@ function normaliserTelephone(telephone) {
   return `+242${neuf}`
 }
 
+/**
+ * Envoie un SMS réel via l'API Africa's Talking.
+ * Renvoie { ok: false, error: 'not_configured' } tant que les secrets ne sont
+ * pas définis — c'est ce signal qui fait retomber "demander" en mode debug_code.
+ */
+async function envoyerSMS(telephone, message) {
+  const username = Deno.env.get('AT_USERNAME')
+  const apiKey   = Deno.env.get('AT_API_KEY')
+  const senderId = Deno.env.get('AT_SENDER_ID') // optionnel : shortcode/expéditeur enregistré
+
+  if (!username || !apiKey) return { ok: false, error: 'not_configured' }
+
+  const endpoint = username === 'sandbox'
+    ? 'https://api.sandbox.africastalking.com/version1/messaging'
+    : 'https://api.africastalking.com/version1/messaging'
+
+  const body = new URLSearchParams({ username, to: telephone, message })
+  if (senderId) body.set('from', senderId)
+
+  try {
+    const res  = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept':       'application/json',
+        'apiKey':       apiKey,
+      },
+      body,
+    })
+    const data = await res.json().catch(() => null)
+    const recipient = data?.SMSMessageData?.Recipients?.[0]
+
+    if (!res.ok || !recipient || !/^Success$/i.test(recipient.status)) {
+      console.error('[password-reset] Échec envoi SMS Africa\'s Talking :', JSON.stringify(data))
+      return { ok: false, error: recipient?.status ?? `http_${res.status}` }
+    }
+    return { ok: true }
+  } catch (err) {
+    console.error('[password-reset] Erreur réseau envoi SMS :', err)
+    return { ok: false, error: err.message }
+  }
+}
+
 const DUREE_CODE_MIN     = 10  // minutes avant expiration du code
 const DUREE_TOKEN_MIN    = 15  // minutes avant expiration du jeton de reset (après vérif code)
 const DELAI_ENTRE_ENVOIS = 60  // secondes minimum entre deux demandes pour un même numéro
@@ -47,7 +91,7 @@ Deno.serve(async (req) => {
 
     switch (action) {
 
-      // ── Demander un code — génère, stocke, "envoie" (stub pour l'instant) ──
+      // ── Demander un code — génère, stocke, envoie par SMS (ou debug_code) ──
       case 'demander': {
         const telephone = normaliserTelephone(payload?.telephone ?? '')
         if (telephone.length !== 13) return json({ error: 'Numéro de téléphone invalide' }, 400)
@@ -86,7 +130,14 @@ Deno.serve(async (req) => {
           .insert({ telephone, code, expires_at: expiresAt })
         if (insertErr) throw insertErr
 
-        // TODO : remplacer par un envoi SMS réel (Twilio ou équivalent) une fois branché.
+        const message = `Zandofood : votre code de reinitialisation est ${code}. Il expire dans ${DUREE_CODE_MIN} minutes.`
+        const sms = await envoyerSMS(telephone, message)
+
+        if (sms.ok) return json({ success: true })
+
+        // Fournisseur pas encore configuré ou envoi échoué — mode démo, le code
+        // est renvoyé directement pour ne pas bloquer les tests en attendant.
+        console.warn(`[password-reset] SMS non envoyé (${sms.error}) — mode debug_code actif`)
         return json({ success: true, debug_code: code })
       }
 

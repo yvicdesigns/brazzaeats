@@ -1,7 +1,7 @@
 // Routeur principal React Router v6 — toutes les routes + PrivateRoute par rôle
 
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useNavigate } from 'react-router-dom'
-import { Loader2, ShieldAlert } from 'lucide-react'
+import { Loader2, ShieldAlert, WifiOff } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import Navbar           from '@/components/layout/Navbar'
 import BottomNav        from '@/components/layout/BottomNav'
@@ -22,8 +22,9 @@ import NewPassword      from '@/pages/auth/NewPassword'
 import PasswordChanged  from '@/pages/auth/PasswordChanged'
 
 // ── Pages légales ──────────────────────────────────────────
-import Terms   from '@/pages/legal/Terms'
-import Privacy from '@/pages/legal/Privacy'
+import Terms       from '@/pages/legal/Terms'
+import Privacy     from '@/pages/legal/Privacy'
+import LegalNotice from '@/pages/legal/LegalNotice'
 
 // ── Pages Client ───────────────────────────────────────────
 import Home      from '@/pages/client/Home'
@@ -47,6 +48,7 @@ import RestaurantHistory   from '@/pages/restaurant/History'
 import LivreurDashboard from '@/pages/livreur/Dashboard'
 import LivreurAvailable from '@/pages/livreur/Available'
 import LivreurHistory   from '@/pages/livreur/History'
+import LivreurProfile   from '@/pages/livreur/Profile'
 
 // ── Pages Admin ────────────────────────────────────────────
 import AdminDashboard    from '@/pages/admin/Dashboard'
@@ -56,6 +58,7 @@ import AdminUsers        from '@/pages/admin/Users'
 import AdminVersements   from '@/pages/admin/Versements'
 import AdminAvis         from '@/pages/admin/Avis'
 import AdminSignalements from '@/pages/admin/Signalements'
+import AdminMessages     from '@/pages/admin/Messages'
 import AdminCommandes    from '@/pages/admin/Commandes'
 import AdminPromos       from '@/pages/admin/Promos'
 import AdminHistorique   from '@/pages/admin/Historique'
@@ -99,13 +102,36 @@ function Unauthorized() {
   )
 }
 
+// ── Page problème de connexion (échec réseau, pas un vrai refus) ──
+function ConnectionProblem() {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-6 text-center">
+      <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <WifiOff className="w-8 h-8 text-amber-500" strokeWidth={1.5} />
+      </div>
+      <h1 className="text-xl font-black text-gray-900 mb-2">Problème de connexion</h1>
+      <p className="text-sm text-gray-500 mb-6">
+        Impossible de vérifier votre compte pour le moment. Vérifiez votre connexion
+        et réessayez.
+      </p>
+      <button
+        onClick={() => window.location.reload()}
+        className="bg-brand-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold
+                   hover:bg-brand-600 transition-colors"
+      >
+        Réessayer
+      </button>
+    </div>
+  )
+}
+
 // ── Garde de route — vérifie session + rôle ───────────────
 /**
  * @param {{ role?: string }} props
  *   role — rôle requis. Omis = authentification seule requise.
  */
 function PrivateRoute({ role: roleRequis }) {
-  const { user, role, loading } = useAuth()
+  const { user, role, loading, profileError } = useAuth()
 
   // Attendre la vérification initiale de session
   if (loading) return <FullScreenLoader />
@@ -113,8 +139,13 @@ function PrivateRoute({ role: roleRequis }) {
   // Non authentifié → page de connexion
   if (!user) return <Navigate to="/login" replace />
 
-  // Mauvais rôle → page d'erreur
-  if (roleRequis && role !== roleRequis) return <Navigate to="/unauthorized" replace />
+  // Mauvais rôle → page d'erreur — sauf si c'est en fait un souci réseau
+  // (le rôle n'a pas pu être vérifié) : dans ce cas on propose de réessayer
+  // plutôt que d'afficher à tort "Accès refusé".
+  if (roleRequis && role !== roleRequis) {
+    if (profileError) return <ConnectionProblem />
+    return <Navigate to="/unauthorized" replace />
+  }
 
   return <Outlet />
 }
@@ -188,6 +219,7 @@ export default function App() {
         <Route path="/mot-de-passe-modifie"   element={<PasswordChanged />} />
         <Route path="/conditions-utilisation"     element={<Terms />} />
         <Route path="/politique-confidentialite"  element={<Privacy />} />
+        <Route path="/mentions-legales"           element={<LegalNotice />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
 
         {/* ── Espace client ─────────────────────────────── */}
@@ -225,6 +257,7 @@ export default function App() {
             <Route path="/livreur/dashboard"  element={<LivreurDashboard />} />
             <Route path="/livreur/disponible" element={<LivreurAvailable />} />
             <Route path="/livreur/historique" element={<LivreurHistory />} />
+            <Route path="/livreur/profil"     element={<LivreurProfile />} />
           </Route>
         </Route>
 
@@ -241,6 +274,7 @@ export default function App() {
             <Route path="/admin/versements"   element={<AdminVersements />} />
             <Route path="/admin/avis"         element={<AdminAvis />} />
             <Route path="/admin/signalements" element={<AdminSignalements />} />
+            <Route path="/admin/messages"     element={<AdminMessages />} />
             <Route path="/admin/parametres"   element={<AdminSettings />} />
           </Route>
         </Route>

@@ -13,7 +13,8 @@ import { validatePromoCode } from '@/services/promotionService'
 import { getAdresses } from '@/services/adresseService'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { getRestaurantById } from '@/services/restaurantService'
-import { QUARTIERS_BRAZZAVILLE, TARIFS } from '@/utils/constants'
+import { QUARTIERS_BRAZZAVILLE, QUARTIER_CENTRES, TARIFS } from '@/utils/constants'
+import { distanceKm } from '@/utils/geo'
 
 const LOGO_OPERATEUR = { MTN: '/logos/mtn-money.jpg', Airtel: '/logos/airtel-money.jpg' }
 
@@ -31,17 +32,48 @@ async function localiserAdresse(latitude, longitude) {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&addressdetails=1&accept-language=fr`
     )
-    if (!res.ok) return null
+    if (!res.ok) {
+      console.warn('[GPS] Nominatim a répondu', res.status)
+      return null
+    }
     const { address: a } = await res.json()
     if (!a) return null
-    const candidats = [a.suburb, a.neighbourhood, a.quarter, a.city_district, a.town].filter(Boolean)
+    // Plusieurs champs possibles selon la précision des données OpenStreetMap
+    // à cet endroit précis — plus on en essaie, moins on rate un quartier
+    // pourtant correctement couvert par ailleurs.
+    const candidats = [
+      a.suburb, a.neighbourhood, a.quarter, a.city_district, a.town, a.borough, a.city,
+    ].filter(Boolean)
     const quartier = QUARTIERS_BRAZZAVILLE.find(q =>
       candidats.some(c => normaliser(c).includes(normaliser(q)) || normaliser(q).includes(normaliser(c)))
     )
+    if (!quartier) {
+      console.warn('[GPS] Quartier non reconnu par OpenStreetMap — candidats:', candidats)
+    }
     return { rue: a.road || null, quartier: quartier ?? null }
-  } catch {
+  } catch (err) {
+    console.warn('[GPS] Échec reverse geocoding :', err)
     return null
   }
+}
+
+// ── Secours local : quartier le plus proche à vol d'oiseau ───────────
+// N'intervient que si OpenStreetMap n'a pas su identifier le quartier
+// (certains quartiers de Brazzaville n'y sont pas cartographiés comme
+// zones distinctes — voir le commentaire sur QUARTIER_CENTRES). Un rayon
+// maximal évite de proposer un quartier "le plus proche" à quelqu'un qui
+// se trouve en réalité loin de Brazzaville — mieux vaut alors avouer
+// qu'on ne sait pas que de deviner faux.
+const RAYON_SECOURS_KM = 12
+
+function quartierParProximite(latitude, longitude) {
+  let meilleur = null
+  let meilleureDistance = Infinity
+  for (const [nom, centre] of Object.entries(QUARTIER_CENTRES)) {
+    const d = distanceKm({ lat: latitude, lng: longitude }, centre)
+    if (d < meilleureDistance) { meilleureDistance = d; meilleur = nom }
+  }
+  return meilleureDistance <= RAYON_SECOURS_KM ? meilleur : null
 }
 
 // ── Avantages par niveau de fidélité ──────────────────────
@@ -342,6 +374,7 @@ export default function Checkout() {
       const { coords } = await Geolocation.getCurrentPosition({
         enableHighAccuracy: true,
         timeout: 10000,
+        maximumAge: 0, // jamais une position mise en cache par l'OS — toujours une lecture fraîche
       })
       setPosition({ latitude: coords.latitude, longitude: coords.longitude })
 
@@ -350,9 +383,32 @@ export default function Checkout() {
       // habituelle) — l'adresse enregistrée dans le profil n'est jamais modifiée.
       const lieu = await localiserAdresse(coords.latitude, coords.longitude)
       if (lieu?.rue) setValue('rue', lieu.rue, { shouldValidate: true })
-      if (lieu?.quartier) setValue('quartier', lieu.quartier, { shouldValidate: true })
 
-      toast.success(lieu?.quartier ? `Position enregistrée — ${lieu.quartier} ✓` : 'Position enregistrée ✓')
+      // Si OpenStreetMap n'a pas su identifier le quartier (plusieurs quartiers
+      // de Brazzaville n'y sont pas cartographiés comme zones distinctes),
+      // on calcule nous-mêmes le quartier le plus proche de la position réelle.
+      const quartierEstime = lieu?.quartier ? null : quartierParProximite(coords.latitude, coords.longitude)
+      const quartierFinal = lieu?.quartier ?? quartierEstime
+
+      if (quartierFinal) {
+        setValue('quartier', quartierFinal, { shouldValidate: true })
+        toast.success(
+          quartierEstime
+            ? `Position enregistrée — quartier estimé : ${quartierFinal} (à vérifier)`
+            : `Position enregistrée — ${quartierFinal} ✓`
+        )
+      } else {
+        // Important : ne JAMAIS laisser croire que le quartier affiché (souvent
+        // l'adresse par défaut du profil, pré-remplie avant même ce clic) a été
+        // confirmé par le GPS. Sans ce message, un échec silencieux de détection
+        // se confond avec un quartier "retrouvé" par erreur — c'est le bug qui
+        // faisait croire que le GPS renvoyait toujours l'ancien quartier.
+        toast(
+          "Position GPS enregistrée, mais le quartier n'a pas pu être détecté " +
+          'automatiquement — vérifiez qu\'il est correct ci-dessous.',
+          { icon: '📍', duration: 5000 }
+        )
+      }
     } catch (err) {
       toast.error("Impossible de récupérer votre position. Vérifiez que la localisation est activée.")
     } finally {

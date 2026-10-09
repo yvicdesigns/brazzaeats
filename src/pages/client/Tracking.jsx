@@ -11,6 +11,8 @@ import { useAuth } from '@/hooks/useAuth'
 import ChatModal from '@/components/shared/ChatModal'
 import Modal from '@/components/ui/Modal'
 import LivreurMap from '@/components/shared/LivreurMap'
+import CuisineEnDirect from '@/components/client/CuisineEnDirect'
+import { distanceKm } from '@/utils/geo'
 
 // Étapes ordonnées de la timeline (hors "annulée")
 const ETAPES = [
@@ -30,14 +32,6 @@ function indexEtapeAffichee(statut) {
   if (idxReel === -1) return -1
   const label = ETAPES[idxReel].label
   return ETAPES_AFFICHEES.findIndex(e => e.label === label)
-}
-
-function distanceKm(a, b) {
-  const R = 6371
-  const dLat = (b.lat - a.lat) * Math.PI / 180
-  const dLng = (b.lng - a.lng) * Math.PI / 180
-  const s = Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180) * Math.cos(b.lat*Math.PI/180) * Math.sin(dLng/2)**2
-  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s))
 }
 
 // ── Timeline verticale ───────────────────────────────────────
@@ -135,7 +129,7 @@ export default function Tracking() {
   const [details,    setDetails]    = useState(null)
   const [loading,    setLoading]    = useState(true)
   const [erreur,     setErreur]     = useState(null)
-  const [chatOuvert, setChatOuvert] = useState(false)
+  const [chatOuvert, setChatOuvert] = useState(null) // null | 'livreur' | 'support'
   const [signalementOuvert, setSignalementOuvert] = useState(false)
   const [motifSignalement,  setMotifSignalement]  = useState('')
   const [envoiEnCours,      setEnvoiEnCours]      = useState(false)
@@ -218,7 +212,10 @@ export default function Tracking() {
   const refCourte   = details.id.slice(0, 8).toUpperCase()
   const afficherCarte = details.type === 'livraison' && !annulee && (restaurantPos || destinationPos)
 
-  const tempsPrep = Math.max(
+  // Une fois la commande acceptée, temps_preparation_minutes est figé par le
+  // restaurant (potentiellement ajusté) — sinon on retombe sur l'estimation
+  // par défaut calculée depuis les plats commandés.
+  const tempsPrep = details.temps_preparation_minutes ?? Math.max(
     ...(details.order_items ?? []).map(oi => oi.menu_item?.temps_preparation ?? 15),
     15
   )
@@ -226,6 +223,10 @@ export default function Tracking() {
   const tempsTotal   = tempsPrep + (estLivraison ? 15 : 0)
   const heureCommande = new Date(details.created_at)
   const heurePrevue   = new Date(heureCommande.getTime() + tempsTotal * 60_000)
+  const photoPlat = (details.order_items ?? [])
+    .map(oi => oi.menu_item?.image_url)
+    .find(Boolean) ?? null
+  const enPreparationVisible = ['acceptée', 'en_préparation'].includes(details.statut)
 
   // ETA dynamique : distance réelle livreur→domicile si on a une position live,
   // sinon estimation basée sur le temps de préparation.
@@ -316,6 +317,14 @@ export default function Tracking() {
           />
         )}
 
+        {enPreparationVisible && (
+          <CuisineEnDirect
+            photoUrl={photoPlat}
+            createdAt={details.created_at}
+            dureeMinutes={tempsPrep}
+          />
+        )}
+
         {livree && (
           <button
             onClick={() => setSignalementOuvert(true)}
@@ -347,8 +356,8 @@ export default function Tracking() {
                 <Phone className="w-4 h-4" />
               </a>
               <button
-                onClick={() => setChatOuvert(true)}
-                aria-label="Envoyer un message"
+                onClick={() => setChatOuvert('livreur')}
+                aria-label="Envoyer un message au livreur"
                 className="w-9 h-9 rounded-full bg-gray-900 text-white grid place-items-center shadow-sm"
               >
                 <MessageSquare className="w-4 h-4" />
@@ -392,7 +401,7 @@ export default function Tracking() {
           <div className="border-t border-gray-100 pt-2 flex justify-between font-black text-gray-900">
             <span>Total payé</span>
             <span className="tabular-nums text-brand-700">
-              {formatCurrency(details.montant_total + details.frais_livraison)}
+              {formatCurrency(details.montant_total)}
             </span>
           </div>
           <p className="text-xs text-gray-400">
@@ -412,37 +421,43 @@ export default function Tracking() {
             </Link>
           )}
 
-          {!annulee && !details.livreur && (
-            <button
-              onClick={() => setChatOuvert(true)}
-              className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200
-                         text-gray-700 font-semibold py-3.5 rounded-xl hover:bg-gray-50
-                         active:scale-[0.98] transition-all shadow-sm"
-            >
-              <MessageSquare className="w-4 h-4 text-brand-500" />
-              Contacter le restaurant
-            </button>
-          )}
-
           <button
-            onClick={() => contacterSupport(`commande #${refCourte}`)}
+            onClick={() => setChatOuvert('support')}
             className="w-full flex items-center justify-center gap-2 bg-live-500 text-white
                        font-semibold py-3.5 rounded-xl hover:bg-live-600
                        active:scale-[0.98] transition-all"
           >
-            <Phone className="w-4 h-4" />
+            <MessageSquare className="w-4 h-4" />
             Contacter le support
+          </button>
+          <button
+            onClick={() => contacterSupport(`commande #${refCourte}`)}
+            className="w-full text-center text-xs font-semibold text-gray-400 underline underline-offset-2"
+          >
+            Urgent ? Nous écrire sur WhatsApp
           </button>
         </div>
       </div>
 
-      {chatOuvert && user && (
+      {chatOuvert === 'livreur' && user && details.livreur && (
         <ChatModal
           orderId={id}
+          canal="livreur"
           monRole="client"
           monId={user.id}
-          titreChat={details.restaurant?.nom ?? 'Restaurant'}
-          onClose={() => setChatOuvert(false)}
+          titreChat={`Livreur — ${details.livreur.nom}`}
+          onClose={() => setChatOuvert(null)}
+        />
+      )}
+
+      {chatOuvert === 'support' && user && (
+        <ChatModal
+          orderId={id}
+          canal="support"
+          monRole="client"
+          monId={user.id}
+          titreChat="Support Zando"
+          onClose={() => setChatOuvert(null)}
         />
       )}
 

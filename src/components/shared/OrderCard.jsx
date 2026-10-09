@@ -39,7 +39,7 @@ export default function OrderCard({
   actions,
   className = '',
 }) {
-  const montantTotal = (commande.montant_total ?? 0) + (commande.frais_livraison ?? 0)
+  const montantTotal = commande.montant_total ?? 0
   const statutCfg    = STATUTS_COMMANDE[commande.statut]
 
   const contenu = (

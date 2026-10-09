@@ -5,6 +5,7 @@ import { Capacitor } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
 import App from './App'
 import { supabase } from '@/supabase/client'
+import '@/utils/offlineHandlers' // enregistre les handlers avant toute mise en file
 import './index.css'
 
 // ── Cycle de vie natif — reconnexion au réveil de l'app ────────────

@@ -1,11 +1,13 @@
 /**
- * ChatModal — messagerie par commande (client ↔ restaurant)
+ * ChatModal — messagerie par commande, à deux canaux distincts
+ * (client ↔ livreur pour la logistique, client ↔ support Zando pour le SAV).
  *
  * Props :
  *   orderId      — UUID de la commande
- *   monRole      — 'client' | 'restaurant'
+ *   canal        — 'livreur' | 'support'
+ *   monRole      — 'client' | 'livreur' | 'admin'
  *   monId        — UUID de l'utilisateur connecté
- *   titreChat    — ex: "Restaurant Le Mami Wata" ou "Commande #A1B2C3D4"
+ *   titreChat    — ex: "Livreur — Junior" ou "Support Zando"
  *   onClose      — callback fermeture
  */
 import { useState, useEffect, useRef } from 'react'
@@ -13,7 +15,7 @@ import { X, Send, Loader2, MessageSquare } from 'lucide-react'
 import { supabase } from '@/supabase/client'
 import { getMessages, sendMessage, markMessagesAsRead } from '@/services/chatService'
 
-export default function ChatModal({ orderId, monRole, monId, titreChat, onClose }) {
+export default function ChatModal({ orderId, canal, monRole, monId, titreChat, onClose }) {
   const [messages, setMessages] = useState([])
   const [texte,    setTexte]    = useState('')
   const [loading,  setLoading]  = useState(true)
@@ -24,23 +26,26 @@ export default function ChatModal({ orderId, monRole, monId, titreChat, onClose 
   // ── Chargement initial ──────────────────────────────────
   useEffect(() => {
     async function charger() {
-      const { data } = await getMessages(orderId)
+      const { data } = await getMessages(orderId, canal)
       setMessages(data)
       setLoading(false)
-      await markMessagesAsRead(orderId, monRole)
+      await markMessagesAsRead(orderId, canal, monRole)
     }
     charger()
-  }, [orderId, monRole])
+  }, [orderId, canal, monRole])
 
   // ── Subscription Realtime ───────────────────────────────
   useEffect(() => {
-    const canal = supabase
-      .channel(`chat:${orderId}`)
+    const canalRealtime = supabase
+      .channel(`chat:${orderId}:${canal}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages',
           filter: `order_id=eq.${orderId}` },
         async (payload) => {
+          // Un seul modal = un seul canal : on ignore les insertions de l'autre canal
+          if (payload.new.canal !== canal) return
+
           // Enrichir avec le nom de l'expéditeur
           const { data } = await supabase
             .from('messages')
@@ -56,14 +61,14 @@ export default function ChatModal({ orderId, monRole, monId, titreChat, onClose 
           }
           // Marquer comme lu si ce n'est pas nous qui avons envoyé
           if (payload.new.sender_id !== monId) {
-            await markMessagesAsRead(orderId, monRole)
+            await markMessagesAsRead(orderId, canal, monRole)
           }
         }
       )
       .subscribe()
 
-    return () => supabase.removeChannel(canal)
-  }, [orderId, monId, monRole])
+    return () => supabase.removeChannel(canalRealtime)
+  }, [orderId, canal, monId, monRole])
 
   // ── Scroll automatique vers le bas ──────────────────────
   useEffect(() => {
@@ -81,14 +86,14 @@ export default function ChatModal({ orderId, monRole, monId, titreChat, onClose 
 
     // Ajout optimistic
     const temp = {
-      id: `temp-${Date.now()}`, order_id: orderId,
+      id: `temp-${Date.now()}`, order_id: orderId, canal,
       sender_id: monId, sender_role: monRole,
       contenu, lu: false, created_at: new Date().toISOString(),
       sender: null, _temp: true,
     }
     setMessages(prev => [...prev, temp])
 
-    const { data, error } = await sendMessage(orderId, monId, monRole, contenu)
+    const { data, error } = await sendMessage(orderId, monId, monRole, contenu, canal)
     setSending(false)
 
     if (error) {

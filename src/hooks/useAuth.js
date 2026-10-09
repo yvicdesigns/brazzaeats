@@ -24,6 +24,18 @@ function avecDelaiMax(promise, ms = 10000) {
   ])
 }
 
+// ── Distingue une session réellement invalide/expirée d'un simple souci
+// réseau — les deux se présentent comme une erreur sur _fetchProfile mais
+// ne doivent pas être traités pareil (voir _fetchProfile ci-dessous).
+function estErreurSessionInvalide(err) {
+  const msg = (err?.message || '').toLowerCase()
+  return err?.status === 401
+    || err?.code === 'PGRST301'
+    || msg.includes('jwt')
+    || msg.includes('refresh token')
+    || msg.includes('token is expired')
+}
+
 const useAuthStore = create((set, get) => ({
   // ── État ────────────────────────────────────────────────
   session:  null,   // Session Supabase brute
@@ -32,6 +44,10 @@ const useAuthStore = create((set, get) => ({
   role:     null,   // Raccourci : profile.role
   loading:  true,   // true pendant la vérification initiale
   error:    null,
+  // true si le dernier chargement du profil a échoué pour une raison autre
+  // qu'une session invalide (souci réseau probable) — distingue ce cas d'un
+  // vrai rôle non autorisé pour éviter d'afficher "Accès refusé" à tort.
+  profileError: false,
 
   // ── Résout un identifiant (email | téléphone | username) vers un email Supabase ─
   _resolveIdentifier: async (identifier) => {
@@ -70,14 +86,33 @@ const useAuthStore = create((set, get) => ({
           supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
         )
 
-        if (error) { console.error('[useAuth] Erreur profil :', error.message); break }
-        if (data) { set({ profile: data, role: data.role }); return }
+        if (error) {
+          console.error('[useAuth] Erreur profil :', error.message)
+          if (estErreurSessionInvalide(error)) {
+            // La session est réellement morte côté serveur (jeton expiré/
+            // révoqué) — on nettoie tout pour renvoyer vers l'écran de
+            // connexion plutôt que vers "Accès refusé", qui donnerait à
+            // tort l'impression d'un problème de permissions.
+            await supabase.auth.signOut().catch(() => {})
+            set({ session: null, user: null, profile: null, role: null, profileError: false })
+            return
+          }
+          // Erreur probablement réseau/transitoire (ex. juste après le
+          // lancement de l'app) — on retente au lieu d'abandonner tout de
+          // suite, comme pour le cas "pas encore de ligne" ci-dessous.
+          continue
+        }
+        if (data) { set({ profile: data, role: data.role, profileError: false }); return }
       } catch (err) {
         console.error('[useAuth] Erreur profil :', err.message)
-        break
+        continue
       }
     }
-    set({ profile: null, role: null })
+    // Toutes les tentatives ont échoué sans qu'il s'agisse d'une session
+    // invalide (souci réseau probable, ex. juste après le lancement de
+    // l'app) — profileError permet à PrivateRoute de proposer un nouvel
+    // essai plutôt que de bloquer définitivement sur "Accès refusé".
+    set({ profile: null, role: null, profileError: true })
   },
 
   // ── Connexion : email, téléphone ou username ────────────
@@ -141,7 +176,7 @@ const useAuthStore = create((set, get) => ({
   // ── Déconnexion ──────────────────────────────────────────
   logout: async () => {
     await supabase.auth.signOut()
-    set({ session: null, user: null, profile: null, role: null, error: null })
+    set({ session: null, user: null, profile: null, role: null, error: null, profileError: false })
   },
   // Réinitialisation du mot de passe : voir services/authService.js (flux par
   // code SMS, cohérent avec l'authentification par téléphone — pas par email).

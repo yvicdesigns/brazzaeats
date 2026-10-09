@@ -280,7 +280,7 @@ function FormulaireItem({ item, categories, restaurantId, onSave, onClose }) {
             <input
               type="number" value={form.tempsPreparation}
               onChange={e => set('tempsPreparation', e.target.value)}
-              min={1} max={120} step={5}
+              min={0} max={120} step={5}
               className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm
                          focus:outline-none focus:ring-2 focus:ring-brand-400"
             />

@@ -6,7 +6,24 @@ async function appelerPasswordReset(action, payload) {
   const { data, error } = await supabase.functions.invoke('password-reset', {
     body: { action, payload },
   })
-  if (error) throw error
+  if (error) {
+    // supabase-js ne met JAMAIS le vrai message d'erreur renvoyé par la
+    // fonction dans `error.message` (qui vaut toujours le générique "Edge
+    // Function returned a non-2xx status code") — le corps JSON réel
+    // ({ error: "..." }) est caché dans `error.context`, une Response brute
+    // qu'il faut relire soi-même. Sans ça, TOUS nos messages précis (numéro
+    // invalide, code expiré, veuillez patienter…) étaient remplacés par ce
+    // message générique et inexploitable pour l'utilisateur.
+    let messageServeur = null
+    try {
+      const corps = await error.context?.clone().json()
+      messageServeur = corps?.error ?? null
+    } catch {
+      // Réponse non-JSON (ex. coupure réseau avant d'atteindre la fonction) —
+      // on retombe sur le message générique ci-dessous.
+    }
+    throw new Error(messageServeur ?? error.message)
+  }
   if (data?.error) throw new Error(data.error)
   return data
 }

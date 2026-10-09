@@ -1,5 +1,6 @@
 // Notifications sonores via l'API Web Audio — aucun fichier .mp3 externe requis.
 // Les sons sont synthétisés à la volée avec des oscillateurs.
+import { getPrefs, getPreset } from '@/utils/notificationPrefs'
 
 /**
  * Catalogue des séquences sonores disponibles.
@@ -58,6 +59,26 @@ export async function resumeAudio() {
 }
 
 /**
+ * Lit un texte à voix haute (synthèse vocale) — seulement si l'utilisateur
+ * a activé cette option dans ses réglages de notification. Respecte aussi
+ * le volume choisi.
+ */
+export function direNotification(texte) {
+  const prefs = getPrefs()
+  if (!prefs.tts) return
+  if (!('speechSynthesis' in window)) return
+  try {
+    const utterance = new SpeechSynthesisUtterance(texte)
+    utterance.lang   = 'fr-FR'
+    utterance.volume = prefs.volume
+    utterance.rate   = 1
+    window.speechSynthesis.speak(utterance)
+  } catch {
+    // TTS non critique — échec silencieux
+  }
+}
+
+/**
  * Joue une séquence sonore de notification.
  * @param {'nouvelle_commande'|'commande_prete'|'confirmation'|'alerte'} type
  * @param {number} volume — 0 à 1 (défaut 0.4)
@@ -67,6 +88,10 @@ export function playNotificationSound(type = 'nouvelle_commande', volume = 0.4, 
   try {
     const ctx = getAudioContext()
     if (!ctx) return // Navigateur sans support Web Audio
+
+    // Le volume demandé par l'appelant reste la base (équilibre relatif entre
+    // les différents sons) — le réglage utilisateur agit comme un multiplicateur.
+    volume *= getPrefs().volume
 
     const sequence      = SEQUENCES[type] ?? SEQUENCES.nouvelle_commande
     const dureeSequence = sequence.reduce((total, { duree }) => total + duree * 0.85, 0)
@@ -105,6 +130,97 @@ export function playNotificationSound(type = 'nouvelle_commande', volume = 0.4, 
     // Son non critique — échec silencieux
     console.warn('[Zandofood] Impossible de jouer le son de notification :', err)
   }
+}
+
+// ------------------------------------------------------------
+// Alarme continue — nouvelle commande restaurant
+// ------------------------------------------------------------
+// Contrairement à playNotificationSound (une séquence courte, jouée N fois
+// puis terminée), cette alarme boucle INDÉFINIMENT jusqu'à arreterAlarme() —
+// pensée pour ne jamais passer inaperçue dans le bruit d'une cuisine, et pour
+// ne s'arrêter que sur une action explicite (accepter/refuser la commande),
+// jamais toute seule.
+let _alarmeActive     = false
+let _alarmeTimer      = null
+let _alarmeMasterGain = null
+
+/**
+ * Démarre l'alarme en boucle (deux tons alternés, façon sirène). Sans effet
+ * si déjà en cours — un seul flux d'alarme à la fois, même si plusieurs
+ * commandes s'accumulent dans la file d'attente.
+ *
+ * Volume et préréglage sonore viennent des réglages utilisateur
+ * (notificationPrefs) — chaque appareil peut choisir son propre son/volume.
+ *
+ * @param {string} [annonce] — texte lu à voix haute au déclenchement, si
+ *   l'utilisateur a activé la lecture vocale dans ses réglages.
+ */
+export function demarrerAlarme(annonce) {
+  if (_alarmeActive) return
+  const ctx = getAudioContext()
+  if (!ctx) return
+  resumeAudio()
+
+  const prefs = getPrefs()
+  const { toneA: TONE_A, toneB: TONE_B, forme } = getPreset(prefs.preset)
+  const DUREE_NOTE = 0.28
+
+  _alarmeActive = true
+  _alarmeMasterGain = ctx.createGain()
+  _alarmeMasterGain.gain.value = prefs.volume
+  _alarmeMasterGain.connect(ctx.destination)
+
+  if (annonce) direNotification(annonce)
+
+  function jouerNote(freq, quand) {
+    const osc  = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(_alarmeMasterGain)
+    osc.type = forme
+    osc.frequency.setValueAtTime(freq, quand)
+    gain.gain.setValueAtTime(0, quand)
+    gain.gain.linearRampToValueAtTime(1, quand + 0.015)
+    gain.gain.setValueAtTime(1, quand + DUREE_NOTE - 0.03)
+    gain.gain.linearRampToValueAtTime(0, quand + DUREE_NOTE)
+    osc.start(quand)
+    osc.stop(quand + DUREE_NOTE + 0.02)
+  }
+
+  function cycle() {
+    if (!_alarmeActive) return
+    const t0 = ctx.currentTime
+    jouerNote(TONE_A, t0)
+    jouerNote(TONE_B, t0 + DUREE_NOTE)
+    jouerNote(TONE_A, t0 + DUREE_NOTE * 2)
+    jouerNote(TONE_B, t0 + DUREE_NOTE * 3)
+    if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300])
+    _alarmeTimer = setTimeout(cycle, DUREE_NOTE * 4 * 1000)
+  }
+  cycle()
+}
+
+/**
+ * Coupe l'alarme immédiatement (fondu de 50 ms pour éviter un clic audible),
+ * même si des notes étaient déjà programmées sur l'horloge audio — elles
+ * passent toutes par ce gain commun, donc le couper les rend inaudibles.
+ */
+export function arreterAlarme() {
+  _alarmeActive = false
+  if (_alarmeTimer) { clearTimeout(_alarmeTimer); _alarmeTimer = null }
+  if (_alarmeMasterGain) {
+    try {
+      const ctx = getAudioContext()
+      _alarmeMasterGain.gain.setValueAtTime(_alarmeMasterGain.gain.value, ctx.currentTime)
+      _alarmeMasterGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.05)
+    } catch { /* contexte déjà fermé — rien à faire */ }
+    _alarmeMasterGain = null
+  }
+  if (navigator.vibrate) navigator.vibrate(0)
+}
+
+export function alarmeEnCours() {
+  return _alarmeActive
 }
 
 /**

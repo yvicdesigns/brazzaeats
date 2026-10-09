@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { X, Check, XCircle, ChefHat, Package, Bike, Loader2, Phone, MessageSquare } from 'lucide-react'
+import { X, Check, XCircle, ChefHat, Package, Bike, Loader2, Phone } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '@/supabase/client'
 import { useMyRestaurant } from '@/hooks/useMyRestaurant'
@@ -9,8 +9,7 @@ import { updateOrderStatus } from '@/services/orderService'
 import { getPlatformSettings } from '@/services/adminService'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { STATUTS_COMMANDE, STATUTS_ACTIFS } from '@/utils/constants'
-import { resumeAudio } from '@/utils/notificationSound'
-import ChatModal from '@/components/shared/ChatModal'
+import { enfiler, estErreurReseau } from '@/utils/offlineQueue'
 import LienCarte from '@/components/shared/LienCarte'
 
 // ── Transitions de statut autorisées côté restaurant ───────
@@ -49,7 +48,6 @@ function BadgeStatut({ statut }) {
 // ── Modal de détail commande ─────────────────────────────────
 function ModalCommande({ commande, onClose, onStatusChange, userId, modeIndependants }) {
   const [envoi,         setEnvoi]         = useState(false)
-  const [chatOuvert,    setChatOuvert]    = useState(false)
   const [confirmerAnnul, setConfirmerAnnul] = useState(false)
   // En mode "livreurs indépendants", le restaurant ne doit jamais pouvoir
   // marquer une commande livrée directement depuis "prête" — ça sauterait
@@ -64,15 +62,36 @@ function ModalCommande({ commande, onClose, onStatusChange, userId, modeIndepend
   const peutAnnuler = commande.statut !== 'annulée' && commande.statut !== 'livrée'
   const annulationDansTransitions = transitions.some(t => t.statut === 'annulée')
 
-  const tempsPrep = Math.max(
+  const tempsPrepDefaut = Math.max(
     ...(commande.order_items ?? []).map(oi => oi.menu_item?.temps_preparation ?? 15),
     15
   )
+  // Ajustable uniquement avant acceptation — une fois annoncé au client,
+  // le délai est figé sur la commande (temps_preparation_minutes).
+  const peutAjusterTemps = commande.statut === 'en_attente'
+  const [tempsPrepAjuste, setTempsPrepAjuste] =
+    useState(commande.temps_preparation_minutes ?? tempsPrepDefaut)
+  const tempsPrepAffiche = commande.temps_preparation_minutes ?? tempsPrepDefaut
 
   async function changerStatut(nouveauStatut) {
     setEnvoi(true)
-    const { error } = await updateOrderStatus(commande.id, nouveauStatut)
+    const champsSupplementaires = nouveauStatut === 'acceptée'
+      ? { temps_preparation_minutes: tempsPrepAjuste }
+      : {}
+    const { error } = await updateOrderStatus(commande.id, nouveauStatut, champsSupplementaires)
     setEnvoi(false)
+
+    // Transition de statut sur une commande déjà propriété de ce restaurant —
+    // idempotente, rejouable sans risque (contrairement à "accepter une
+    // livraison" chez le livreur, qui est une vraie course entre acteurs).
+    if (error && estErreurReseau(error)) {
+      enfiler('updateOrderStatus', { orderId: commande.id, statut: nouveauStatut, champsSupplementaires })
+      toast.success('Hors-ligne — sera synchronisé automatiquement 📡')
+      onStatusChange(commande.id, nouveauStatut)
+      if (nouveauStatut === 'annulée' || nouveauStatut === 'livrée') onClose()
+      return
+    }
+
     if (error) {
       toast.error(`Erreur : ${error}`)
     } else {
@@ -171,21 +190,54 @@ function ModalCommande({ commande, onClose, onStatusChange, userId, modeIndepend
             </div>
           </div>
 
-          {/* Temps de préparation estimé */}
-          <div className="flex items-center gap-2 bg-orange-50 border border-orange-200
-                          rounded-xl px-3 py-2.5">
-            <span className="text-base">⏱</span>
-            <div>
-              <p className="text-xs text-orange-600 font-semibold">Temps de préparation estimé</p>
-              <p className="text-sm font-bold text-orange-800">~{tempsPrep} min</p>
+          {/* Temps de préparation — ajustable à l'acceptation, figé ensuite */}
+          {peutAjusterTemps ? (
+            <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-3">
+              <p className="text-xs text-orange-600 font-semibold mb-2">
+                ⏱ Délai à annoncer au client
+              </p>
+              <div className="flex items-center justify-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => setTempsPrepAjuste(t => Math.max(5, t - 5))}
+                  aria-label="Réduire de 5 minutes"
+                  className="w-11 h-11 rounded-full bg-white border border-orange-200 text-orange-600
+                             font-black text-lg flex items-center justify-center
+                             active:scale-95 transition-transform"
+                >
+                  −
+                </button>
+                <span className="text-2xl font-black text-orange-800 tabular-nums w-20 text-center">
+                  {tempsPrepAjuste} min
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setTempsPrepAjuste(t => Math.min(120, t + 5))}
+                  aria-label="Augmenter de 5 minutes"
+                  className="w-11 h-11 rounded-full bg-white border border-orange-200 text-orange-600
+                             font-black text-lg flex items-center justify-center
+                             active:scale-95 transition-transform"
+                >
+                  +
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center gap-2 bg-orange-50 border border-orange-200
+                            rounded-xl px-3 py-2.5">
+              <span className="text-base">⏱</span>
+              <div>
+                <p className="text-xs text-orange-600 font-semibold">Temps de préparation annoncé</p>
+                <p className="text-sm font-bold text-orange-800">~{tempsPrepAffiche} min</p>
+              </div>
+            </div>
+          )}
 
           {/* Total */}
           <div className="border-t border-gray-100 pt-3 flex justify-between">
             <span className="font-bold text-gray-900">Total</span>
             <span className="font-black text-brand-500 text-lg tabular-nums">
-              {formatCurrency(commande.montant_total + (commande.frais_livraison ?? 0))}
+              {formatCurrency(commande.montant_total)}
             </span>
           </div>
 
@@ -264,17 +316,6 @@ function ModalCommande({ commande, onClose, onStatusChange, userId, modeIndepend
             </div>
           )}
 
-          {/* Bouton chat client */}
-          <button
-            onClick={() => setChatOuvert(true)}
-            className="w-full min-h-[48px] flex items-center justify-center gap-2
-                       border border-gray-200 text-gray-700 font-semibold rounded-xl
-                       hover:bg-gray-50 transition-colors"
-          >
-            <MessageSquare className="w-4 h-4 text-brand-500" />
-            Messagerie client
-          </button>
-
           {/* Annulation manuelle (pour statuts sans bouton "Refuser" direct) */}
           {peutAnnuler && !annulationDansTransitions && (
             confirmerAnnul ? (
@@ -319,17 +360,6 @@ function ModalCommande({ commande, onClose, onStatusChange, userId, modeIndepend
           )}
         </div>
       </div>
-
-      {/* Chat modal */}
-      {chatOuvert && userId && (
-        <ChatModal
-          orderId={commande.id}
-          monRole="restaurant"
-          monId={userId}
-          titreChat={`${commande.client?.nom ?? 'Client'} — #${refCourte}`}
-          onClose={() => setChatOuvert(false)}
-        />
-      )}
     </div>
   )
 }
@@ -373,10 +403,6 @@ export default function RestaurantOrders() {
   useEffect(() => {
     if (!restaurant?.id) return
 
-    // Activer l'audio dès que l'utilisateur interagit avec la page
-    const activerAudio = () => resumeAudio()
-    document.addEventListener('click', activerAudio, { once: true })
-
     const canal = supabase
       .channel(`restaurant_orders:${restaurant.id}`)
       .on(
@@ -389,8 +415,10 @@ export default function RestaurantOrders() {
         },
         async (payload) => {
           if (payload.eventType === 'INSERT') {
-            // Son + vibration déjà gérés par useRestaurantNotifications (RestaurantLayout)
-            // → On gère seulement l'UI ici pour éviter le doublon
+            // L'alarme plein écran (useRestaurantNotifications, montée dans
+            // RestaurantLayout) gère déjà le son + l'accusé de réception
+            // (accepter/refuser) — pas de modal ici pour éviter deux UI
+            // concurrentes sur la même commande.
             setNbNouveaux(n => n + 1)
 
             // Récupérer la commande complète (avec les items)
@@ -404,11 +432,7 @@ export default function RestaurantOrders() {
               .eq('id', payload.new.id)
               .single()
 
-            const nouvelleCmd = cmdComplete ?? payload.new
-
-            setCommandes(prev => [nouvelleCmd, ...prev])
-            // Ouvrir automatiquement la modal pour la nouvelle commande
-            setModalOuverte(nouvelleCmd)
+            setCommandes(prev => [cmdComplete ?? payload.new, ...prev])
 
           } else if (payload.eventType === 'UPDATE') {
             setCommandes(prev =>
@@ -419,10 +443,7 @@ export default function RestaurantOrders() {
       )
       .subscribe()
 
-    return () => {
-      supabase.removeChannel(canal)
-      document.removeEventListener('click', activerAudio)
-    }
+    return () => supabase.removeChannel(canal)
   }, [restaurant?.id])
 
   // ── Badge sur l'onglet navigateur ──────────────────────
@@ -575,7 +596,7 @@ export default function RestaurantOrders() {
                   {/* Total + bouton détail */}
                   <div className="flex items-center justify-between">
                     <span className="font-black text-brand-500 tabular-nums">
-                      {formatCurrency(commande.montant_total + (commande.frais_livraison ?? 0))}
+                      {formatCurrency(commande.montant_total)}
                     </span>
                     <button
                       onClick={() => { setModalOuverte(commande); setNbNouveaux(0) }}

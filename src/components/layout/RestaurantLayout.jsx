@@ -3,6 +3,8 @@ import { LayoutDashboard, ClipboardList, UtensilsCrossed, Star, Settings, Tag, B
 import { useMyRestaurant } from '@/hooks/useMyRestaurant'
 import { useRestaurantPendingCount } from '@/hooks/useRestaurantPendingCount'
 import { useRestaurantNotifications } from '@/hooks/useRestaurantNotifications'
+import AlarmeNouvelleCommande from '@/components/restaurant/AlarmeNouvelleCommande'
+import BandeauHorsLigne from '@/components/shared/BandeauHorsLigne'
 
 const NAV_ITEMS = [
   { to: '/restaurant/dashboard',   label: 'Dashboard',   Icon: LayoutDashboard  },
@@ -31,10 +33,11 @@ const NAV_ITEMS = [
 export default function RestaurantLayout() {
   const { restaurant } = useMyRestaurant()
   const pendingCount = useRestaurantPendingCount(restaurant?.id)
-  useRestaurantNotifications(restaurant?.id)
+  const { commandeAlarme, nbEnAttente, enCours, accepter, refuser } = useRestaurantNotifications(restaurant?.id)
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
+      <BandeauHorsLigne />
 
       {/* ── Sidebar desktop (md+) ───────────────────────── */}
       <aside className="hidden md:flex flex-col w-56 bg-white border-r border-gray-200
@@ -116,6 +119,15 @@ export default function RestaurantLayout() {
           ))}
         </div>
       </nav>
+
+      {/* ── Alarme plein écran nouvelle commande ────────── */}
+      <AlarmeNouvelleCommande
+        commande={commandeAlarme}
+        restantes={nbEnAttente}
+        enCours={enCours}
+        onAccepter={accepter}
+        onRefuser={refuser}
+      />
     </div>
   )
 }

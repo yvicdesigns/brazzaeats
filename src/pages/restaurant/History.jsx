@@ -74,7 +74,7 @@ function GraphiqueCA({ commandes, periodeId }) {
   commandes.filter(c => c.statut === 'livrée').forEach(c => {
     const dc = new Date(c.created_at); dc.setHours(0,0,0,0)
     const idx = slots.findIndex(s => dc >= s.debut && dc <= s.fin)
-    if (idx >= 0) slots[idx].val += (c.montant_total ?? 0) + (c.frais_livraison ?? 0)
+    if (idx >= 0) slots[idx].val += c.montant_total ?? 0
   })
 
   return <Graphique donnees={slots} />
@@ -93,7 +93,7 @@ function BadgeStatut({ statut }) {
 // ── Ligne commande repliable ────────────────────────────────
 function LigneCommande({ commande }) {
   const [ouvert, setOuvert] = useState(false)
-  const montant  = (commande.montant_total ?? 0) + (commande.frais_livraison ?? 0)
+  const montant  = commande.montant_total ?? 0
   const date     = new Date(commande.created_at)
   const dateStr  = date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
   const heureStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
@@ -346,7 +346,7 @@ export default function History() {
   const kpis = useMemo(() => {
     const livrees  = commandes.filter(c => c.statut === 'livrée')
     const annulees = commandes.filter(c => c.statut === 'annulée')
-    const caTotal  = livrees.reduce((s, c) => s + (c.montant_total ?? 0) + (c.frais_livraison ?? 0), 0)
+    const caTotal  = livrees.reduce((s, c) => s + (c.montant_total ?? 0), 0)
     const panierMoy = livrees.length > 0 ? Math.round(caTotal / livrees.length) : 0
     const tauxAnnul = commandes.length > 0
       ? Math.round(annulees.length / commandes.length * 100) : 0

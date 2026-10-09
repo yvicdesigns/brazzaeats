@@ -115,17 +115,6 @@ const useCart = create(
         })
       },
 
-      // ── Sélecteurs calculés ───────────────────────────────
-
-      /** Nombre total d'articles (somme des quantités) */
-      get totalItems() {
-        return get().items.reduce((acc, i) => acc + i.quantite, 0)
-      },
-
-      /** Sous-total en FCFA (articles uniquement, sans frais de livraison) */
-      get sousTotal() {
-        return get().items.reduce((acc, i) => acc + i.prix * i.quantite, 0)
-      },
     }),
 
     {
