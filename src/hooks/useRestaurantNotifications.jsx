@@ -20,6 +20,7 @@ import toast from 'react-hot-toast'
 import { supabase } from '@/supabase/client'
 import { demarrerAlarme, arreterAlarme, resumeAudio } from '@/utils/notificationSound'
 import { updateOrderStatus } from '@/services/orderService'
+import { enfiler, estErreurReseau } from '@/utils/offlineQueue'
 
 export function useRestaurantNotifications(restaurantId) {
   const navigate = useNavigate()
@@ -154,6 +155,17 @@ export function useRestaurantNotifications(restaurantId) {
     const { error } = await updateOrderStatus(commande.id, statut, champsSupplementaires)
     resoudreEnCoursRef.current = false
     setEnCours(null)
+
+    // Même logique que changerStatut dans restaurant/Orders.jsx : une coupure
+    // réseau à ce moment précis ne doit pas laisser le restaurant bloqué sur
+    // l'alarme plein écran — l'action est rejouée automatiquement.
+    if (error && estErreurReseau(error)) {
+      enfiler('updateOrderStatus', { orderId: commande.id, statut, champsSupplementaires })
+      toast.success('Hors-ligne — sera synchronisé automatiquement 📡')
+      setFile(prev => prev.filter(c => c.id !== commande.id))
+      return
+    }
+
     if (error) { toast.error('Erreur : ' + error); return }
     setFile(prev => prev.filter(c => c.id !== commande.id))
   }, [file])
