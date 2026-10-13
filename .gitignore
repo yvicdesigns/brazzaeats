@@ -36,3 +36,4 @@ Thumbs.db
 supabase/.temp/
 ios/App/build-device/
 .playwright-mcp/
+.vitest-localstorage.json*

@@ -8,6 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext .js,.jsx --report-unused-disable-directives --max-warnings 0",
+    "test": "NODE_OPTIONS=--localstorage-file=.vitest-localstorage.json vitest run",
+    "test:watch": "NODE_OPTIONS=--localstorage-file=.vitest-localstorage.json vitest",
     "seed": "node --env-file=.env scripts/seed.js"
   },
   "dependencies": {
@@ -47,11 +49,13 @@
     "eslint-plugin-react": "^7.35.0",
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-react-refresh": "^0.4.8",
+    "jsdom": "^29.1.1",
     "postcss": "^8.4.40",
     "tailwindcss": "^3.4.7",
     "typescript": "^7.0.2",
     "vite": "^5.3.4",
     "vite-plugin-pwa": "^0.20.1",
+    "vitest": "^4.1.11",
     "workbox-window": "^7.1.0"
   }
 }

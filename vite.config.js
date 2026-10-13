@@ -72,6 +72,11 @@ export default defineConfig({
     },
   },
 
+  test: {
+    environment: 'jsdom',
+    globals: true,
+  },
+
   build: {
     rollupOptions: {
       output: {
