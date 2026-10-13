@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { LayoutDashboard, ClipboardList, UtensilsCrossed, Star, Settings, Tag, BarChart2 } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, UtensilsCrossed, Star, Settings, Tag, BarChart2, Users } from 'lucide-react'
 import { useMyRestaurant } from '@/hooks/useMyRestaurant'
 import { useRestaurantPendingCount } from '@/hooks/useRestaurantPendingCount'
 import { useRestaurantNotifications } from '@/hooks/useRestaurantNotifications'
@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { to: '/restaurant/promos',      label: 'Promos',      Icon: Tag              },
   { to: '/restaurant/historique',  label: 'Revenus',     Icon: BarChart2        },
   { to: '/restaurant/avis',        label: 'Avis',        Icon: Star             },
+  { to: '/restaurant/clients',     label: 'Clients',     Icon: Users            },
   { to: '/restaurant/profil',      label: 'Profil',      Icon: Settings         },
 ]
 

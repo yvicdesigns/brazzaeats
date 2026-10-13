@@ -108,6 +108,7 @@ export async function createMenuItem({
   disponible   = true,
   tempsPreparation = 15,
   variantes    = null,  // [{ nom: 'Petit', prix: 2000 }, { nom: 'Grand', prix: 3500 }]
+  stockQuantite = null, // null = stock non suivi (comportement par défaut)
 }) {
   try {
     const { data, error } = await supabase
@@ -122,6 +123,7 @@ export async function createMenuItem({
         disponible,
         temps_preparation: tempsPreparation,
         variantes:         variantes && variantes.length > 0 ? variantes : null,
+        stock_quantite:    stockQuantite,
       })
       .select()
       .single()
@@ -311,6 +313,48 @@ export async function getOrdersByRestaurant(restaurantId) {
       .limit(60)
     if (error) throw error
     return { data: data ?? [], error: null }
+  } catch (err) {
+    return { data: [], error: err.message }
+  }
+}
+
+// ============================================================
+// CLIENTS (côté propriétaire) — agrégé depuis les commandes livrées,
+// aucune table dédiée : juste "qui a commandé chez moi, combien de fois,
+// pour combien, la dernière fois".
+// ============================================================
+
+export async function getClientsByRestaurant(restaurantId) {
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('client_id, montant_total, created_at, client:profiles!orders_client_id_fkey(nom, telephone)')
+      .eq('restaurant_id', restaurantId)
+      .eq('statut', 'livrée')
+      .order('created_at', { ascending: false })
+    if (error) throw error
+
+    const parClient = new Map()
+    for (const cmd of data ?? []) {
+      if (!cmd.client_id) continue
+      let entry = parClient.get(cmd.client_id)
+      if (!entry) {
+        entry = {
+          id:               cmd.client_id,
+          nom:              cmd.client?.nom ?? '—',
+          telephone:        cmd.client?.telephone ?? null,
+          nbCommandes:      0,
+          totalDepense:     0,
+          derniereCommande: cmd.created_at,
+        }
+        parClient.set(cmd.client_id, entry)
+      }
+      entry.nbCommandes  += 1
+      entry.totalDepense += cmd.montant_total ?? 0
+    }
+
+    const clients = [...parClient.values()].sort((a, b) => b.totalDepense - a.totalDepense)
+    return { data: clients, error: null }
   } catch (err) {
     return { data: [], error: err.message }
   }

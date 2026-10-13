@@ -180,6 +180,8 @@ function FormulaireItem({ item, categories, restaurantId, onSave, onClose }) {
   const [variantes,     setVariantes]     = useState(item?.variantes ?? [])
   const [hasVariantes,  setHasVariantes]  = useState((item?.variantes ?? []).length > 0)
   const [isBoisson,     setIsBoisson]     = useState((item?.temps_preparation ?? 15) === 0)
+  const [suivreStock,   setSuivreStock]   = useState(item?.stock_quantite !== null && item?.stock_quantite !== undefined)
+  const [stockQuantite, setStockQuantite] = useState(item?.stock_quantite ?? 10)
   const [saving,        setSaving]        = useState(false)
 
   function set(key, val) { setForm(f => ({ ...f, [key]: val })) }
@@ -219,6 +221,7 @@ function FormulaireItem({ item, categories, restaurantId, onSave, onClose }) {
       variantes:        hasVariantes
         ? variantesFinales.map(v => ({ nom: v.nom.trim(), prix: Number(v.prix) }))
         : null,
+      stockQuantite:    suivreStock ? Math.max(0, Number(stockQuantite) || 0) : null,
     })
     setSaving(false)
   }
@@ -373,6 +376,36 @@ function FormulaireItem({ item, categories, restaurantId, onSave, onClose }) {
             : <ToggleLeft  className="w-8 h-8 text-gray-400" />
           }
         </button>
+      </div>
+
+      {/* Stock */}
+      <div className="border border-gray-200 rounded-xl p-3 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-700">Suivre le stock</p>
+            <p className="text-xs text-gray-400">
+              Se désactive automatiquement à la commande une fois à 0
+            </p>
+          </div>
+          <button type="button" onClick={() => setSuivreStock(v => !v)}>
+            {suivreStock
+              ? <ToggleRight className="w-8 h-8 text-brand-500" />
+              : <ToggleLeft  className="w-8 h-8 text-gray-400" />
+            }
+          </button>
+        </div>
+        {suivreStock && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Quantité disponible</label>
+            <input
+              type="number" value={stockQuantite}
+              onChange={e => setStockQuantite(e.target.value)}
+              min={0} step={1}
+              className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-400"
+            />
+          </div>
+        )}
       </div>
 
       {/* Photo */}
@@ -612,6 +645,7 @@ export default function Menu() {
         disponible:       donnees.disponible,
         tempsPreparation: donnees.tempsPreparation,
         variantes:        donnees.variantes ?? null,
+        stockQuantite:    donnees.stockQuantite,
       })
       if (error) { toast.error('Erreur : ' + error); return }
       setItems(its => [...its, data])
@@ -626,6 +660,7 @@ export default function Menu() {
         disponible:        donnees.disponible,
         temps_preparation: donnees.tempsPreparation,
         variantes:         donnees.variantes ?? null,
+        stock_quantite:    donnees.stockQuantite,
       })
       if (error) { toast.error('Erreur : ' + error); return }
       setItems(its => its.map(x => x.id === data.id ? data : x))
@@ -844,6 +879,14 @@ export default function Menu() {
                         {item.horaires && (
                           <span className="text-xs text-blue-500 font-medium truncate max-w-[120px]">
                             · {labelHoraires(item.horaires)}
+                          </span>
+                        )}
+                        {item.stock_quantite !== null && item.stock_quantite !== undefined && (
+                          <span className={cls(
+                            'text-xs font-semibold',
+                            item.stock_quantite <= 0 ? 'text-red-500' : 'text-gray-400'
+                          )}>
+                            · {item.stock_quantite <= 0 ? 'Rupture de stock' : `Stock : ${item.stock_quantite}`}
                           </span>
                         )}
                       </div>

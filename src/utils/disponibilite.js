@@ -32,6 +32,11 @@ function toMinutes(hhmm) {
  */
 export function isItemDisponibleMaintenant(item) {
   if (!item.disponible) return false
+  // Stock suivi (non null) et épuisé → indisponible, même si le restaurant
+  // n'a pas pensé à désactiver manuellement l'article.
+  if (item.stock_quantite !== null && item.stock_quantite !== undefined && item.stock_quantite <= 0) {
+    return false
+  }
   const h = item.horaires
   if (!h) return true
 

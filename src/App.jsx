@@ -40,6 +40,7 @@ import RestaurantReviews   from '@/pages/restaurant/Reviews'
 import RestaurantProfile   from '@/pages/restaurant/Profile'
 import RestaurantPromos    from '@/pages/restaurant/Promotions'
 import RestaurantHistory   from '@/pages/restaurant/History'
+import RestaurantClients   from '@/pages/restaurant/Clients'
 
 // ── Pages Livreur ──────────────────────────────────────────
 import LivreurDashboard from '@/pages/livreur/Dashboard'
@@ -241,6 +242,7 @@ export default function App() {
             <Route path="/restaurant/promos"     element={<RestaurantPromos />} />
             <Route path="/restaurant/historique" element={<RestaurantHistory />} />
             <Route path="/restaurant/avis"      element={<RestaurantReviews />} />
+            <Route path="/restaurant/clients"   element={<RestaurantClients />} />
             <Route path="/restaurant/profil"    element={<RestaurantProfile />} />
           </Route>
         </Route>

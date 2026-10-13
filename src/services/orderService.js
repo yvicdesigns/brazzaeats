@@ -105,13 +105,25 @@ export async function createOrder({
       throw itemsError
     }
 
-    // 4. Déduire le solde utilisé du profil client (best-effort)
-    if (soldeUtilise > 0) {
-      supabase.rpc('deduire_solde', { p_client_id: clientId, p_montant: soldeUtilise })
-        .catch(() => {})
+    // 4. Décrémenter le stock des articles suivis (best-effort, atomique
+    //    côté serveur — ne fait rien pour les articles dont le stock n'est
+    //    pas suivi). Un échec isolé ne doit jamais faire échouer la commande.
+    //    Promise.resolve(...) car supabase.rpc() renvoie un thenable, pas une
+    //    vraie Promise — pas de .catch() natif sans ce wrapper.
+    for (const i of items) {
+      Promise.resolve(
+        supabase.rpc('decrementer_stock', { p_menu_item_id: i.menu_item_id, p_quantite: i.quantite })
+      ).catch(() => {})
     }
 
-    // 5. Incrémenter le compteur d'utilisation de la promo (best-effort)
+    // 5. Déduire le solde utilisé du profil client (best-effort)
+    if (soldeUtilise > 0) {
+      Promise.resolve(
+        supabase.rpc('deduire_solde', { p_client_id: clientId, p_montant: soldeUtilise })
+      ).catch(() => {})
+    }
+
+    // 6. Incrémenter le compteur d'utilisation de la promo (best-effort)
     if (promoSource === 'platform' && promoCode) {
       incrementPlatformPromoUsage(promoCode).catch(() => {})
     } else if (promoId) {
