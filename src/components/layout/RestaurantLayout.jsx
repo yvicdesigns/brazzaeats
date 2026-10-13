@@ -1,8 +1,9 @@
-import { NavLink, Outlet } from 'react-router-dom'
-import { LayoutDashboard, ClipboardList, UtensilsCrossed, Star, Settings, Tag, BarChart2, Users } from 'lucide-react'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { LayoutDashboard, ClipboardList, UtensilsCrossed, Star, Settings, Tag, BarChart2, Users, LogOut } from 'lucide-react'
 import { useMyRestaurant } from '@/hooks/useMyRestaurant'
 import { useRestaurantPendingCount } from '@/hooks/useRestaurantPendingCount'
 import { useRestaurantNotifications } from '@/hooks/useRestaurantNotifications'
+import { useAuth } from '@/hooks/useAuth'
 import AlarmeNouvelleCommande from '@/components/restaurant/AlarmeNouvelleCommande'
 import BandeauHorsLigne from '@/components/shared/BandeauHorsLigne'
 
@@ -32,9 +33,16 @@ const NAV_ITEMS = [
  *   pendingCount — nombre de commandes en attente (badge rouge)
  */
 export default function RestaurantLayout() {
+  const navigate = useNavigate()
+  const { logout } = useAuth()
   const { restaurant } = useMyRestaurant()
   const pendingCount = useRestaurantPendingCount(restaurant?.id)
   const { commandeAlarme, nbEnAttente, enCours, accepter, refuser } = useRestaurantNotifications(restaurant?.id)
+
+  async function handleLogout() {
+    await logout()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -80,6 +88,18 @@ export default function RestaurantLayout() {
             </NavLink>
           ))}
         </nav>
+
+        {/* Déconnexion */}
+        <div className="px-3 pb-6 pt-4 border-t border-gray-100">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm
+                       font-medium text-red-500 hover:bg-red-50 transition-colors"
+          >
+            <LogOut className="w-5 h-5 shrink-0" strokeWidth={1.8} />
+            Se déconnecter
+          </button>
+        </div>
       </aside>
 
       {/* ── Contenu principal ───────────────────────────── */}

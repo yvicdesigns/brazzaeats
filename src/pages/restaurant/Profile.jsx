@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
-import { Loader2, ImagePlus, Save, ToggleLeft, ToggleRight, Video, X, UploadCloud } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Loader2, ImagePlus, Save, ToggleLeft, ToggleRight, Video, X, UploadCloud, LogOut } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useMyRestaurant } from '@/hooks/useMyRestaurant'
+import { useAuth } from '@/hooks/useAuth'
 import { updateRestaurant, uploadRestaurantLogo, uploadRestaurantVideo, uploadRestaurantVideoApercu } from '@/services/menuService'
 import { VILLES_CONGO, PREFIXE_OPERATEUR } from '@/utils/constants'
 import ReglagesNotifications from '@/components/shared/ReglagesNotifications'
@@ -26,6 +28,8 @@ const HORAIRES_DEFAUT = Object.fromEntries(
 // Page Profil
 // ══════════════════════════════════════════════════════════
 export default function Profile() {
+  const navigate = useNavigate()
+  const { logout } = useAuth()
   const { restaurant, loading: loadingResto, setRestaurant } = useMyRestaurant()
 
   const [form, setForm] = useState({
@@ -235,6 +239,12 @@ export default function Profile() {
     if (error) { toast.error('Erreur : ' + error); return }
     setRestaurant(data)
     toast.success('Profil enregistré')
+  }
+
+  // ── Déconnexion ──────────────────────────────────────────
+  async function handleLogout() {
+    await logout()
+    navigate('/login', { replace: true })
   }
 
   // ── Chargement ─────────────────────────────────────────
@@ -700,6 +710,19 @@ export default function Profile() {
           <h2 className="font-bold text-gray-800 mb-4">Notifications</h2>
           <ReglagesNotifications />
         </div>
+      </div>
+
+      {/* ── Déconnexion ─────────────────────────────────── */}
+      <div className="px-4 mt-5">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 bg-white border border-red-200
+                     text-red-500 rounded-2xl py-3.5 text-sm font-bold hover:bg-red-50
+                     transition-colors min-h-[52px]"
+        >
+          <LogOut className="w-4 h-4" strokeWidth={1.8} />
+          Se déconnecter
+        </button>
       </div>
     </div>
   )

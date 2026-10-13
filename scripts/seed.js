@@ -1,12 +1,20 @@
 // ============================================================
 // BrazzaEats — Script de seed des données de test
-// Usage : node scripts/seed.js
+// Usage : npm run seed
+//   (nécessite SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY dans .env —
+//    voir .env.example. Jamais de clé service_role en dur dans le code :
+//    c'est un accès admin complet à la base, et .env n'est jamais commité.)
 // ============================================================
 
 import { createClient } from '@supabase/supabase-js'
 
-const SUPABASE_URL     = 'https://oecjihnwisuieriswcvh.supabase.co'
-const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9lY2ppaG53aXN1aWVyaXN3Y3ZoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDY5OTk5NCwiZXhwIjoyMDkwMjc1OTk0fQ.0njmLASl1tGmV1fVw-vR15KT1mAoZIacjUUkhTSOqXI'
+const SUPABASE_URL     = process.env.SUPABASE_URL
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+  console.error('✗  SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY requis (dans .env) — voir .env.example')
+  process.exit(1)
+}
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false }
