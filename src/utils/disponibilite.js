@@ -30,13 +30,20 @@ function toMinutes(hhmm) {
  * Retourne true si l'article est commandable en ce moment.
  * Tient compte de item.disponible ET de item.horaires.
  */
+/**
+ * True si le stock suivi de l'article est épuisé (stock non suivi → false).
+ * Séparé de isItemDisponibleMaintenant() pour pouvoir afficher au client un
+ * message précis ("Rupture de stock") plutôt que le générique "Non disponible".
+ */
+export function isRuptureStock(item) {
+  return item.stock_quantite !== null && item.stock_quantite !== undefined && item.stock_quantite <= 0
+}
+
 export function isItemDisponibleMaintenant(item) {
   if (!item.disponible) return false
   // Stock suivi (non null) et épuisé → indisponible, même si le restaurant
   // n'a pas pensé à désactiver manuellement l'article.
-  if (item.stock_quantite !== null && item.stock_quantite !== undefined && item.stock_quantite <= 0) {
-    return false
-  }
+  if (isRuptureStock(item)) return false
   const h = item.horaires
   if (!h) return true
 

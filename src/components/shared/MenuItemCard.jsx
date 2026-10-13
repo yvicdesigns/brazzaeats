@@ -4,7 +4,7 @@ import toast from 'react-hot-toast'
 import { formatCurrency } from '@/utils/formatCurrency'
 import useCart from '@/hooks/useCart'
 import { getItemReviews } from '@/services/restaurantService'
-import { isItemDisponibleMaintenant, labelHoraires } from '@/utils/disponibilite'
+import { isItemDisponibleMaintenant, isRuptureStock, labelHoraires } from '@/utils/disponibilite'
 
 // ── Étoiles ────────────────────────────────────────────────
 function Etoiles({ note }) {
@@ -242,8 +242,10 @@ function ModalPlat({ item, restaurantId, restaurantNom, onClose }) {
             <div className="bg-gray-50 rounded-2xl py-4 px-5 flex items-center gap-3">
               <Clock className="w-5 h-5 text-gray-400 shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-gray-500">Non disponible actuellement</p>
-                {item.horaires && (
+                <p className="text-sm font-semibold text-gray-500">
+                  {isRuptureStock(item) ? 'Rupture de stock' : 'Non disponible actuellement'}
+                </p>
+                {!isRuptureStock(item) && item.horaires && (
                   <p className="text-xs text-gray-400 mt-0.5">{labelHoraires(item.horaires)}</p>
                 )}
               </div>
@@ -363,7 +365,11 @@ export default function MenuItemCard({ item, restaurantId, restaurantNom }) {
                 {item.description}
               </p>
             )}
-            {!disponible && item.horaires ? (
+            {!disponible && isRuptureStock(item) ? (
+              <p className="text-xs text-red-500 font-medium mt-1">
+                Rupture de stock
+              </p>
+            ) : !disponible && item.horaires ? (
               <p className="text-xs text-orange-500 font-medium mt-1">
                 {labelHoraires(item.horaires)}
               </p>

@@ -184,7 +184,7 @@ function AdminLayout() {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar />
-      <main className="flex-1 md:ml-56">
+      <main className="flex-1 md:ml-56 pt-14 md:pt-0">
         <Outlet />
       </main>
     </div>
