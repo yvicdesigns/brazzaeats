@@ -4,6 +4,7 @@ import { registerSW } from 'virtual:pwa-register'
 import { Capacitor } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
 import App from './App'
+import ErrorBoundary from '@/components/shared/ErrorBoundary'
 import { supabase } from '@/supabase/client'
 import '@/utils/offlineHandlers' // enregistre les handlers avant toute mise en file
 import './index.css'
@@ -88,6 +89,8 @@ createRoot(racine).render(
         },
       }}
     />
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </>
 )
