@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Android 12+ (API 31) a son propre écran de démarrage système (SplashScreen
+         API), géré AVANT même que le thème "Theme.SplashScreen" compat de
+         values/styles.xml ne s'applique — sans ce fichier, il retombe sur un
+         rendu par défaut non stylé (fond clair, icône générique). On réutilise
+         le foreground de l'icône adaptative (déjà cadré avec la marge de
+         sécurité voulue) pour un enchaînement visuel cohérent avec le splash
+         plein écran de Capacitor qui prend le relais juste après. -->
+    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#085028</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+    </style>
+
+</resources>
