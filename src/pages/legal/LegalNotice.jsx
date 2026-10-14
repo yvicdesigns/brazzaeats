@@ -3,8 +3,6 @@ import { ArrowLeft } from 'lucide-react'
 
 // ══════════════════════════════════════════════════════════
 // Mentions légales
-// ⚠️ [Nom du responsable] et [Adresse] sont des champs à remplir avec les
-// informations réelles avant publication — voir le bandeau ci-dessous.
 // Zandofood n'étant pas encore immatriculée (RCCM/NIU) au moment de la
 // rédaction, cette page identifie l'exploitant à titre individuel ; le
 // numéro d'immatriculation sera ajouté dès que la société sera créée.
@@ -29,22 +27,17 @@ export default function LegalNotice() {
       </header>
 
       <div className="px-4 py-6 max-w-2xl mx-auto space-y-6">
-        <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
-          À compléter avant mise en ligne : le nom du responsable et l'adresse ci-dessous sont des
-          exemples à remplacer par vos informations réelles. Le numéro RCCM/NIU sera ajouté une
-          fois Zandofood immatriculée.
-        </p>
-
         <Section titre="Éditeur de l'application">
           <p>
             L'application et le site Zandofood sont édités par :{' '}
-            <b>[Nom complet du responsable]</b>, exploitant à titre individuel, domicilié à{' '}
-            <b>[Adresse à Brazzaville, République du Congo]</b>.
+            <b>Tchissambou Van Yvic</b>, exploitant à titre individuel, domicilié au{' '}
+            <b>133 rue Alexandry, Mpissa-Bacongo, Brazzaville, République du Congo</b>.
           </p>
           <p>
             Contact :{' '}
             <a href="tel:+242064623778" className="text-brand-600 underline">+242 06 462 37 78</a>
-            {' '}— [adresse email de contact à ajouter].
+            {' '}—{' '}
+            <a href="mailto:zandofood@gmail.com" className="text-brand-600 underline">zandofood@gmail.com</a>.
           </p>
           <p className="text-xs text-gray-400">
             Zandofood est en cours de constitution en société ; le numéro d'immatriculation (RCCM)
