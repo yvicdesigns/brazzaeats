@@ -1,0 +1,12 @@
+# Projets natifs — inutiles pour le déploiement web, et ios/App/DerivedData
+# à lui seul contient des milliers de fichiers de build qui faisaient
+# échouer l'upload Vercel (limite de 15000 fichiers dépassée).
+android/
+ios/
+
+# Assets sources haute résolution (PNG 4000px+) — jamais servis directement,
+# uniquement utilisés pour générer les icônes/splash en local.
+branding/
+
+# Scripts de dev local (seed de données de test)
+scripts/
