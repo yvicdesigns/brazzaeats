@@ -258,7 +258,7 @@ INSERT INTO platform_settings DEFAULT VALUES;`}
             <p className="text-xs text-gray-400 mb-3">
               Définit si les livreurs peuvent prendre des commandes librement ou si elles sont assignées par l'admin.
             </p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {[
                 {
                   val:   'independants',
@@ -274,26 +274,27 @@ INSERT INTO platform_settings DEFAULT VALUES;`}
                   sub:   'Les commandes sont assignées manuellement par l\'admin',
                   color: 'blue',
                 },
+                {
+                  val:   'zando_delivery',
+                  Icon:  Truck,
+                  titre: 'Zando Delivery',
+                  sub:   'La livraison est confiée à Zando Delivery (dispatch automatique)',
+                  color: 'purple',
+                },
               ].map(({ val, Icon, titre, sub, color }) => {
                 const actif = form.mode_livraison === val
+                const couleurs = { brand: 'border-brand-500 bg-brand-50', blue: 'border-blue-500 bg-blue-50', purple: 'border-purple-500 bg-purple-50' }
+                const couleursTexte = { brand: 'text-brand-500', blue: 'text-blue-500', purple: 'text-purple-500' }
                 return (
                   <button
                     key={val}
                     type="button"
                     onClick={() => setField('mode_livraison', val)}
                     className={`flex flex-col items-start p-4 rounded-xl border-2 text-left transition-colors ${
-                      actif
-                        ? color === 'brand'
-                          ? 'border-brand-500 bg-brand-50'
-                          : 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
+                      actif ? couleurs[color] : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
-                    <Icon className={`w-5 h-5 mb-2 ${
-                      actif
-                        ? color === 'brand' ? 'text-brand-500' : 'text-blue-500'
-                        : 'text-gray-400'
-                    }`} strokeWidth={2} />
+                    <Icon className={`w-5 h-5 mb-2 ${actif ? couleursTexte[color] : 'text-gray-400'}`} strokeWidth={2} />
                     <p className={`text-sm font-bold ${actif ? 'text-gray-900' : 'text-gray-600'}`}>
                       {titre}
                     </p>
@@ -305,6 +306,13 @@ INSERT INTO platform_settings DEFAULT VALUES;`}
             {form.mode_livraison === 'propres_livreurs' && (
               <div className="mt-3 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5 text-xs text-blue-700">
                 ℹ️ En mode "Mes livreurs", les commandes prêtes n'apparaissent pas dans le tableau de bord livreur. Vous les assignez manuellement.
+              </div>
+            )}
+            {form.mode_livraison === 'zando_delivery' && (
+              <div className="mt-3 bg-purple-50 border border-purple-200 rounded-xl px-3 py-2.5 text-xs text-purple-700">
+                ℹ️ En mode "Zando Delivery", chaque commande prête déclenche automatiquement une
+                livraison sur Zando Delivery — le pool de livreurs interne n'est plus utilisé.
+                Nécessite que l'intégration soit configurée (clé d'API).
               </div>
             )}
           </div>

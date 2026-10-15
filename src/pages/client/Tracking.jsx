@@ -317,6 +317,20 @@ export default function Tracking() {
           />
         )}
 
+        {/* Livraison confiée à Zando Delivery : son propre suivi en direct fait foi. */}
+        {details.zando_delivery_tracking_url && (
+          <a
+            href={details.zando_delivery_tracking_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 flex items-center justify-center gap-2 bg-purple-50 border border-purple-200
+                       text-purple-700 rounded-xl py-2.5 text-sm font-bold hover:bg-purple-100 transition-colors"
+          >
+            <LocateFixed className="w-4 h-4" />
+            Suivre le livreur en direct (Zando Delivery)
+          </a>
+        )}
+
         {enPreparationVisible && (
           <CuisineEnDirect
             photoUrl={photoPlat}
