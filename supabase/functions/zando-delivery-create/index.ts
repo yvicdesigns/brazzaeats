@@ -39,11 +39,11 @@ Deno.serve(async (req) => {
     if (orderErr || !order) return json({ error: 'Commande introuvable' }, 404)
     if (order.zando_delivery_ref) return json({ skipped: 'Livraison déjà créée pour cette commande' })
 
+    // Même convention que Tracking.jsx / LivreurMap : adresse_livraison.latitude/longitude,
+    // renseignées uniquement si le client a utilisé « Ma position » au checkout (Checkout.jsx).
     const dropoff = order.adresse_livraison ?? {}
-    if (typeof dropoff.lat !== 'number' || typeof dropoff.lng !== 'number') {
-      // Pas encore de coordonnées GPS sur l'adresse de livraison côté Zandofood — voir le
-      // suivi du projet. La commande reste gérée par le mode de livraison existant.
-      return json({ skipped: "Adresse de livraison sans coordonnées GPS (lat/lng) — commande ignorée" })
+    if (typeof dropoff.latitude !== 'number' || typeof dropoff.longitude !== 'number') {
+      return json({ skipped: "Adresse de livraison sans coordonnées GPS (le client n'a pas utilisé « Ma position ») — commande ignorée" })
     }
 
     const [{ data: restaurant }, { data: client }] = await Promise.all([
@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
         serviceCode: 'SEND',
         vehicleCode: 'MOTO',
         pickup: { lat: restaurant.latitude, lng: restaurant.longitude },
-        dropoff: { lat: dropoff.lat, lng: dropoff.lng },
+        dropoff: { lat: dropoff.latitude, lng: dropoff.longitude },
       }),
     })
     if (!quoteRes.ok) return json({ error: `Devis Zando Delivery refusé (${quoteRes.status})` }, 502)
@@ -89,8 +89,8 @@ Deno.serve(async (req) => {
           contactPhone: restaurantOwner?.telephone ?? '+242000000000',
         },
         dropoff: {
-          lat: dropoff.lat,
-          lng: dropoff.lng,
+          lat: dropoff.latitude,
+          lng: dropoff.longitude,
           addressText: [dropoff.rue, dropoff.quartier].filter(Boolean).join(', ') || 'Adresse client',
           contactName: client?.nom ?? 'Client Zandofood',
           contactPhone: client?.telephone ?? '+242000000000',
