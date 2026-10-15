@@ -17,11 +17,14 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    // Désactive le Navigator Lock UNIQUEMENT en dev (conflits avec le HMR de Vite,
-    // un seul onglet donc pas de concurrence réelle). En production on garde le
-    // vrai lock de Supabase : il coordonne le rafraîchissement de session entre
-    // onglets/webviews, ce qui compte quand plusieurs contextes partagent la
-    // même session (ex. PWA + navigateur ouverts en même temps).
-    ...(import.meta.env.DEV ? { lock: (name, acquireTimeout, fn) => fn() } : {}),
+    // Désactive le Navigator Lock de Supabase (navigator.locks), y compris en
+    // production. Ce verrou coordonne le rafraîchissement de session entre
+    // onglets d'un même site, mais il peut rester bloqué indéfiniment — par
+    // ex. après qu'un onglet revienne au premier plan (_onVisibilityChanged) —
+    // et ne jamais se libérer, ce qui gelait alors TOUTES les requêtes de
+    // l'app (y compris le profil) sur un spinner infini. Le risque sans ce
+    // verrou (deux onglets qui rafraîchissent leur session au même instant)
+    // est minime comparé à ce blocage systématique.
+    lock: (name, acquireTimeout, fn) => fn(),
   },
 })
