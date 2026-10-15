@@ -98,9 +98,14 @@ const useAuthStore = create((set, get) => ({
     }
     // Toutes les tentatives ont échoué sans qu'il s'agisse d'une session
     // invalide (souci réseau probable, ex. juste après le lancement de
-    // l'app) — profileError permet à PrivateRoute de proposer un nouvel
-    // essai plutôt que de bloquer définitivement sur "Accès refusé".
-    set({ profile: null, role: null, profileError: true })
+    // l'app, ou revalidation en arrière-plan au retour sur l'onglet). Si on
+    // avait déjà un profil valide pour ce même utilisateur, on le garde tel
+    // quel plutôt que de le vider — sinon une simple coupure réseau passagère
+    // éjectait l'utilisateur de la page qu'il était en train de consulter.
+    // profileError permet quand même à PrivateRoute de proposer un nouvel
+    // essai si aucun profil n'a jamais pu être chargé.
+    const dejaUnProfil = get().profile?.id === userId
+    set(dejaUnProfil ? { profileError: true } : { profile: null, role: null, profileError: true })
   },
 
   // ── Connexion : email, téléphone ou username ────────────
@@ -229,7 +234,17 @@ async function bootstrapAuth() {
     if (event === 'INITIAL_SESSION') return  // déjà géré ci-dessus
 
     if (session) {
-      useAuthStore.setState({ session, user: session.user, loading: true })
+      // Supabase déclenche TOKEN_REFRESHED à chaque fois qu'un onglet revient
+      // au premier plan (_onVisibilityChanged), même sans vrai changement de
+      // compte. Ne repasser "loading" à true que pour une session réellement
+      // nouvelle (connexion, changement de compte) — sinon chaque retour sur
+      // l'onglet faisait disparaître toute la page derrière un spinner plein
+      // écran le temps de recharger le profil, PrivateRoute bloquant tout
+      // affichage tant que loading est true. On garde le profil déjà en
+      // mémoire pendant la revalidation silencieuse en arrière-plan.
+      const dejaConnecteMemeCompte = useAuthStore.getState().user?.id === session.user.id
+      if (!dejaConnecteMemeCompte) useAuthStore.setState({ loading: true })
+      useAuthStore.setState({ session, user: session.user })
       await useAuthStore.getState()._fetchProfile(session.user.id)
       useAuthStore.setState({ loading: false })
     } else {
