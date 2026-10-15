@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { getLivreurStats, getActiveDelivery, markDelivered } from '@/services/livreurService'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { enfiler, estErreurReseau } from '@/utils/offlineQueue'
+import { avecDelaiMax } from '@/utils/avecDelaiMax'
 import LienCarte from '@/components/shared/LienCarte'
 import ChatModal from '@/components/shared/ChatModal'
 
@@ -49,14 +50,20 @@ export default function LivreurDashboard() {
 
     async function charger() {
       setLoading(true)
-      const [{ data: s }, { data: cmd }] = await Promise.all([
-        getLivreurStats(user.id),
-        getActiveDelivery(user.id),
-      ])
-      if (!s) toast.error('Impossible de charger les statistiques')
-      setStats(s)
-      setCommandeActive(cmd)
-      setLoading(false)
+      try {
+        const [{ data: s }, { data: cmd }] = await avecDelaiMax(Promise.all([
+          getLivreurStats(user.id),
+          getActiveDelivery(user.id),
+        ]))
+        if (!s) toast.error('Impossible de charger les statistiques')
+        setStats(s)
+        setCommandeActive(cmd)
+      } catch {
+        // Connexion restée bloquée après une reprise d'onglet (voir avecDelaiMax)
+        toast.error('Impossible de charger les statistiques')
+      } finally {
+        setLoading(false)
+      }
     }
 
     charger()

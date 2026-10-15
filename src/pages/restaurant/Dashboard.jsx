@@ -5,6 +5,7 @@ import { useMyRestaurant } from '@/hooks/useMyRestaurant'
 import { getDashboardData } from '@/services/menuService'
 import { getVersementsRestaurant } from '@/services/adminService'
 import { formatCurrency, formatCurrencyShort } from '@/utils/formatCurrency'
+import { avecDelaiMax } from '@/utils/avecDelaiMax'
 
 // Noms des jours en français abrégés, indexés de 0 (dim) à 6 (sam)
 const JOURS_ABBR = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
@@ -136,10 +137,10 @@ export default function Dashboard() {
     async function charger(silencieux = false) {
       if (!silencieux) setLoading(true)
       try {
-        const [{ data, error }, { data: vers }] = await Promise.all([
+        const [{ data, error }, { data: vers }] = await avecDelaiMax(Promise.all([
           getDashboardData(restaurant.id),
           getVersementsRestaurant(restaurant.id),
-        ])
+        ]))
         if (annule) return
         if (error) toast.error('Impossible de charger le tableau de bord')
         else       setKpis(data)

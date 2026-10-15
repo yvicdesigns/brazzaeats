@@ -7,6 +7,7 @@ import toast from 'react-hot-toast'
 import { getAdminStats, getRecentOrders } from '@/services/adminService'
 import { formatCurrency, formatCurrencyShort } from '@/utils/formatCurrency'
 import { STATUTS_COMMANDE } from '@/utils/constants'
+import { avecDelaiMax } from '@/utils/avecDelaiMax'
 
 const JOURS_ABBR = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
 
@@ -164,14 +165,20 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function charger() {
       setLoading(true)
-      const [{ data: s }, { data: cmds }] = await Promise.all([
-        getAdminStats(),
-        getRecentOrders(5),
-      ])
-      if (!s) toast.error('Impossible de charger les statistiques')
-      setStats(s)
-      setDernieresCmd(cmds ?? [])
-      setLoading(false)
+      try {
+        const [{ data: s }, { data: cmds }] = await avecDelaiMax(Promise.all([
+          getAdminStats(),
+          getRecentOrders(5),
+        ]))
+        if (!s) toast.error('Impossible de charger les statistiques')
+        setStats(s)
+        setDernieresCmd(cmds ?? [])
+      } catch {
+        // Connexion restée bloquée après une reprise d'onglet (voir avecDelaiMax)
+        toast.error('Impossible de charger les statistiques')
+      } finally {
+        setLoading(false)
+      }
     }
     charger()
     const timer = setInterval(charger, 5 * 60 * 1000)

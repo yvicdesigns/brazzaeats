@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '@/supabase/client'
+import { avecDelaiMax } from '@/utils/avecDelaiMax'
 
 // ------------------------------------------------------------
 // Store Zustand — état d'authentification global (singleton)
@@ -9,19 +10,6 @@ import { supabase } from '@/supabase/client'
 function phoneToFakeEmail(telephone) {
   const digits = telephone.replace(/[^0-9]/g, '')
   return `p${digits}@brazzaeats.local`
-}
-
-// ── Empêche un appel Supabase de bloquer l'app indéfiniment ──
-// Le verrou de session interne de Supabase peut rester figé après une
-// reprise d'app en arrière-plan (déjà observé côté web sur le dashboard
-// restaurant) — sans garde-fou ici, "loading" ne repasserait jamais à
-// false et l'app ENTIÈRE resterait bloquée sur l'écran de chargement,
-// pas juste une page.
-function avecDelaiMax(promise, ms = 10000) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error('Délai dépassé')), ms)),
-  ])
 }
 
 // ── Distingue une session réellement invalide/expirée d'un simple souci

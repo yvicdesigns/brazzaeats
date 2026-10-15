@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { getMyRestaurant } from '@/services/menuService'
+import { avecDelaiMax } from '@/utils/avecDelaiMax'
 
 /**
  * Hook utilitaire partagé par toutes les pages du dashboard restaurant.
@@ -26,10 +27,16 @@ export function useMyRestaurant() {
     async function charger() {
       // Ne montrer le spinner que si on n'a pas encore de données
       if (!restaurant) setLoading(true)
-      const { data, error: err } = await getMyRestaurant(user.id)
-      setRestaurant(data)
-      setError(err)
-      setLoading(false)
+      try {
+        const { data, error: err } = await avecDelaiMax(getMyRestaurant(user.id))
+        setRestaurant(data)
+        setError(err)
+      } catch (err) {
+        // Connexion restée bloquée après une reprise d'onglet (voir avecDelaiMax)
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
     }
 
     charger()
