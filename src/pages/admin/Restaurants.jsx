@@ -212,17 +212,25 @@ function DetailRestaurant({ restaurant, ouvert, onValider, onSuspendre, onModifi
           )}
         </div>
 
-        {/* Supprimer — action destructive séparée */}
-        <button
-          onClick={() => onSupprimer(restaurant)}
-          disabled={loading}
-          className="w-full flex items-center justify-center gap-1.5 border border-red-200
-                     text-red-500 text-xs font-bold py-2.5 rounded-xl hover:bg-red-50
-                     transition-colors disabled:opacity-60"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-          Supprimer définitivement
-        </button>
+        {/* Supprimer — action destructive séparée, réservée aux restaurants
+            déjà suspendus (évite de supprimer définitivement un restaurant
+            encore en activité) */}
+        {restaurant.statut === 'suspendu' ? (
+          <button
+            onClick={() => onSupprimer(restaurant)}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-1.5 border border-red-200
+                       text-red-500 text-xs font-bold py-2.5 rounded-xl hover:bg-red-50
+                       transition-colors disabled:opacity-60"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Supprimer définitivement
+          </button>
+        ) : (
+          <p className="text-center text-[11px] text-gray-400">
+            Suspendez ce restaurant pour pouvoir le supprimer définitivement
+          </p>
+        )}
       </div>
     </div>
   )
@@ -544,12 +552,13 @@ export default function AdminRestaurants() {
   // ── Suppression restaurant ─────────────────────────────
   async function handleSupprimer(restaurant) {
     const confirme = window.confirm(
-      `Supprimer définitivement "${restaurant.nom}" ?\n\nCette action est irréversible — le restaurant, son menu et son compte seront effacés.`
+      `Supprimer définitivement "${restaurant.nom}" ?\n\nCette action est irréversible — le restaurant, son menu, ses commandes, ` +
+      `son historique de comptabilité (versements) et son compte seront effacés pour toujours.`
     )
     if (!confirme) return
 
     setActionLoadingId(restaurant.id)
-    const { error } = await deleteRestaurant(restaurant.id, restaurant.owner_id)
+    const { error } = await deleteRestaurant(restaurant.id)
     setActionLoadingId(null)
 
     if (error) { toast.error('Erreur : ' + error); return }

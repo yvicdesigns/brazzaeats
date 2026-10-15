@@ -6,6 +6,7 @@ import { useRestaurantNotifications } from '@/hooks/useRestaurantNotifications'
 import { useAuth } from '@/hooks/useAuth'
 import AlarmeNouvelleCommande from '@/components/restaurant/AlarmeNouvelleCommande'
 import BandeauHorsLigne from '@/components/shared/BandeauHorsLigne'
+import BandeauSuppressionProgrammee from '@/components/shared/BandeauSuppressionProgrammee'
 
 const NAV_ITEMS = [
   { to: '/restaurant/dashboard',   label: 'Dashboard',   Icon: LayoutDashboard  },
@@ -47,6 +48,7 @@ export default function RestaurantLayout() {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <BandeauHorsLigne />
+      <BandeauSuppressionProgrammee />
 
       {/* ── Sidebar desktop (md+) ───────────────────────── */}
       <aside className="hidden md:flex flex-col w-56 bg-white border-r border-gray-200

@@ -360,14 +360,13 @@ export async function adminUpdateRestaurant(id, updates) {
 }
 
 /**
- * Supprime un restaurant et son compte auth associé.
- * Supprime : restaurant → profil → compte auth (dans cet ordre).
+ * Supprime définitivement un restaurant en cascade (commandes, menu, promos,
+ * versements, avis...) ainsi que le profil et le compte auth du propriétaire.
  * @param {string} restaurantId
- * @param {string} ownerId — UUID du propriétaire pour supprimer le compte auth
  */
-export async function deleteRestaurant(restaurantId, ownerId) {
+export async function deleteRestaurant(restaurantId) {
   try {
-    await appelerAdminUsers('deleteRestaurant', { restaurantId, ownerId })
+    await appelerAdminUsers('deleteRestaurant', { restaurantId })
     return { error: null }
   } catch (err) {
     return { error: err.message }

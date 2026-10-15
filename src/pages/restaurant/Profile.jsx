@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Loader2, ImagePlus, Save, ToggleLeft, ToggleRight, Video, X, UploadCloud, LogOut } from 'lucide-react'
+import { Loader2, ImagePlus, Save, ToggleLeft, ToggleRight, Video, X, UploadCloud, LogOut, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useMyRestaurant } from '@/hooks/useMyRestaurant'
 import { useAuth } from '@/hooks/useAuth'
@@ -245,6 +245,35 @@ export default function Profile() {
   async function handleLogout() {
     await logout()
     navigate('/login', { replace: true })
+  }
+
+  // ── Suppression du restaurant (différée 30 jours) ────────
+  async function handleSupprimerRestaurant() {
+    const confirme = window.confirm(
+      'Supprimer votre restaurant ?\n\n' +
+      "Il disparaîtra immédiatement de l'application, mais vos données seront conservées " +
+      '30 jours — vous pourrez annuler la suppression en revenant ici pendant ce délai. ' +
+      'Passé ce délai, tout sera effacé définitivement.'
+    )
+    if (!confirme) return
+
+    const { data, error } = await updateRestaurant(restaurant.id, {
+      deleted_at: new Date().toISOString(),
+      statut:     'suspendu',
+    })
+    if (error) { toast.error('Erreur : ' + error); return }
+    setRestaurant(data)
+    toast.success('Restaurant supprimé — vous pouvez annuler pendant 30 jours')
+  }
+
+  async function handleRestaurerRestaurant() {
+    const { data, error } = await updateRestaurant(restaurant.id, {
+      deleted_at: null,
+      statut:     'actif',
+    })
+    if (error) { toast.error('Erreur : ' + error); return }
+    setRestaurant(data)
+    toast.success('Suppression annulée — votre restaurant est restauré')
   }
 
   // ── Chargement ─────────────────────────────────────────
@@ -709,6 +738,49 @@ export default function Profile() {
         <div className="bg-white rounded-2xl p-5 shadow-card">
           <h2 className="font-bold text-gray-800 mb-4">Notifications</h2>
           <ReglagesNotifications />
+        </div>
+      </div>
+
+      {/* ════════════════════════════════════════
+          Zone dangereuse
+      ════════════════════════════════════════ */}
+      <div className="px-4 mt-5">
+        <div className="bg-white rounded-2xl p-5 shadow-card border border-red-100">
+          <h2 className="font-bold text-red-600 mb-1">Zone dangereuse</h2>
+          {restaurant?.deleted_at ? (
+            <>
+              <p className="text-sm text-gray-500 mb-4">
+                Suppression définitive prévue le{' '}
+                {new Date(
+                  new Date(restaurant.deleted_at).setDate(new Date(restaurant.deleted_at).getDate() + 30)
+                ).toLocaleDateString('fr-FR')}. Vous pouvez encore annuler.
+              </p>
+              <button
+                onClick={handleRestaurerRestaurant}
+                className="w-full flex items-center justify-center gap-2 bg-brand-500 text-white
+                           rounded-2xl py-3.5 text-sm font-bold hover:bg-brand-600 transition-colors
+                           min-h-[52px]"
+              >
+                Annuler la suppression
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-gray-500 mb-4">
+                Supprimez votre restaurant — il disparaîtra de l'application immédiatement,
+                avec 30 jours pour annuler avant l'effacement définitif.
+              </p>
+              <button
+                onClick={handleSupprimerRestaurant}
+                className="w-full flex items-center justify-center gap-2 bg-white border border-red-200
+                           text-red-500 rounded-2xl py-3.5 text-sm font-bold hover:bg-red-50
+                           transition-colors min-h-[52px]"
+              >
+                <Trash2 className="w-4 h-4" strokeWidth={1.8} />
+                Supprimer mon restaurant
+              </button>
+            </>
+          )}
         </div>
       </div>
 
