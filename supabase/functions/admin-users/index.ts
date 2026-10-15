@@ -112,7 +112,21 @@ Deno.serve(async (req) => {
 
         const { error: restoError } = await supabaseAdmin
           .from('restaurants').delete().eq('id', restaurantId)
-        if (restoError) throw restoError
+        if (restoError) {
+          // Contrainte de clé étrangère : des commandes référencent encore ce
+          // restaurant — les supprimer effacerait l'historique (comptabilité,
+          // versements...). On le signale clairement plutôt que de renvoyer
+          // l'erreur Postgres brute ; l'admin doit suspendre le restaurant
+          // au lieu de le supprimer.
+          if (restoError.code === '23503') {
+            throw new Error(
+              'Ce restaurant a des commandes dans son historique : impossible de le ' +
+              'supprimer sans perdre ces données. Suspendez-le plutôt pour le retirer ' +
+              "de l'application."
+            )
+          }
+          throw restoError
+        }
 
         await supabaseAdmin.from('profiles').delete().eq('id', ownerId)
         await supabaseAdmin.auth.admin.deleteUser(ownerId)
