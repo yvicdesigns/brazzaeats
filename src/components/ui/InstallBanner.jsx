@@ -61,7 +61,7 @@ export default function InstallBanner() {
   return (
     <div
       className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50
-                 w-[calc(100%-2rem)] max-w-sm
+                 w-[calc(100%-2rem)] max-w-sm pointer-events-none
                  bg-white border border-gray-200 rounded-2xl shadow-xl
                  flex items-center gap-3 px-4 py-3
                  animate-in fade-in slide-in-from-bottom-4 duration-300"
@@ -88,7 +88,7 @@ export default function InstallBanner() {
         onClick={handleInstall}
         className="shrink-0 flex items-center gap-1.5 bg-brand-500 text-white
                    text-xs font-bold px-3 py-2 rounded-xl hover:bg-brand-600
-                   transition-colors min-h-[36px]"
+                   transition-colors min-h-[36px] pointer-events-auto"
       >
         <Download className="w-3.5 h-3.5" />
         Installer
@@ -98,7 +98,7 @@ export default function InstallBanner() {
       <button
         onClick={handleDismiss}
         className="shrink-0 p-1.5 rounded-xl hover:bg-gray-100 transition-colors
-                   text-gray-400 hover:text-gray-600"
+                   text-gray-400 hover:text-gray-600 pointer-events-auto"
         aria-label="Plus tard"
       >
         <X className="w-4 h-4" />
