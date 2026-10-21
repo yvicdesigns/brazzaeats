@@ -16,11 +16,11 @@ const JOURS_NOUVEAU = 14
 // ── Catégories mises en avant sur l'accueil ────────────────
 // `valeur: null` = « Tous », sinon doit correspondre à restaurants.categorie
 const CATEGORIES = [
-  { valeur: null,                 label: 'Tous',              Icone: UtensilsCrossed, couleur: '#0B6E4F' },
-  { valeur: 'Cuisine africaine',  label: 'Cuisine africaine', Icone: Drumstick,       couleur: '#B5451F' },
-  { valeur: 'Fast Food',          label: 'Fast Food',         Icone: Sandwich,        couleur: '#B8721A' },
-  { valeur: 'Grillades',          label: 'Grillades',         Icone: Flame,           couleur: '#C2410C' },
-  { valeur: 'Salades',            label: 'Salades',           Icone: Salad,           couleur: '#1E8A5C' },
+  { valeur: null,                 label: 'Tous',              Icone: UtensilsCrossed, couleur: '#085028' }, // vert du logo
+  { valeur: 'Cuisine africaine',  label: 'Cuisine africaine', Icone: Drumstick,       couleur: '#C34F23' }, // terracotta du logo
+  { valeur: 'Fast Food',          label: 'Fast Food',         Icone: Sandwich,        couleur: '#D79F05' }, // jaune du logo (foncé)
+  { valeur: 'Grillades',          label: 'Grillades',         Icone: Flame,           couleur: '#6D2C14' }, // terracotta foncé
+  { valeur: 'Salades',            label: 'Salades',           Icone: Salad,           couleur: '#11AC56' }, // vert du logo (clair)
 ]
 
 const SEGMENTS = [

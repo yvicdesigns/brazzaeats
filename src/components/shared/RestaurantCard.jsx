@@ -3,7 +3,7 @@ import { Star, MapPin } from 'lucide-react'
 import { isRestaurantOpen, getProchainHoraire } from '@/services/restaurantService'
 
 const JOURS_NOUVEAU = 14
-const COULEUR_INITIALE = '#0B6E4F'
+const COULEUR_INITIALE = '#085028'
 
 /**
  * Carte restaurant affichée dans la liste Home.

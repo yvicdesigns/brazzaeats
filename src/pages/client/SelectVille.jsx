@@ -60,13 +60,11 @@ export default function SelectVille({ onSelect }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-500 to-orange-600 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-brand-500 to-terracotta-600 flex flex-col">
 
       {/* Header */}
       <div className="px-6 pt-16 pb-8 text-center text-white">
-        <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <span className="text-3xl">🍽️</span>
-        </div>
+        <img src="/icons/icon-192x192.png" alt="Zandofood" className="w-16 h-16 rounded-2xl mx-auto mb-4 shadow-lg" />
         <h1 className="text-3xl font-black mb-2">Zandofood</h1>
         <p className="text-white/80 text-base">Dans quelle ville êtes-vous ?</p>
       </div>

@@ -8,21 +8,22 @@ export default {
 
   theme: {
     extend: {
-      // ── Palette Zandofood — vert, adoptée depuis la maquette
-      // de suivi de livraison (2026-09). Remplace l'ancien orange.
+      // ── Palette Zandofood — extraite directement du logo (vert, jaune,
+      // terracotta), 2026-10-21. 500 = couleur exacte du logo pour chaque
+      // teinte ; le reste de la rampe est calculé proportionnellement.
       colors: {
         brand: {
-          50:  '#EAF7EF',
-          100: '#D3EEDD',
-          200: '#A8DDBE',
-          300: '#74C79B',
-          400: '#3DAB79',
-          500: '#12925F', // Couleur principale (theme_color PWA)
-          600: '#0B6E4F',
-          700: '#0A5940',
-          800: '#0A4633',
-          900: '#0A3A2B',
-          950: '#052017',
+          50:  '#ECFDF3',
+          100: '#C9FADF',
+          200: '#84F3B5',
+          300: '#38EB87',
+          400: '#11AC56',
+          500: '#085028', // Vert exact du logo (theme_color PWA)
+          600: '#074221',
+          700: '#053219',
+          800: '#042512',
+          900: '#031A0D',
+          950: '#021209',
         },
         // Accent "en direct" (moto en mouvement, badges live, succès)
         live: {
@@ -33,14 +34,33 @@ export default {
           500: '#2AC479',
           600: '#1EA164',
         },
-        // Chaleur locale (avis étoiles, alertes douces) — anciennement "secondary"
+        // Jaune exact du logo (avis étoiles, badges, alertes douces)
         amber: {
-          50:  '#FDF6EA',
-          100: '#FAEBCE',
-          300: '#F0C57D',
-          400: '#E8A23D',
-          500: '#D98B22',
-          600: '#B8721A',
+          50:  '#FFFCF3',
+          100: '#FEF6DE',
+          200: '#FDEAB4',
+          300: '#FCDC85',
+          400: '#FACC4C',
+          500: '#F9BC14', // Jaune exact du logo
+          600: '#D79F05',
+          700: '#A37804',
+          800: '#795903',
+          900: '#574002',
+          950: '#3A2B01',
+        },
+        // Terracotta — nouvelle couleur d'accent du logo (2026-10)
+        terracotta: {
+          50:  '#FDF7F5',
+          100: '#FAEAE4',
+          200: '#F4CFC1',
+          300: '#EDB09A',
+          400: '#E48C6B',
+          500: '#DC683C', // Terracotta exact du logo
+          600: '#C34F23',
+          700: '#933C1A',
+          800: '#6D2C14',
+          900: '#4E200E',
+          950: '#341509',
         },
       },
 

@@ -76,10 +76,7 @@ export default function Login() {
 
         {/* Logo */}
         <div className="mb-8 text-center">
-          <div className="w-16 h-16 bg-brand-500 rounded-2xl flex items-center justify-center
-                          mx-auto mb-4 shadow-lg">
-            <span className="text-3xl">🍽️</span>
-          </div>
+          <img src="/icons/icon-192x192.png" alt="Zandofood" className="w-16 h-16 rounded-2xl mx-auto mb-4 shadow-lg" />
           <h1 className="text-2xl font-black text-gray-900">Zandofood</h1>
           <p className="text-sm text-gray-500 mt-1">Commandez à Brazzaville</p>
         </div>

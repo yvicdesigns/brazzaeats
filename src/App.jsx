@@ -67,10 +67,7 @@ function FullScreenLoader() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="text-center">
-        <div className="w-12 h-12 bg-brand-500 rounded-2xl flex items-center justify-center
-                        mx-auto mb-4">
-          <span className="text-xl">🍽️</span>
-        </div>
+        <img src="/icons/icon-192x192.png" alt="Zandofood" className="w-12 h-12 rounded-2xl mx-auto mb-4 shadow-md" />
         <Loader2 className="w-6 h-6 text-brand-500 animate-spin mx-auto" strokeWidth={1.5} />
       </div>
     </div>

@@ -14,7 +14,7 @@ const config: CapacitorConfig = {
     },
     StatusBar: {
       style: 'DARK',
-      backgroundColor: '#0B6E4F',
+      backgroundColor: '#085028',
       overlaysWebView: false,
     },
     // resize:'none' — le WebView ne se redimensionne plus du tout à

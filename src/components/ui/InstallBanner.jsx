@@ -69,9 +69,7 @@ export default function InstallBanner() {
       aria-label="Installer Zandofood"
     >
       {/* Icône */}
-      <div className="w-10 h-10 bg-brand-500 rounded-xl flex items-center justify-center shrink-0">
-        <span className="text-xl">🍽️</span>
-      </div>
+      <img src="/icons/icon-192x192.png" alt="" className="w-10 h-10 rounded-xl shrink-0" />
 
       {/* Texte */}
       <div className="flex-1 min-w-0">
