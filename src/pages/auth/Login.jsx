@@ -72,13 +72,13 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col overflow-y-auto">
-      <div className="flex-1 flex flex-col items-center justify-start px-6 pt-16 pb-8">
+      <div className="flex-1 flex flex-col items-center justify-start px-6 pt-10 pb-8">
 
-        {/* Logo */}
-        <div className="mb-8 text-center">
-          <img src="/icons/icon-192x192.png" alt="Zandofood" className="w-16 h-16 rounded-2xl mx-auto mb-4 shadow-lg" />
-          <h1 className="text-2xl font-black text-gray-900">Zandofood</h1>
-          <p className="text-sm text-gray-500 mt-1">Commandez à Brazzaville</p>
+        {/* Logo — le logo Zando est lui-même le nom stylisé, il domine ; le texte
+            qui l'accompagne reste petit, juste là pour la lisibilité. */}
+        <div className="mb-6 text-center">
+          <img src="/logo-zando.svg" alt="Zandofood" className="w-60 max-w-[68vw] mx-auto" />
+          <p className="text-sm text-gray-500 mt-2">Commandez à Brazzaville</p>
         </div>
 
         <div className="w-full max-w-sm">

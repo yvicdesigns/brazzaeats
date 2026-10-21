@@ -62,11 +62,13 @@ export default function SelectVille({ onSelect }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand-500 to-terracotta-600 flex flex-col">
 
-      {/* Header */}
-      <div className="px-6 pt-16 pb-8 text-center text-white">
-        <img src="/icons/icon-192x192.png" alt="Zandofood" className="w-16 h-16 rounded-2xl mx-auto mb-4 shadow-lg" />
-        <h1 className="text-3xl font-black mb-2">Zandofood</h1>
-        <p className="text-white/80 text-base">Dans quelle ville êtes-vous ?</p>
+      {/* Header — le logo (fond blanc pour qu'il ressorte sur le dégradé) domine ;
+          le texte qui l'accompagne reste court, juste pour guider. */}
+      <div className="px-6 pt-12 pb-8 text-center text-white">
+        <div className="inline-block bg-white rounded-3xl px-6 py-5 shadow-lg mb-5">
+          <img src="/logo-zando.svg" alt="Zandofood" className="w-48 max-w-[55vw]" />
+        </div>
+        <p className="text-white/90 text-base font-medium">Dans quelle ville êtes-vous ?</p>
       </div>
 
       {/* Card villes */}
