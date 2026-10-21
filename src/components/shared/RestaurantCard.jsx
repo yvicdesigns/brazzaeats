@@ -23,7 +23,7 @@ export default function RestaurantCard({ restaurant }) {
   return (
     <Link
       to={`/restaurant/${restaurant.id}`}
-      className="block bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-card-lg
+      className="relative block bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-card-lg
                  active:scale-[0.98] transition-all duration-150"
     >
       {/* ── Visuel (vidéo / couverture / placeholder) ───── */}
@@ -48,17 +48,6 @@ export default function RestaurantCard({ restaurant }) {
           <div className="w-full h-full flex items-center justify-center bg-brand-50">
             <span className="text-5xl select-none">🍽️</span>
           </div>
-        )}
-
-        {/* Badge logo rond (superposé en bas à gauche de la couverture) */}
-        {afficherBadgeLogo && (
-          <img
-            src={restaurant.logo_url}
-            alt=""
-            className="absolute bottom-3 left-3 w-12 h-12 rounded-full object-cover
-                       ring-2 ring-white shadow-md bg-white"
-            loading="lazy"
-          />
         )}
 
         {/* Overlay fermé */}
@@ -89,10 +78,22 @@ export default function RestaurantCard({ restaurant }) {
 
       {/* ── Informations ─────────────────────────────────── */}
       <div className="p-4">
-        <h3 className={`font-bold text-base leading-snug mb-1 line-clamp-1
-          ${ouvert ? 'text-gray-900' : 'text-gray-500'}`}>
-          {restaurant.nom}
-        </h3>
+        {/* Badge logo (à cheval sur la frontière photo/texte) + nom, côte à côte */}
+        <div className={`flex items-center gap-3 ${afficherBadgeLogo ? '-mt-11 mb-2' : 'mb-1'}`}>
+          {afficherBadgeLogo && (
+            <img
+              src={restaurant.logo_url}
+              alt=""
+              className="w-14 h-14 rounded-full object-cover shrink-0 z-10
+                         ring-4 ring-white shadow-md bg-white"
+              loading="lazy"
+            />
+          )}
+          <h3 className={`font-bold text-base leading-snug line-clamp-1 flex-1 min-w-0
+            ${ouvert ? 'text-gray-900' : 'text-gray-500'}`}>
+            {restaurant.nom}
+          </h3>
+        </div>
 
         {restaurant.description && (
           <p className="text-gray-500 text-sm line-clamp-1 mb-3">
