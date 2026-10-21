@@ -1,6 +1,9 @@
 import { Link } from 'react-router-dom'
-import { Star, Clock, MapPin } from 'lucide-react'
+import { Star, MapPin } from 'lucide-react'
 import { isRestaurantOpen, getProchainHoraire } from '@/services/restaurantService'
+
+const JOURS_NOUVEAU = 14
+const COULEUR_INITIALE = '#0B6E4F'
 
 /**
  * Carte restaurant affichée dans la liste Home.
@@ -11,14 +14,24 @@ export default function RestaurantCard({ restaurant }) {
   const ouvert    = isRestaurantOpen(restaurant.horaires)
   const prochainH = ouvert ? null : getProchainHoraire(restaurant.horaires)
   const quartier  = restaurant.adresse?.split(',')[1]?.trim() ?? restaurant.adresse ?? ''
-  const note      = restaurant.note_moyenne
+
+  // Note réelle seulement si elle existe vraiment — un "0,0" sur un restaurant
+  // qui vient de s'inscrire se lit comme "mauvais", pas comme "nouveau".
+  const noteReelle = restaurant.note_moyenne != null && restaurant.note_moyenne > 0
+    ? restaurant.note_moyenne
+    : null
+
+  const estNouveau = !noteReelle && restaurant.created_at
+    ? (Date.now() - new Date(restaurant.created_at).getTime()) / 86_400_000 <= JOURS_NOUVEAU
+    : !noteReelle
 
   // Couverture dédiée si fournie, sinon on retombe sur le logo (comportement historique :
   // beaucoup de restaurants n'ont qu'un logo_url, utilisé comme visuel principal).
   const couverture = restaurant.photo_couverture_url || restaurant.logo_url
-  // Badge rond affiché seulement quand couverture ET logo sont distincts — sinon ce serait
-  // le même visuel dupliqué en plus petit par-dessus lui-même.
-  const afficherBadgeLogo = !!(restaurant.photo_couverture_url && restaurant.logo_url)
+  // Dès qu'il y a une couverture distincte du logo, on affiche un badge rond —
+  // le vrai logo s'il existe, sinon une initiale colorée, pour que la carte
+  // ne paraisse jamais "cassée" faute d'avoir reçu les deux images.
+  const afficherBadge = !!restaurant.photo_couverture_url
 
   return (
     <Link
@@ -78,18 +91,31 @@ export default function RestaurantCard({ restaurant }) {
 
       {/* ── Informations ─────────────────────────────────── */}
       <div className="p-4">
-        {/* Badge logo (à cheval sur la frontière photo/texte) + nom, côte à côte */}
-        <div className={`flex items-end gap-3 ${afficherBadgeLogo ? '-mt-11 mb-2' : 'mb-1'}`}>
-          {afficherBadgeLogo && (
-            <img
-              src={restaurant.logo_url}
-              alt=""
-              className="w-14 h-14 rounded-full object-cover shrink-0 z-10
-                         ring-4 ring-white shadow-md bg-white"
-              loading="lazy"
-            />
+        {/* Badge (logo ou initiale), à cheval sur la frontière photo/texte, + nom */}
+        <div className={`flex items-end gap-3 ${afficherBadge ? '-mt-11 mb-2' : 'mb-1'}`}>
+          {afficherBadge && (
+            restaurant.logo_url ? (
+              <img
+                src={restaurant.logo_url}
+                alt=""
+                className="w-14 h-14 rounded-full object-cover shrink-0 z-10
+                           ring-4 ring-white shadow-md bg-white"
+                loading="lazy"
+              />
+            ) : (
+              <div
+                className="w-14 h-14 rounded-full shrink-0 z-10 flex items-center justify-center
+                           ring-4 ring-white shadow-md"
+                style={{ backgroundColor: COULEUR_INITIALE }}
+                aria-hidden="true"
+              >
+                <span className="font-['Unbounded'] font-bold text-lg text-white">
+                  {restaurant.nom?.trim().charAt(0).toUpperCase() || '?'}
+                </span>
+              </div>
+            )
           )}
-          <h3 className={`font-bold text-base leading-snug line-clamp-1 flex-1 min-w-0
+          <h3 className={`font-['Manrope'] font-extrabold text-base leading-snug line-clamp-1 flex-1 min-w-0
             ${ouvert ? 'text-gray-900' : 'text-gray-500'}`}>
             {restaurant.nom}
           </h3>
@@ -101,25 +127,36 @@ export default function RestaurantCard({ restaurant }) {
           </p>
         )}
 
-        {/* Méta-données : note · temps · quartier */}
-        <div className="flex items-center gap-4 text-sm">
-          <span className="flex items-center gap-1 text-yellow-500 font-semibold">
-            <Star className="w-4 h-4 fill-current" />
-            <span className="text-gray-800">
-              {note != null ? note.toFixed(1) : '—'}
+        {/* Méta-données : note réelle ou "Nouveau" · prix · quartier */}
+        <div className="flex items-center gap-3 text-sm">
+          {noteReelle ? (
+            <span className="flex items-center gap-1 text-yellow-500 font-semibold shrink-0">
+              <Star className="w-4 h-4 fill-current" />
+              <span className="text-gray-800">{noteReelle.toFixed(1)}</span>
             </span>
-          </span>
+          ) : estNouveau ? (
+            <span className="shrink-0 bg-amber-50 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">
+              Nouveau
+            </span>
+          ) : null}
 
-          <span className="flex items-center gap-1 text-gray-500">
-            <Clock className="w-4 h-4" />
-            20-35 min
-          </span>
+          {restaurant.price_tier != null && (
+            <>
+              <span className="text-gray-300">·</span>
+              <span className="text-gray-700 font-semibold shrink-0">
+                {'₣'.repeat(restaurant.price_tier)}
+              </span>
+            </>
+          )}
 
           {quartier && (
-            <span className="flex items-center gap-1 text-gray-500 truncate">
-              <MapPin className="w-4 h-4 shrink-0" />
-              <span className="truncate max-w-[90px]">{quartier}</span>
-            </span>
+            <>
+              <span className="text-gray-300">·</span>
+              <span className="flex items-center gap-1 text-gray-500 truncate min-w-0">
+                <MapPin className="w-4 h-4 shrink-0" />
+                <span className="truncate">{quartier}</span>
+              </span>
+            </>
           )}
         </div>
       </div>

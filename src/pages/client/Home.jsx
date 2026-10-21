@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Search, WifiOff, MessageCircle, ChevronLeft, ChevronRight, UtensilsCrossed } from 'lucide-react'
+import {
+  Search, WifiOff, MessageCircle,
+  UtensilsCrossed, Drumstick, Sandwich, Flame, Salad, MapPin,
+} from 'lucide-react'
 import toast from 'react-hot-toast'
 import RestaurantCard from '@/components/shared/RestaurantCard'
 import { getRestaurants, isRestaurantOpen } from '@/services/restaurantService'
@@ -8,39 +11,40 @@ import { useVille } from '@/hooks/useVille'
 import SelectVille from './SelectVille'
 import { VILLES_CONGO } from '@/utils/constants'
 
+const JOURS_NOUVEAU = 14
+
 // ── Catégories mises en avant sur l'accueil ────────────────
 // `valeur: null` = « Tous », sinon doit correspondre à restaurants.categorie
 const CATEGORIES = [
-  { valeur: null,                  label: 'Tous',              emoji: '🍽️' },
-  { valeur: 'Cuisine africaine',   label: 'Cuisine africaine', emoji: '🍗' },
-  { valeur: 'Fast Food',           label: 'Fast Food',         emoji: '🍔' },
-  { valeur: 'Grillades',           label: 'Grillades',         emoji: '🍖' },
-  { valeur: 'Salades',             label: 'Salades',           emoji: '🥗' },
+  { valeur: null,                 label: 'Tous',              Icone: UtensilsCrossed, couleur: '#0B6E4F' },
+  { valeur: 'Cuisine africaine',  label: 'Cuisine africaine', Icone: Drumstick,       couleur: '#B5451F' },
+  { valeur: 'Fast Food',          label: 'Fast Food',         Icone: Sandwich,        couleur: '#B8721A' },
+  { valeur: 'Grillades',          label: 'Grillades',         Icone: Flame,           couleur: '#C2410C' },
+  { valeur: 'Salades',            label: 'Salades',           Icone: Salad,           couleur: '#1E8A5C' },
 ]
 
-// ── Bandeau promotionnel ────────────────────────────────────
-function BanniereAccueil({ onCommander }) {
+const SEGMENTS = [
+  { valeur: 'tous',    label: 'Tous' },
+  { valeur: 'ouvert',  label: 'Ouvert' },
+  { valeur: 'nouveau', label: 'Nouveau' },
+]
+
+function estRecent(dateIso) {
+  if (!dateIso) return false
+  return (Date.now() - new Date(dateIso).getTime()) / 86_400_000 <= JOURS_NOUVEAU
+}
+
+// ── Bandeau d'info (remplace la bannière promo statique) ───
+function BandeauInfo({ nbOuverts }) {
+  const texte = nbOuverts > 0
+    ? `${nbOuverts} restaurant${nbOuverts > 1 ? 's' : ''} ouvert${nbOuverts > 1 ? 's' : ''} près de chez vous`
+    : 'Restaurants près de chez vous'
+
   return (
-    <div className="px-4 md:px-6 mb-6 max-w-4xl mx-auto">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-yellow-400 to-yellow-500
-                       px-6 py-7 flex items-center">
-        <div className="relative z-10 max-w-[65%]">
-          <h2 className="text-brand-800 font-black text-2xl leading-tight mb-1">
-            Le bonheur<br />se livre.
-          </h2>
-          <p className="text-brand-900/70 text-xs font-medium mb-4">
-            Vos plats préférés, partout avec vous.
-          </p>
-          <button
-            onClick={onCommander}
-            className="bg-brand-700 text-white text-sm font-bold px-4 py-2.5 rounded-xl
-                       hover:bg-brand-800 active:scale-95 transition-all"
-          >
-            Commander →
-          </button>
-        </div>
-        <UtensilsCrossed className="absolute -right-4 -bottom-4 w-32 h-32 text-white/20" strokeWidth={1.5} />
-      </div>
+    <div className="mx-4 md:mx-6 mt-4 max-w-4xl md:mx-auto bg-brand-700 rounded-2xl px-4 py-3
+                     flex items-center gap-2.5">
+      <MapPin className="w-4 h-4 text-amber-400 shrink-0" />
+      <span className="text-white text-[13px] font-semibold">{texte}</span>
     </div>
   )
 }
@@ -48,29 +52,43 @@ function BanniereAccueil({ onCommander }) {
 // ── Pastilles de catégories ─────────────────────────────────
 function CategoriesPills({ actif, onChange }) {
   return (
-    <div className="flex gap-3 px-4 md:px-6 pb-1 overflow-x-auto scrollbar-hide max-w-4xl mx-auto">
-      {CATEGORIES.map(({ valeur, label, emoji }) => {
+    <div className="flex gap-2 px-4 md:px-6 overflow-x-auto scrollbar-hide max-w-4xl mx-auto">
+      {CATEGORIES.map(({ valeur, label, Icone, couleur }) => {
         const estActif = actif === valeur
         return (
           <button
             key={label}
             onClick={() => onChange(valeur)}
-            className="shrink-0 flex flex-col items-center gap-1.5 w-[68px]"
+            className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2.5 rounded-full border
+                        font-['Manrope'] font-bold text-xs whitespace-nowrap transition-colors
+              ${estActif ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-gray-200 text-gray-800'}`}
           >
-            <span
-              className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-colors
-                ${estActif ? 'bg-brand-500' : 'bg-gray-100'}`}
-            >
-              {emoji}
-            </span>
-            <span className={`text-[11px] text-center leading-tight font-medium
-              ${estActif ? 'text-brand-600' : 'text-gray-500'}`}>
-              {label}
-            </span>
-            {estActif && <span className="w-5 h-0.5 bg-brand-500 rounded-full" />}
+            <Icone className="w-3.5 h-3.5" style={{ color: estActif ? '#FFFFFF' : couleur }} />
+            {label}
           </button>
         )
       })}
+    </div>
+  )
+}
+
+// ── Segment Tous / Ouvert / Nouveau ─────────────────────────
+function Segments({ actif, onChange }) {
+  return (
+    <div className="flex gap-1.5 px-4 md:px-6 max-w-4xl mx-auto">
+      {SEGMENTS.map(({ valeur, label }) => (
+        <button
+          key={valeur}
+          onClick={() => onChange(valeur)}
+          className={`px-3 py-1.5 rounded-full font-['Manrope'] font-bold text-[11px] border transition-colors
+            ${actif === valeur
+              ? 'bg-brand-600 border-brand-600 text-white'
+              : 'bg-white border-gray-200 text-gray-700'
+            }`}
+        >
+          {label}
+        </button>
+      ))}
     </div>
   )
 }
@@ -93,102 +111,10 @@ function CarteSkeleton({ className = '' }) {
   )
 }
 
-// ── Section thématique avec défilement horizontal ──────────
-function SectionRow({ titre, emoji, restaurants, loading, nbSkeletons = 4 }) {
-  const scrollRef = useRef(null)
-  const [canLeft,  setCanLeft]  = useState(false)
-  const [canRight, setCanRight] = useState(false)
-
-  const checkArrows = () => {
-    const el = scrollRef.current
-    if (!el) return
-    setCanLeft(el.scrollLeft > 8)
-    setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 8)
-  }
-
-  useEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-    checkArrows()
-    el.addEventListener('scroll', checkArrows, { passive: true })
-    window.addEventListener('resize', checkArrows)
-    return () => {
-      el.removeEventListener('scroll', checkArrows)
-      window.removeEventListener('resize', checkArrows)
-    }
-  }, [restaurants])
-
-  const scroll = (dir) => {
-    scrollRef.current?.scrollBy({ left: dir * 320, behavior: 'smooth' })
-  }
-
-  if (!loading && restaurants.length === 0) return null
-
-  return (
-    <section className="mb-8">
-      {/* En-tête de section */}
-      <div className="flex items-center justify-between px-4 md:px-6 mb-3">
-        <h2 className="font-bold text-gray-900 text-lg md:text-xl flex items-center gap-2">
-          {emoji && <span>{emoji}</span>}
-          {titre}
-        </h2>
-      </div>
-
-      {/* Conteneur défilant */}
-      <div className="relative group/row">
-        {/* Flèche gauche (desktop) */}
-        <button
-          onClick={() => scroll(-1)}
-          aria-label="Précédent"
-          className={`hidden md:flex absolute left-1 top-1/2 -translate-y-1/2 z-10
-                      w-10 h-10 bg-white shadow-lg rounded-full items-center justify-center
-                      border border-gray-100 hover:bg-gray-50 transition-all
-                      ${canLeft ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-        >
-          <ChevronLeft className="w-5 h-5 text-gray-700" />
-        </button>
-
-        {/* Ligne de cartes */}
-        <div
-          ref={scrollRef}
-          className="flex gap-4 overflow-x-auto scrollbar-hide px-4 md:px-6
-                     snap-x snap-mandatory"
-        >
-          {loading
-            ? Array.from({ length: nbSkeletons }).map((_, i) => (
-                <CarteSkeleton key={i} className="w-[72vw] max-w-[300px] md:w-72 snap-start" />
-              ))
-            : restaurants.map(r => (
-                <div key={r.id} className="shrink-0 w-[72vw] max-w-[300px] md:w-72 snap-start">
-                  <RestaurantCard restaurant={r} />
-                </div>
-              ))
-          }
-        </div>
-
-        {/* Flèche droite (desktop) */}
-        <button
-          onClick={() => scroll(1)}
-          aria-label="Suivant"
-          className={`hidden md:flex absolute right-1 top-1/2 -translate-y-1/2 z-10
-                      w-10 h-10 bg-white shadow-lg rounded-full items-center justify-center
-                      border border-gray-100 hover:bg-gray-50 transition-all
-                      ${canRight ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-        >
-          <ChevronRight className="w-5 h-5 text-gray-700" />
-        </button>
-      </div>
-    </section>
-  )
-}
-
-// ── Grille "Tous les restaurants" ──────────────────────────
-function GrilleTous({ restaurants, loading }) {
+// ── Grille unique de restaurants ────────────────────────────
+function GrilleRestaurants({ restaurants, loading }) {
   return (
     <section className="px-4 md:px-6 mb-8">
-      <h2 className="font-bold text-gray-900 text-lg md:text-xl mb-3 flex items-center gap-2">
-        <span>🗺️</span> Tous les restaurants
-      </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {loading
           ? Array.from({ length: 8 }).map((_, i) => <CarteSkeleton key={i} />)
@@ -229,7 +155,6 @@ function GrilleRecherche({ restaurants, loading, search }) {
 // ── Ville sans restaurants ─────────────────────────────────
 function VilleVide({ ville, onChangerVille }) {
   const emoji = VILLES_CONGO.find(v => v.nom === ville)?.emoji ?? '📍'
-  const { contacterSupport: wa } = { contacterSupport: () => contacterSupport() }
 
   return (
     <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
@@ -279,19 +204,29 @@ export default function Home() {
   const [isOffline,   setIsOffline]   = useState(!navigator.onLine)
 
   // Filtres
-  const [search,           setSearch]           = useState('')
-  const [noteMin,          setNoteMin]          = useState(0)
-  const [ouvertMaintenant, setOuvertMaintenant] = useState(false)
-  const [categorieActive,  setCategorieActive]  = useState(null)
-  const grilleRef = useRef(null)
+  const [search,          setSearch]          = useState('')
+  const [categorieActive, setCategorieActive] = useState(null)
+  const [segment,         setSegment]         = useState('tous')
 
-  const modeRecherche = search.trim() !== '' || noteMin > 0 || ouvertMaintenant
+  const modeRecherche = search.trim() !== ''
 
   // Restaurants de la catégorie sélectionnée (null = toutes)
   const tousFiltres = useMemo(
     () => (categorieActive ? tous.filter(r => r.categorie === categorieActive) : tous),
     [tous, categorieActive]
   )
+
+  const nbOuverts = useMemo(
+    () => tousFiltres.filter(r => isRestaurantOpen(r.horaires)).length,
+    [tousFiltres]
+  )
+
+  // Restaurants affichés dans la grille (catégorie + segment Tous/Ouvert/Nouveau)
+  const tousAffiches = useMemo(() => {
+    if (segment === 'ouvert')  return tousFiltres.filter(r => isRestaurantOpen(r.horaires))
+    if (segment === 'nouveau') return tousFiltres.filter(r => estRecent(r.created_at))
+    return tousFiltres
+  }, [tousFiltres, segment])
 
   // ── Surveillance réseau ───────────────────────────────────
   useEffect(() => {
@@ -321,49 +256,18 @@ export default function Home() {
     return () => { cancelled = true }
   }, [ville])
 
-  // ── Sections thématiques (calculées côté client) ──────────
-  const sections = useMemo(() => {
-    if (!tousFiltres.length) return {}
-
-    // Populaires : note >= 4.5, triés par note desc
-    const populaires = [...tousFiltres]
-      .filter(r => (r.note_moyenne ?? 0) >= 4.5)
-      .sort((a, b) => (b.note_moyenne ?? 0) - (a.note_moyenne ?? 0))
-      .slice(0, 10)
-
-    // Ouverts maintenant
-    const ouverts = tousFiltres.filter(r => isRestaurantOpen(r.horaires)).slice(0, 10)
-
-    // Nouveaux : triés par created_at desc
-    const nouveaux = [...tousFiltres]
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-      .slice(0, 10)
-
-    // Mieux notés : note >= 4, triés desc (excluant déjà dans populaires)
-    const mieuxNotes = [...tousFiltres]
-      .filter(r => (r.note_moyenne ?? 0) >= 4 && (r.note_moyenne ?? 0) < 4.5)
-      .sort((a, b) => (b.note_moyenne ?? 0) - (a.note_moyenne ?? 0))
-      .slice(0, 10)
-
-    return { populaires, ouverts, nouveaux, mieuxNotes }
-  }, [tousFiltres])
-
-  // ── Résultats de recherche (filtres actifs) ───────────────
+  // ── Résultats de recherche (texte uniquement) ──────────────
   const resultatsRecherche = useMemo(() => {
     if (!modeRecherche) return []
-    return tousFiltres.filter(r => {
-      const matchSearch = !search.trim() || r.nom.toLowerCase().includes(search.trim().toLowerCase())
-      const matchNote   = noteMin === 0 || (r.note_moyenne ?? 0) >= noteMin
-      const matchOuvert = !ouvertMaintenant || isRestaurantOpen(r.horaires)
-      return matchSearch && matchNote && matchOuvert
-    })
-  }, [tousFiltres, search, noteMin, ouvertMaintenant, modeRecherche])
+    const q = search.trim().toLowerCase()
+    return tousFiltres.filter(r => r.nom.toLowerCase().includes(q))
+  }, [tousFiltres, search, modeRecherche])
 
   // Écran sélection ville — après TOUS les hooks (règle React)
   if (!ville) return <SelectVille onSelect={setVille} />
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-[#F7F5EF] pb-24">
 
       {/* ── Bannière hors-ligne ─────────────────────────── */}
       {isOffline && (
@@ -378,7 +282,7 @@ export default function Home() {
       <header className="bg-brand-500 px-4 md:px-6 pt-12 pb-6 md:pt-8">
         <div className="max-w-4xl mx-auto">
           <p className="text-brand-100 text-xs mb-0.5">Livraison à</p>
-          <h1 className="text-white text-xl font-bold mb-4">{ville} 🇨🇬</h1>
+          <h1 className="font-['Unbounded'] text-white text-xl font-extrabold mb-4">{ville} 🇨🇬</h1>
 
           <div className="relative">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
@@ -399,46 +303,8 @@ export default function Home() {
         <CategoriesPills actif={categorieActive} onChange={setCategorieActive} />
       </div>
 
-      {/* ── Bannière ────────────────────────────────────── */}
-      {!modeRecherche && (
-        <div className="mt-4">
-          <BanniereAccueil onCommander={() => grilleRef.current?.scrollIntoView({ behavior: 'smooth' })} />
-        </div>
-      )}
-
-      {/* ── Filtres ─────────────────────────────────────── */}
-      <div className="flex gap-2 px-4 md:px-6 py-3 overflow-x-auto scrollbar-hide max-w-4xl mx-auto">
-        {[
-          { valeur: 0,   label: 'Tous' },
-          { valeur: 4,   label: '★ 4+' },
-          { valeur: 4.5, label: '★ 4,5+' },
-        ].map(({ valeur, label }) => (
-          <button
-            key={valeur}
-            onClick={() => setNoteMin(valeur)}
-            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors
-              ${noteMin === valeur
-                ? 'bg-brand-500 text-white border-brand-500'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-brand-300'
-              }`}
-          >
-            {label}
-          </button>
-        ))}
-
-        <button
-          onClick={() => setOuvertMaintenant(v => !v)}
-          className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors
-            flex items-center gap-1.5
-            ${ouvertMaintenant
-              ? 'bg-green-500 text-white border-green-500'
-              : 'bg-white text-gray-600 border-gray-200 hover:border-green-300'
-            }`}
-        >
-          <span className={`w-1.5 h-1.5 rounded-full ${ouvertMaintenant ? 'bg-white' : 'bg-green-400'}`} />
-          Ouvert maintenant
-        </button>
-      </div>
+      {/* ── Bandeau d'info ──────────────────────────────── */}
+      {!modeRecherche && <BandeauInfo nbOuverts={nbOuverts} />}
 
       {/* ── Contenu principal ───────────────────────────── */}
       {modeRecherche ? (
@@ -446,55 +312,30 @@ export default function Home() {
         <GrilleRecherche
           restaurants={resultatsRecherche}
           loading={loading}
-          search={search || `note ≥ ${noteMin}`}
+          search={search}
         />
       ) : (
-        // Mode sections thématiques
-        <div className="mt-2">
-          {/* Populaires */}
-          <SectionRow
-            titre="Les plus populaires"
-            emoji="🔥"
-            restaurants={sections.populaires ?? []}
-            loading={loading}
-          />
-
-          {/* Ouverts maintenant */}
-          <SectionRow
-            titre="Ouverts maintenant"
-            emoji="🟢"
-            restaurants={sections.ouverts ?? []}
-            loading={loading}
-          />
-
-          {/* Nouveaux */}
-          <SectionRow
-            titre="Nouveaux restaurants"
-            emoji="✨"
-            restaurants={sections.nouveaux ?? []}
-            loading={loading}
-          />
-
-          {/* Mieux notés */}
-          <SectionRow
-            titre="Bien notés"
-            emoji="⭐"
-            restaurants={sections.mieuxNotes ?? []}
-            loading={loading}
-          />
+        <div className="mt-5">
+          {/* En-tête de section + segment */}
+          <div className="px-4 md:px-6 mb-3 max-w-4xl mx-auto">
+            <h2 className="font-['Unbounded'] font-extrabold text-gray-900 text-base md:text-lg mb-2.5">
+              Pour vous
+            </h2>
+          </div>
+          <Segments actif={segment} onChange={setSegment} />
 
           {/* Ville sans restaurants */}
           {!loading && tous.length === 0 && (
             <VilleVide ville={ville} onChangerVille={effacerVille} />
           )}
 
-          {/* Catégorie sans résultat (mais la ville a des restaurants) */}
-          {!loading && tous.length > 0 && tousFiltres.length === 0 && (
+          {/* Catégorie / segment sans résultat (mais la ville a des restaurants) */}
+          {!loading && tous.length > 0 && tousAffiches.length === 0 && (
             <div className="px-4 md:px-6 py-10 text-center text-gray-400">
               <p className="text-4xl mb-3">🍽️</p>
-              <p className="font-semibold text-gray-600">Aucun restaurant dans cette catégorie pour l'instant</p>
+              <p className="font-semibold text-gray-600">Aucun restaurant ne correspond pour l'instant</p>
               <button
-                onClick={() => setCategorieActive(null)}
+                onClick={() => { setCategorieActive(null); setSegment('tous') }}
                 className="mt-3 text-brand-600 text-sm font-semibold hover:underline"
               >
                 Voir tous les restaurants
@@ -502,17 +343,12 @@ export default function Home() {
             </div>
           )}
 
-          {/* Séparateur */}
-          {!loading && tousFiltres.length > 0 && (
-            <div className="px-4 md:px-6 mb-4 max-w-screen-xl mx-auto">
-              <div className="border-t border-gray-200" />
+          {/* Grille */}
+          {tousAffiches.length > 0 && (
+            <div className="mt-5">
+              <GrilleRestaurants restaurants={tousAffiches} loading={loading} />
             </div>
           )}
-
-          {/* Tous */}
-          <div ref={grilleRef}>
-            {tousFiltres.length > 0 && <GrilleTous restaurants={tousFiltres} loading={loading} />}
-          </div>
         </div>
       )}
 

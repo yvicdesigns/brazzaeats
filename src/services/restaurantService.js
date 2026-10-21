@@ -84,7 +84,7 @@ export async function getRestaurants({
   try {
     let query = supabase
       .from('restaurants')
-      .select('id, nom, description, logo_url, photo_couverture_url, video_apercu_url, adresse, horaires, note_moyenne, statut, ville, categorie, created_at', { count: 'exact' })
+      .select('id, nom, description, logo_url, photo_couverture_url, video_apercu_url, adresse, horaires, note_moyenne, statut, ville, categorie, created_at, price_tier', { count: 'exact' })
       .eq('statut', 'actif')
       .order('note_moyenne', { ascending: false })
 
