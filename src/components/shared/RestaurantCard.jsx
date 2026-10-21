@@ -79,7 +79,7 @@ export default function RestaurantCard({ restaurant }) {
       {/* ── Informations ─────────────────────────────────── */}
       <div className="p-4">
         {/* Badge logo (à cheval sur la frontière photo/texte) + nom, côte à côte */}
-        <div className={`flex items-center gap-3 ${afficherBadgeLogo ? '-mt-11 mb-2' : 'mb-1'}`}>
+        <div className={`flex items-end gap-3 ${afficherBadgeLogo ? '-mt-11 mb-2' : 'mb-1'}`}>
           {afficherBadgeLogo && (
             <img
               src={restaurant.logo_url}
