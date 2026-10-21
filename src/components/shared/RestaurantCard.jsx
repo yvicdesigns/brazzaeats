@@ -13,13 +13,20 @@ export default function RestaurantCard({ restaurant }) {
   const quartier  = restaurant.adresse?.split(',')[1]?.trim() ?? restaurant.adresse ?? ''
   const note      = restaurant.note_moyenne
 
+  // Couverture dédiée si fournie, sinon on retombe sur le logo (comportement historique :
+  // beaucoup de restaurants n'ont qu'un logo_url, utilisé comme visuel principal).
+  const couverture = restaurant.photo_couverture_url || restaurant.logo_url
+  // Badge rond affiché seulement quand couverture ET logo sont distincts — sinon ce serait
+  // le même visuel dupliqué en plus petit par-dessus lui-même.
+  const afficherBadgeLogo = !!(restaurant.photo_couverture_url && restaurant.logo_url)
+
   return (
     <Link
       to={`/restaurant/${restaurant.id}`}
       className="block bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-card-lg
                  active:scale-[0.98] transition-all duration-150"
     >
-      {/* ── Visuel (vidéo / logo / placeholder) ─────────── */}
+      {/* ── Visuel (vidéo / couverture / placeholder) ───── */}
       <div className="relative h-44 bg-gray-900">
         {restaurant.video_apercu_url ? (
           <video
@@ -30,9 +37,9 @@ export default function RestaurantCard({ restaurant }) {
             playsInline
             className="w-full h-full object-cover"
           />
-        ) : restaurant.logo_url ? (
+        ) : couverture ? (
           <img
-            src={restaurant.logo_url}
+            src={couverture}
             alt={restaurant.nom}
             className="w-full h-full object-cover"
             loading="lazy"
@@ -41,6 +48,17 @@ export default function RestaurantCard({ restaurant }) {
           <div className="w-full h-full flex items-center justify-center bg-brand-50">
             <span className="text-5xl select-none">🍽️</span>
           </div>
+        )}
+
+        {/* Badge logo rond (superposé en bas à gauche de la couverture) */}
+        {afficherBadgeLogo && (
+          <img
+            src={restaurant.logo_url}
+            alt=""
+            className="absolute bottom-3 left-3 w-12 h-12 rounded-full object-cover
+                       ring-2 ring-white shadow-md bg-white"
+            loading="lazy"
+          />
         )}
 
         {/* Overlay fermé */}
