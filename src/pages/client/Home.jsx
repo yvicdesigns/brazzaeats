@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Search, WifiOff, MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, WifiOff, MessageCircle, ChevronLeft, ChevronRight, UtensilsCrossed } from 'lucide-react'
 import toast from 'react-hot-toast'
 import RestaurantCard from '@/components/shared/RestaurantCard'
 import { getRestaurants, isRestaurantOpen } from '@/services/restaurantService'
@@ -7,6 +7,73 @@ import { contacterSupport } from '@/utils/whatsappMessage'
 import { useVille } from '@/hooks/useVille'
 import SelectVille from './SelectVille'
 import { VILLES_CONGO } from '@/utils/constants'
+
+// ── Catégories mises en avant sur l'accueil ────────────────
+// `valeur: null` = « Tous », sinon doit correspondre à restaurants.categorie
+const CATEGORIES = [
+  { valeur: null,                  label: 'Tous',              emoji: '🍽️' },
+  { valeur: 'Cuisine africaine',   label: 'Cuisine africaine', emoji: '🍗' },
+  { valeur: 'Fast Food',           label: 'Fast Food',         emoji: '🍔' },
+  { valeur: 'Grillades',           label: 'Grillades',         emoji: '🍖' },
+  { valeur: 'Salades',             label: 'Salades',           emoji: '🥗' },
+]
+
+// ── Bandeau promotionnel ────────────────────────────────────
+function BanniereAccueil({ onCommander }) {
+  return (
+    <div className="px-4 md:px-6 mb-6 max-w-4xl mx-auto">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-yellow-400 to-yellow-500
+                       px-6 py-7 flex items-center">
+        <div className="relative z-10 max-w-[65%]">
+          <h2 className="text-brand-800 font-black text-2xl leading-tight mb-1">
+            Le bonheur<br />se livre.
+          </h2>
+          <p className="text-brand-900/70 text-xs font-medium mb-4">
+            Vos plats préférés, partout avec vous.
+          </p>
+          <button
+            onClick={onCommander}
+            className="bg-brand-700 text-white text-sm font-bold px-4 py-2.5 rounded-xl
+                       hover:bg-brand-800 active:scale-95 transition-all"
+          >
+            Commander →
+          </button>
+        </div>
+        <UtensilsCrossed className="absolute -right-4 -bottom-4 w-32 h-32 text-white/20" strokeWidth={1.5} />
+      </div>
+    </div>
+  )
+}
+
+// ── Pastilles de catégories ─────────────────────────────────
+function CategoriesPills({ actif, onChange }) {
+  return (
+    <div className="flex gap-3 px-4 md:px-6 pb-1 overflow-x-auto scrollbar-hide max-w-4xl mx-auto">
+      {CATEGORIES.map(({ valeur, label, emoji }) => {
+        const estActif = actif === valeur
+        return (
+          <button
+            key={label}
+            onClick={() => onChange(valeur)}
+            className="shrink-0 flex flex-col items-center gap-1.5 w-[68px]"
+          >
+            <span
+              className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-colors
+                ${estActif ? 'bg-brand-500' : 'bg-gray-100'}`}
+            >
+              {emoji}
+            </span>
+            <span className={`text-[11px] text-center leading-tight font-medium
+              ${estActif ? 'text-brand-600' : 'text-gray-500'}`}>
+              {label}
+            </span>
+            {estActif && <span className="w-5 h-0.5 bg-brand-500 rounded-full" />}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
 // ── Squelette de chargement ────────────────────────────────
 function CarteSkeleton({ className = '' }) {
@@ -215,8 +282,16 @@ export default function Home() {
   const [search,           setSearch]           = useState('')
   const [noteMin,          setNoteMin]          = useState(0)
   const [ouvertMaintenant, setOuvertMaintenant] = useState(false)
+  const [categorieActive,  setCategorieActive]  = useState(null)
+  const grilleRef = useRef(null)
 
   const modeRecherche = search.trim() !== '' || noteMin > 0 || ouvertMaintenant
+
+  // Restaurants de la catégorie sélectionnée (null = toutes)
+  const tousFiltres = useMemo(
+    () => (categorieActive ? tous.filter(r => r.categorie === categorieActive) : tous),
+    [tous, categorieActive]
+  )
 
   // ── Surveillance réseau ───────────────────────────────────
   useEffect(() => {
@@ -248,41 +323,41 @@ export default function Home() {
 
   // ── Sections thématiques (calculées côté client) ──────────
   const sections = useMemo(() => {
-    if (!tous.length) return {}
+    if (!tousFiltres.length) return {}
 
     // Populaires : note >= 4.5, triés par note desc
-    const populaires = [...tous]
+    const populaires = [...tousFiltres]
       .filter(r => (r.note_moyenne ?? 0) >= 4.5)
       .sort((a, b) => (b.note_moyenne ?? 0) - (a.note_moyenne ?? 0))
       .slice(0, 10)
 
     // Ouverts maintenant
-    const ouverts = tous.filter(r => isRestaurantOpen(r.horaires)).slice(0, 10)
+    const ouverts = tousFiltres.filter(r => isRestaurantOpen(r.horaires)).slice(0, 10)
 
     // Nouveaux : triés par created_at desc
-    const nouveaux = [...tous]
+    const nouveaux = [...tousFiltres]
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
       .slice(0, 10)
 
     // Mieux notés : note >= 4, triés desc (excluant déjà dans populaires)
-    const mieuxNotes = [...tous]
+    const mieuxNotes = [...tousFiltres]
       .filter(r => (r.note_moyenne ?? 0) >= 4 && (r.note_moyenne ?? 0) < 4.5)
       .sort((a, b) => (b.note_moyenne ?? 0) - (a.note_moyenne ?? 0))
       .slice(0, 10)
 
     return { populaires, ouverts, nouveaux, mieuxNotes }
-  }, [tous])
+  }, [tousFiltres])
 
   // ── Résultats de recherche (filtres actifs) ───────────────
   const resultatsRecherche = useMemo(() => {
     if (!modeRecherche) return []
-    return tous.filter(r => {
+    return tousFiltres.filter(r => {
       const matchSearch = !search.trim() || r.nom.toLowerCase().includes(search.trim().toLowerCase())
       const matchNote   = noteMin === 0 || (r.note_moyenne ?? 0) >= noteMin
       const matchOuvert = !ouvertMaintenant || isRestaurantOpen(r.horaires)
       return matchSearch && matchNote && matchOuvert
     })
-  }, [tous, search, noteMin, ouvertMaintenant, modeRecherche])
+  }, [tousFiltres, search, noteMin, ouvertMaintenant, modeRecherche])
 
   // Écran sélection ville — après TOUS les hooks (règle React)
   if (!ville) return <SelectVille onSelect={setVille} />
@@ -318,6 +393,18 @@ export default function Home() {
           </div>
         </div>
       </header>
+
+      {/* ── Catégories ──────────────────────────────────── */}
+      <div className="pt-4">
+        <CategoriesPills actif={categorieActive} onChange={setCategorieActive} />
+      </div>
+
+      {/* ── Bannière ────────────────────────────────────── */}
+      {!modeRecherche && (
+        <div className="mt-4">
+          <BanniereAccueil onCommander={() => grilleRef.current?.scrollIntoView({ behavior: 'smooth' })} />
+        </div>
+      )}
 
       {/* ── Filtres ─────────────────────────────────────── */}
       <div className="flex gap-2 px-4 md:px-6 py-3 overflow-x-auto scrollbar-hide max-w-4xl mx-auto">
@@ -401,15 +488,31 @@ export default function Home() {
             <VilleVide ville={ville} onChangerVille={effacerVille} />
           )}
 
+          {/* Catégorie sans résultat (mais la ville a des restaurants) */}
+          {!loading && tous.length > 0 && tousFiltres.length === 0 && (
+            <div className="px-4 md:px-6 py-10 text-center text-gray-400">
+              <p className="text-4xl mb-3">🍽️</p>
+              <p className="font-semibold text-gray-600">Aucun restaurant dans cette catégorie pour l'instant</p>
+              <button
+                onClick={() => setCategorieActive(null)}
+                className="mt-3 text-brand-600 text-sm font-semibold hover:underline"
+              >
+                Voir tous les restaurants
+              </button>
+            </div>
+          )}
+
           {/* Séparateur */}
-          {!loading && tous.length > 0 && (
+          {!loading && tousFiltres.length > 0 && (
             <div className="px-4 md:px-6 mb-4 max-w-screen-xl mx-auto">
               <div className="border-t border-gray-200" />
             </div>
           )}
 
           {/* Tous */}
-          {tous.length > 0 && <GrilleTous restaurants={tous} loading={loading} />}
+          <div ref={grilleRef}>
+            {tousFiltres.length > 0 && <GrilleTous restaurants={tousFiltres} loading={loading} />}
+          </div>
         </div>
       )}
 
