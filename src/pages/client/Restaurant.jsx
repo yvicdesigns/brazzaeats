@@ -75,11 +75,13 @@ export default function Restaurant() {
     charger()
   }, [id])
 
-  // ── Scroll fluide vers la catégorie ────────────────────
+  // ── Saut instantané vers la catégorie (pas d'animation —
+  // avec un menu de 100+ plats, un défilement "smooth" sur une longue
+  // distance donnait l'impression que l'app était lente) ──
   function scrollVers(categorieId) {
     setActiveCategorie(categorieId)
     categorieRefs.current[categorieId]?.scrollIntoView({
-      behavior: 'smooth',
+      behavior: 'auto',
       block:    'start',
     })
   }
@@ -314,6 +316,7 @@ export default function Restaurant() {
             <section
               key={categorie.id}
               ref={el => { categorieRefs.current[categorie.id] = el }}
+              style={{ scrollMarginTop: '64px' }}
             >
               <h2 className="text-base font-bold text-gray-800 mb-3">
                 {categorie.nom}
