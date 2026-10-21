@@ -23,6 +23,9 @@ import Terms       from '@/pages/legal/Terms'
 import Privacy     from '@/pages/legal/Privacy'
 import LegalNotice from '@/pages/legal/LegalNotice'
 
+// ── Pages publiques ────────────────────────────────────────
+import ZandoGuide from '@/pages/public/ZandoGuide'
+
 // ── Pages Client ───────────────────────────────────────────
 import Home      from '@/pages/client/Home'
 import Restaurant from '@/pages/client/Restaurant'
@@ -212,6 +215,7 @@ export default function App() {
         <Route path="/conditions-utilisation"     element={<Terms />} />
         <Route path="/politique-confidentialite"  element={<Privacy />} />
         <Route path="/mentions-legales"           element={<LegalNotice />} />
+        <Route path="/guide"                      element={<ZandoGuide />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
 
         {/* ── Espace client ─────────────────────────────── */}
