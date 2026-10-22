@@ -53,9 +53,10 @@ function ModalCommande({ commande, onClose, onStatusChange, userId, modeIndepend
   // marquer une commande livrée directement depuis "prête" — ça sauterait
   // toute l'étape de livraison (pas de suivi GPS, le client ne verrait
   // jamais "En route vers vous"). Cette transition n'a de sens que si le
-  // restaurant gère sa propre livraison.
+  // restaurant gère sa propre livraison. Uniquement pour les commandes en
+  // livraison : un retrait n'a pas de livreur, donc pas de hand-off à sauter.
   const transitions = (TRANSITIONS[commande.statut] ?? []).filter(t =>
-    !(modeIndependants && commande.statut === 'prête' && t.statut === 'livrée')
+    !(modeIndependants && commande.type === 'livraison' && commande.statut === 'prête' && t.statut === 'livrée')
   )
   const refCourte   = commande.id.slice(0, 8).toUpperCase()
   // L'annulation manuelle est disponible pour tout statut actif qui n'a pas déjà ce bouton
