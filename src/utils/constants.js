@@ -101,6 +101,12 @@ export const TYPES_COMMANDE = {
   retrait:   { label: 'Retrait en boutique',  icone: '🏪' },
 }
 
+// Profil client générique partagé par tous les restaurants pour les ventes
+// encaissées directement au comptoir (voir src/pages/restaurant/NouvelleVente.jsx).
+// Un order.client_id réel est obligatoire en base — ce profil joue ce rôle
+// quand il n'y a pas de client identifié derrière la commande.
+export const COMPTOIR_CLIENT_ID = '98d20a88-56cb-48ae-8c2f-188f151914e1'
+
 // ------------------------------------------------------------
 // Quartiers de Brazzaville
 // Source : arrondissements et quartiers connus de la ville

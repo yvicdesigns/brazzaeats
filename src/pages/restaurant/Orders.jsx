@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { X, Check, XCircle, ChefHat, Package, Bike, Loader2, Phone } from 'lucide-react'
+import { X, Check, XCircle, ChefHat, Package, Bike, Loader2, Phone, Banknote } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '@/supabase/client'
 import { useMyRestaurant } from '@/hooks/useMyRestaurant'
@@ -11,6 +11,7 @@ import { formatCurrency } from '@/utils/formatCurrency'
 import { STATUTS_COMMANDE, STATUTS_ACTIFS } from '@/utils/constants'
 import { enfiler, estErreurReseau } from '@/utils/offlineQueue'
 import LienCarte from '@/components/shared/LienCarte'
+import ModalVenteComptoir from '@/components/restaurant/ModalVenteComptoir'
 
 // ── Transitions de statut autorisées côté restaurant ───────
 const TRANSITIONS = {
@@ -378,6 +379,7 @@ export default function RestaurantOrders() {
   const [nbNouveaux,   setNbNouveaux]   = useState(0)
   const [filtreStatut, setFiltreStatut] = useState('actives')
   const [modeIndependants, setModeIndependants] = useState(true)
+  const [venteComptoirOuverte, setVenteComptoirOuverte] = useState(false)
 
   // Titre original de l'onglet (pour restauration au démontage)
   const titreOriginal = useRef(document.title)
@@ -496,13 +498,23 @@ export default function RestaurantOrders() {
               </p>
             )}
           </div>
-          <button
-            onClick={() => { charger(); setNbNouveaux(0) }}
-            className="text-brand-500 text-sm font-semibold px-3 py-2 hover:bg-brand-50 rounded-xl
-                       transition-colors min-h-[48px]"
-          >
-            Actualiser
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setVenteComptoirOuverte(true)}
+              className="flex items-center gap-1.5 bg-brand-600 text-white text-sm font-bold px-3.5 py-2
+                         rounded-xl hover:bg-brand-700 transition-colors min-h-[48px]"
+            >
+              <Banknote className="w-4 h-4" />
+              Vente comptoir
+            </button>
+            <button
+              onClick={() => { charger(); setNbNouveaux(0) }}
+              className="text-brand-500 text-sm font-semibold px-3 py-2 hover:bg-brand-50 rounded-xl
+                         transition-colors min-h-[48px]"
+            >
+              Actualiser
+            </button>
+          </div>
         </div>
 
         {/* Onglets filtre */}
@@ -635,6 +647,14 @@ export default function RestaurantOrders() {
             // Mettre à jour la commande dans la modal aussi
             setModalOuverte(prev => prev?.id === id ? { ...prev, statut } : prev)
           }}
+        />
+      )}
+
+      {/* ── Modal vente comptoir ─────────────────────────── */}
+      {venteComptoirOuverte && (
+        <ModalVenteComptoir
+          restaurantId={restaurant.id}
+          onClose={() => setVenteComptoirOuverte(false)}
         />
       )}
     </div>

@@ -32,7 +32,7 @@ export async function uploadPaymentProof(file, clientId) {
  * En cas d'échec de la 2ème, la commande est supprimée (rollback manuel).
  *
  * @param {{ clientId, restaurantId, items, type, modePaiement,
- *           adresseLivraison, notes, fraisLivraison, remise }} params
+ *           adresseLivraison, notes, fraisLivraison, remise, statutInitial }} params
  */
 export async function createOrder({
   clientId,
@@ -52,6 +52,7 @@ export async function createOrder({
   promoSource     = 'restaurant', // 'restaurant' | 'platform'
   promoCode       = null,
   livraisonGratuite = false,
+  statutInitial   = 'en_attente',
 }) {
   try {
     // 1. Récupérer le taux de commission du restaurant
@@ -74,7 +75,7 @@ export async function createOrder({
         client_id:         clientId,
         restaurant_id:     restaurantId,
         type,
-        statut:            'en_attente',
+        statut:            statutInitial,
         montant_total:     montantTotal,
         frais_livraison:   fraisReels,
         commission,
