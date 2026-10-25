@@ -309,6 +309,9 @@ export async function getAllRestaurants() {
         statut,
         note_moyenne,
         commission_rate,
+        latitude,
+        longitude,
+        mode_livraison,
         created_at,
         owner_id,
         owner:profiles!restaurants_owner_id_fkey(nom, telephone)

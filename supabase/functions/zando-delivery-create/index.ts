@@ -1,6 +1,8 @@
 // Edge Function — crée une livraison sur Zando Delivery pour une commande Zandofood.
 // Appelée en interne par le trigger Postgres orders_realtime_status_trigger (via pg_net),
-// quand une commande passe à "prête" et que platform_settings.mode_livraison = 'zando_delivery'.
+// quand une commande passe à "prête". Le mode effectif (restaurants.mode_livraison si défini,
+// sinon platform_settings.mode_livraison) est revérifié ici, pas seulement côté trigger — la
+// fonction ne fait rien si ce n'est pas "zando_delivery" pour ce restaurant précis.
 // N'est jamais appelée par le client : ne contient aucune donnée sensible exposée côté app.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -26,17 +28,22 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { order_id } = await req.json()
+    const body = await req.json()
+    // Accepte soit un appel direct { order_id }, soit le format natif d'un
+    // Database Webhook Supabase ({ type, table, record, old_record, schema }) —
+    // configurable depuis le tableau de bord (Database > Webhooks) sans SQL à écrire.
+    const order_id = body.order_id ?? body.record?.id
     if (!order_id) return json({ error: 'order_id manquant' }, 400)
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
     const { data: order, error: orderErr } = await supabase
       .from('orders')
-      .select('id, adresse_livraison, client_id, restaurant_id, montant_total, mode_paiement, zando_delivery_ref')
+      .select('id, type, adresse_livraison, client_id, restaurant_id, montant_total, mode_paiement, zando_delivery_ref')
       .eq('id', order_id)
       .single()
     if (orderErr || !order) return json({ error: 'Commande introuvable' }, 404)
+    if (order.type !== 'livraison') return json({ skipped: 'Commande sans livraison (retrait/comptoir) — pas besoin de Zando Delivery' })
     if (order.zando_delivery_ref) return json({ skipped: 'Livraison déjà créée pour cette commande' })
 
     // Même convention que Tracking.jsx / LivreurMap : adresse_livraison.latitude/longitude,
@@ -46,10 +53,18 @@ Deno.serve(async (req) => {
       return json({ skipped: "Adresse de livraison sans coordonnées GPS (le client n'a pas utilisé « Ma position ») — commande ignorée" })
     }
 
-    const [{ data: restaurant }, { data: client }] = await Promise.all([
-      supabase.from('restaurants').select('nom, adresse, latitude, longitude, owner_id').eq('id', order.restaurant_id).single(),
+    const [{ data: restaurant }, { data: client }, { data: platformSettings }] = await Promise.all([
+      supabase.from('restaurants').select('nom, adresse, latitude, longitude, owner_id, mode_livraison').eq('id', order.restaurant_id).single(),
       supabase.from('profiles').select('nom, telephone').eq('id', order.client_id).single(),
+      supabase.from('platform_settings').select('mode_livraison').eq('id', 1).single(),
     ])
+
+    // Le restaurant peut surcharger le réglage plateforme (un seul restaurant migré à la
+    // fois le temps du test, voir docs/plan Zando Delivery) — sa valeur a priorité.
+    const modeEffectif = restaurant?.mode_livraison || platformSettings?.mode_livraison || 'independants'
+    if (modeEffectif !== 'zando_delivery') {
+      return json({ skipped: `Mode de livraison effectif = "${modeEffectif}", pas "zando_delivery" — commande ignorée` })
+    }
     if (!restaurant?.latitude || !restaurant?.longitude) {
       return json({ skipped: 'Restaurant sans coordonnées GPS — commande ignorée' })
     }
@@ -97,8 +112,10 @@ Deno.serve(async (req) => {
         },
         // L'encaissement à la livraison n'a de sens que si le client paie en espèces, et
         // nécessite l'id du marchand Zandofood côté Zando Delivery (distinct de la clé d'API).
+        // goodsAmountMinor : le XAF n'a pas de sous-unité (packages/domain/src/money.ts côté
+        // Zando Delivery), c'est directement le montant en FCFA — pas de ×100.
         ...(order.mode_paiement === 'cash' && ZANDO_DELIVERY_MERCHANT_ID
-          ? { cod: { merchantId: ZANDO_DELIVERY_MERCHANT_ID, goodsAmountMinor: Math.round(order.montant_total * 100) } }
+          ? { cod: { merchantId: ZANDO_DELIVERY_MERCHANT_ID, goodsAmountMinor: order.montant_total } }
           : {}),
       }),
     })

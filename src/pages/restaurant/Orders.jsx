@@ -47,17 +47,18 @@ function BadgeStatut({ statut }) {
 }
 
 // ── Modal de détail commande ─────────────────────────────────
-function ModalCommande({ commande, onClose, onStatusChange, userId, modeIndependants }) {
+function ModalCommande({ commande, onClose, onStatusChange, userId, livraisonExterne }) {
   const [envoi,         setEnvoi]         = useState(false)
   const [confirmerAnnul, setConfirmerAnnul] = useState(false)
-  // En mode "livreurs indépendants", le restaurant ne doit jamais pouvoir
-  // marquer une commande livrée directement depuis "prête" — ça sauterait
-  // toute l'étape de livraison (pas de suivi GPS, le client ne verrait
-  // jamais "En route vers vous"). Cette transition n'a de sens que si le
-  // restaurant gère sa propre livraison. Uniquement pour les commandes en
-  // livraison : un retrait n'a pas de livreur, donc pas de hand-off à sauter.
+  // Quand la livraison est gérée par un acteur externe au restaurant — livreurs
+  // indépendants ou Zando Delivery — le restaurant ne doit jamais pouvoir marquer
+  // une commande livrée directement depuis "prête" : ça sauterait toute l'étape de
+  // livraison (pas de suivi GPS, le client ne verrait jamais "En route vers vous").
+  // Cette transition n'a de sens que si le restaurant gère sa propre livraison.
+  // Uniquement pour les commandes en livraison : un retrait n'a pas de livreur,
+  // donc pas de hand-off à sauter.
   const transitions = (TRANSITIONS[commande.statut] ?? []).filter(t =>
-    !(modeIndependants && commande.type === 'livraison' && commande.statut === 'prête' && t.statut === 'livrée')
+    !(livraisonExterne && commande.type === 'livraison' && commande.statut === 'prête' && t.statut === 'livrée')
   )
   const refCourte   = commande.id.slice(0, 8).toUpperCase()
   // L'annulation manuelle est disponible pour tout statut actif qui n'a pas déjà ce bouton
@@ -378,7 +379,7 @@ export default function RestaurantOrders() {
   const [modalOuverte, setModalOuverte] = useState(null)
   const [nbNouveaux,   setNbNouveaux]   = useState(0)
   const [filtreStatut, setFiltreStatut] = useState('actives')
-  const [modeIndependants, setModeIndependants] = useState(true)
+  const [modeLivraisonPlateforme, setModeLivraisonPlateforme] = useState('independants')
   const [venteComptoirOuverte, setVenteComptoirOuverte] = useState(false)
 
   // Titre original de l'onglet (pour restauration au démontage)
@@ -398,9 +399,14 @@ export default function RestaurantOrders() {
 
   useEffect(() => {
     getPlatformSettings().then(({ data }) => {
-      setModeIndependants((data?.mode_livraison ?? 'independants') === 'independants')
+      setModeLivraisonPlateforme(data?.mode_livraison ?? 'independants')
     })
   }, [])
+
+  // Le restaurant peut surcharger le réglage plateforme (voir Phase A du plan Zando
+  // Delivery) — restaurant.mode_livraison a priorité quand il est défini.
+  const modeLivraisonEffectif = restaurant?.mode_livraison || modeLivraisonPlateforme
+  const livraisonExterne = modeLivraisonEffectif === 'independants' || modeLivraisonEffectif === 'zando_delivery'
 
   // ── Abonnement Realtime ─────────────────────────────────
   useEffect(() => {
@@ -641,7 +647,7 @@ export default function RestaurantOrders() {
           commande={modalOuverte}
           onClose={() => setModalOuverte(null)}
           userId={user?.id}
-          modeIndependants={modeIndependants}
+          livraisonExterne={livraisonExterne}
           onStatusChange={(id, statut) => {
             handleStatusChange(id, statut)
             // Mettre à jour la commande dans la modal aussi

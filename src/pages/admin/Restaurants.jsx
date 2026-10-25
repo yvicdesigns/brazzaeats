@@ -41,6 +41,9 @@ function ModaleModifier({ restaurant, onSave, onClose }) {
     adresse:         restaurant.adresse         ?? '',
     description:     restaurant.description     ?? '',
     commission_rate: restaurant.commission_rate ?? 10,
+    latitude:        restaurant.latitude  ?? '',
+    longitude:       restaurant.longitude ?? '',
+    mode_livraison:  restaurant.mode_livraison  ?? '',
   })
   const [saving, setSaving] = useState(false)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -57,6 +60,10 @@ function ModaleModifier({ restaurant, onSave, onClose }) {
       adresse:         form.adresse.trim(),
       description:     form.description.trim() || null,
       commission_rate: Number(form.commission_rate),
+      latitude:        form.latitude  === '' ? null : Number(form.latitude),
+      longitude:       form.longitude === '' ? null : Number(form.longitude),
+      // '' = hérite du réglage plateforme (platform_settings.mode_livraison)
+      mode_livraison:  form.mode_livraison || null,
     })
     setSaving(false)
   }
@@ -109,6 +116,43 @@ function ModaleModifier({ restaurant, onSave, onClose }) {
               className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
                          focus:outline-none focus:ring-2 focus:ring-brand-300"
             />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600">Coordonnées GPS</label>
+            <p className="text-[11px] text-gray-400 mb-1">Nécessaires pour Zando Delivery (point de collecte)</p>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="number" step="any" placeholder="Latitude"
+                value={form.latitude}
+                onChange={e => set('latitude', e.target.value)}
+                className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                           focus:outline-none focus:ring-2 focus:ring-brand-300"
+              />
+              <input
+                type="number" step="any" placeholder="Longitude"
+                value={form.longitude}
+                onChange={e => set('longitude', e.target.value)}
+                className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                           focus:outline-none focus:ring-2 focus:ring-brand-300"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600">Mode de livraison (ce restaurant)</label>
+            <select
+              value={form.mode_livraison}
+              onChange={e => set('mode_livraison', e.target.value)}
+              className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white
+                         focus:outline-none focus:ring-2 focus:ring-brand-300"
+            >
+              <option value="">Par défaut (réglage plateforme)</option>
+              <option value="independants">Indépendants</option>
+              <option value="propres_livreurs">Mes livreurs</option>
+              <option value="zando_delivery">Zando Delivery</option>
+            </select>
+            <p className="text-[11px] text-gray-400 mt-0.5">
+              Permet de migrer un restaurant vers Zando Delivery sans toucher au réglage global.
+            </p>
           </div>
 
           <div className="flex gap-3 pt-2">
