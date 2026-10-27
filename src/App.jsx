@@ -9,6 +9,7 @@ import Sidebar          from '@/components/layout/Sidebar'
 import RestaurantLayout from '@/components/layout/RestaurantLayout'
 import LivreurLayout    from '@/components/layout/LivreurLayout'
 import InstallBanner    from '@/components/ui/InstallBanner'
+import FirstLaunchIntro from '@/components/shared/FirstLaunchIntro'
 import { useClientOrderNotifications } from '@/hooks/useClientOrderNotifications'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { REDIRECT_PAR_ROLE } from '@/utils/constants'
@@ -205,6 +206,7 @@ function PushNotificationsBootstrap() {
 
 export default function App() {
   return (
+    <FirstLaunchIntro>
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <PushNotificationsBootstrap />
       <Routes>
@@ -283,5 +285,6 @@ export default function App() {
 
       </Routes>
     </BrowserRouter>
+    </FirstLaunchIntro>
   )
 }
