@@ -1,22 +1,17 @@
-// Anime le logo une seule fois, à la toute première ouverture de l'app (après
-// installation) — ensuite l'app démarre directement, sans rejouer l'animation
-// à chaque lancement. L'écran de démarrage natif (statique) continue de
-// s'afficher normalement pendant le chargement ; cette animation prend le
-// relais juste après, avant que le contenu normal n'apparaisse.
+// Anime le logo à chaque démarrage complet de l'app (JS rechargé depuis
+// zéro) — c'est-à-dire chaque fois que l'utilisateur rouvre l'app après
+// l'avoir fermée pour de bon (pas juste mise en arrière-plan : dans ce cas
+// le WebView reste en mémoire et ce composant ne se remonte pas, donc
+// l'animation ne rejoue pas, ce qui est le comportement voulu). L'écran de
+// démarrage natif (statique) continue de s'afficher normalement pendant le
+// chargement ; cette animation prend le relais juste après, avant que le
+// contenu normal n'apparaisse.
 import { useEffect, useState } from 'react'
 import { Lottie } from 'lottie-react'
 import splashAnimation from '@/assets/zando_food_splash.json'
 
-const CLE_DEJA_VU = 'zando_intro_vue'
-
 export default function FirstLaunchIntro({ children }) {
-  const [afficherIntro, setAfficherIntro] = useState(() => {
-    try {
-      return !localStorage.getItem(CLE_DEJA_VU)
-    } catch {
-      return false
-    }
-  })
+  const [afficherIntro, setAfficherIntro] = useState(true)
 
   useEffect(() => {
     if (!afficherIntro) return
@@ -29,11 +24,6 @@ export default function FirstLaunchIntro({ children }) {
   }, [afficherIntro])
 
   function terminerIntro() {
-    try {
-      localStorage.setItem(CLE_DEJA_VU, '1')
-    } catch {
-      // Non-bloquant — au pire l'animation se rejouera une fois de plus.
-    }
     setAfficherIntro(false)
   }
 
