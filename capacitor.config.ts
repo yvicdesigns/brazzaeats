@@ -6,7 +6,13 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   plugins: {
     SplashScreen: {
-      launchShowDuration: 1500,
+      // Masqué manuellement depuis FirstLaunchIntro.jsx, exactement au moment
+      // où l'animation Lottie est prête à jouer sa toute première frame — pas
+      // de durée fixe ici. Avec un auto-hide par délai, le splash natif
+      // masquait l'animation pendant qu'elle tournait déjà en dessous : au
+      // moment où il disparaissait, l'animation était déjà bien avancée et on
+      // ne voyait que sa fin.
+      launchAutoHide: false,
       // Fond blanc — le nouveau logo (texte vert + jaune) est illisible sur le
       // vert de la marque, le vert se confondant avec le fond. Cohérent avec
       // l'icône de l'app, qui est déjà sur fond blanc.
