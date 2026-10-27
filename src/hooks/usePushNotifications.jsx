@@ -4,6 +4,7 @@
 import { useEffect, useRef } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { PushNotifications } from '@capacitor/push-notifications'
+import { App as CapacitorApp } from '@capacitor/app'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/supabase/client'
@@ -67,6 +68,10 @@ export function usePushNotifications() {
         return
       }
 
+      await demanderEtEnregistrer()
+    }
+
+    async function demanderEtEnregistrer() {
       const permission = await PushNotifications.checkPermissions()
       let statut = permission.receive
       if (statut === 'prompt' || statut === 'prompt-with-rationale') {
@@ -80,9 +85,19 @@ export function usePushNotifications() {
 
     configurer()
 
+    // Une fois la permission refusée une première fois, l'OS ne réaffiche plus
+    // jamais la demande native depuis l'app — le client ne peut l'activer que
+    // depuis les réglages de son téléphone. On revérifie donc à chaque retour
+    // au premier plan, pour enregistrer le jeton dès que la permission a changé
+    // de son côté, sans rien lui redemander depuis l'app.
+    const resumeHandlePromise = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) demanderEtEnregistrer()
+    })
+
     return () => {
       annule = true
       handles.forEach(h => h.remove())
+      resumeHandlePromise.then(h => h.remove())
     }
   }, [user?.id])
 }

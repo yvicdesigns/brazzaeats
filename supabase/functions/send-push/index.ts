@@ -12,10 +12,14 @@ const APNS_AUTH_KEY = Deno.env.get('APNS_AUTH_KEY')!
 const APNS_KEY_ID = '7SWM8HM57C'
 const APNS_TEAM_ID = 'LJ73XSDBTK'
 const APNS_BUNDLE_ID = 'com.zandofood.app'
-// Nos builds actuels sont signés avec aps-environment=development
-// (Xcode debug, hors TestFlight/App Store) → passerelle sandbox.
-// À changer pour 'https://api.push.apple.com' une fois publié.
-const APNS_HOST = 'https://api.sandbox.push.apple.com'
+// Un jeton APNs n'est valide que sur LA passerelle correspondant à la
+// signature du build qui l'a généré : sandbox pour un run Xcode debug,
+// production pour TestFlight/App Store — pas moyen de le savoir à l'avance
+// côté serveur. On tente la production (cas le plus courant une fois
+// distribué), et on retente en sandbox uniquement si Apple répond
+// "BadDeviceToken", plutôt que de figer une seule passerelle.
+const APNS_HOST_PROD = 'https://api.push.apple.com'
+const APNS_HOST_SANDBOX = 'https://api.sandbox.push.apple.com'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -99,9 +103,8 @@ async function getApnsJwt(): Promise<string> {
   return jwt
 }
 
-async function sendApns(token: string, title: string, body: string, data: Record<string, string>) {
-  const jwt = await getApnsJwt()
-  return fetch(`${APNS_HOST}/3/device/${token}`, {
+async function postApns(host: string, token: string, jwt: string, title: string, body: string, data: Record<string, string>) {
+  return fetch(`${host}/3/device/${token}`, {
     method: 'POST',
     headers: {
       authorization: `bearer ${jwt}`,
@@ -114,6 +117,15 @@ async function sendApns(token: string, title: string, body: string, data: Record
       ...data,
     }),
   })
+}
+
+async function sendApns(token: string, title: string, body: string, data: Record<string, string>) {
+  const jwt = await getApnsJwt()
+  const res = await postApns(APNS_HOST_PROD, token, jwt, title, body, data)
+  if (res.ok) return res
+  const err = await res.clone().json().catch(() => null)
+  if (err?.reason === 'BadDeviceToken') return postApns(APNS_HOST_SANDBOX, token, jwt, title, body, data)
+  return res
 }
 
 Deno.serve(async (req) => {
