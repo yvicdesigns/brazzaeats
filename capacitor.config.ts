@@ -7,7 +7,10 @@ const config: CapacitorConfig = {
   plugins: {
     SplashScreen: {
       launchShowDuration: 1500,
-      backgroundColor: '#085028',
+      // Fond blanc — le nouveau logo (texte vert + jaune) est illisible sur le
+      // vert de la marque, le vert se confondant avec le fond. Cohérent avec
+      // l'icône de l'app, qui est déjà sur fond blanc.
+      backgroundColor: '#ffffff',
       showSpinner: false,
       androidSplashResourceName: 'splash',
       androidScaleType: 'CENTER_CROP',
