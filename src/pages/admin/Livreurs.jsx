@@ -501,7 +501,7 @@ export default function AdminLivreurs() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-gray-800 text-sm truncate">
+                        <p className="font-semibold text-gray-800 text-sm truncate min-w-0">
                           {livreur.profile?.nom ?? '—'}
                         </p>
                         <BadgeStatut statut={livreur.statut} />

@@ -736,11 +736,11 @@ export default function AdminRestaurants() {
                     {/* Infos */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-gray-800 text-sm truncate">{resto.nom}</p>
+                        <p className="font-semibold text-gray-800 text-sm truncate min-w-0">{resto.nom}</p>
                         <BadgeStatut statut={resto.statut} />
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <p className="text-xs text-gray-400 truncate">{resto.adresse ?? '—'}</p>
+                        <p className="text-xs text-gray-400 truncate min-w-0">{resto.adresse ?? '—'}</p>
                         {resto.note_moyenne > 0 && (
                           <p className="text-xs text-yellow-600 flex items-center gap-0.5 shrink-0">
                             <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />

@@ -687,12 +687,12 @@ export default function Profile() {
                       <span className="text-xs text-gray-400 italic">Fermé</span>
                     )
                     : (
-                      <div className="flex items-center gap-2 flex-1">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
                         <input
                           type="time"
                           value={h.ouverture}
                           onChange={e => setHoraire(key, 'ouverture', e.target.value)}
-                          className="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm
+                          className="flex-1 min-w-0 border border-gray-300 rounded-lg px-2 py-1.5 text-sm
                                      focus:outline-none focus:ring-2 focus:ring-brand-400"
                         />
                         <span className="text-gray-400 text-xs shrink-0">→</span>
@@ -700,7 +700,7 @@ export default function Profile() {
                           type="time"
                           value={h.fermeture}
                           onChange={e => setHoraire(key, 'fermeture', e.target.value)}
-                          className="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm
+                          className="flex-1 min-w-0 border border-gray-300 rounded-lg px-2 py-1.5 text-sm
                                      focus:outline-none focus:ring-2 focus:ring-brand-400"
                         />
                       </div>

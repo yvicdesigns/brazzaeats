@@ -73,7 +73,7 @@ function CarteCommande({ cmd }) {
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="font-semibold text-sm text-gray-800 truncate">
+            <p className="font-semibold text-sm text-gray-800 truncate min-w-0">
               {cmd.restaurant?.nom ?? '—'}
             </p>
             <BadgeStatut statut={cmd.statut} />
