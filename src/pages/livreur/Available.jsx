@@ -198,7 +198,7 @@ export default function Available() {
           <div>
             <p className="text-xs text-gray-400 font-medium">Livreur</p>
             <h1 className="text-xl font-black text-gray-900 mt-0.5">Commandes disponibles</h1>
-            {!commandeActive && (
+            {modeIndependants && !commandeActive && (
               <p className="text-xs text-gray-500 mt-0.5">
                 {commandes.length} commande{commandes.length !== 1 ? 's' : ''} prête
                 {commandes.length !== 1 ? 's' : ''}

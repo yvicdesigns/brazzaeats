@@ -269,6 +269,18 @@ async function upsertOrders() {
   else log(`${items.length} lignes de commande insérées`)
 }
 
+// ── Étape 6bis : livreurs (vehicule/zone/statut, requis pour la
+// gestion admin — distinct de profiles, qui ne porte que le rôle) ──
+async function upsertLivreurs() {
+  console.log('\n── Upsert des livreurs ──')
+  const rows = [
+    { id: 'a0000000-0000-0000-0000-000000000007', statut: 'actif', vehicule: 'moto', zone: null },
+  ]
+  const { error } = await supabase.from('livreurs').upsert(rows, { onConflict: 'id' })
+  if (error) err(`livreurs : ${error.message}`)
+  else log(`${rows.length} livreur(s) inséré(s)/mis à jour`)
+}
+
 // ── Étape 7 : livraisons ──────────────────────────────────
 async function upsertDeliveries() {
   console.log('\n── Upsert des livraisons ──')
@@ -318,6 +330,7 @@ async function main() {
   await upsertRestaurants()
   await upsertMenuCategories()
   await upsertMenuItems()
+  await upsertLivreurs()
   await upsertOrders()
   await upsertDeliveries()
   await upsertReviews()

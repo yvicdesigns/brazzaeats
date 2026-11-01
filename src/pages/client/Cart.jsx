@@ -74,58 +74,61 @@ export default function Cart() {
         {items.map(item => (
           <div
             key={item.id}
-            className="flex items-center gap-3 bg-white rounded-xl p-3.5 shadow-sm"
+            className="bg-white rounded-xl p-3.5 shadow-sm"
           >
-            {/* Image */}
-            <div className="w-14 h-14 shrink-0 rounded-xl overflow-hidden bg-gray-100">
-              {item.image_url ? (
-                <img
-                  src={item.image_url}
-                  alt={item.nom}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-2xl">🍽️</div>
-              )}
+            <div className="flex items-center gap-3">
+              {/* Image */}
+              <div className="w-14 h-14 shrink-0 rounded-xl overflow-hidden bg-gray-100">
+                {item.image_url ? (
+                  <img
+                    src={item.image_url}
+                    alt={item.nom}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-2xl">🍽️</div>
+                )}
+              </div>
+
+              {/* Nom + prix unitaire — sur toute la largeur restante, pas de troncature */}
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2">
+                  {item.nom}
+                </p>
+                <p className="text-brand-500 font-bold text-sm mt-0.5">
+                  {formatCurrency(item.prix)}
+                </p>
+              </div>
             </div>
 
-            {/* Nom + prix */}
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-gray-900 text-sm leading-snug line-clamp-1">
-                {item.nom}
+            {/* Contrôle quantité + sous-total — seconde ligne, sous l'image */}
+            <div className="flex items-center justify-between mt-3 pl-[68px]">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => updateQuantite(item.id, item.quantite - 1)}
+                  className="bg-gray-100 rounded-full w-9 h-9 flex items-center justify-center
+                             hover:bg-gray-200 active:scale-95 transition-all"
+                  aria-label="Réduire la quantité"
+                >
+                  <Minus className="w-3 h-3" />
+                </button>
+                <span className="font-bold text-gray-900 text-sm w-6 text-center tabular-nums">
+                  {item.quantite}
+                </span>
+                <button
+                  onClick={() => updateQuantite(item.id, item.quantite + 1)}
+                  className="bg-brand-500 text-white rounded-full w-9 h-9 flex items-center justify-center
+                             hover:bg-brand-600 active:scale-95 transition-all"
+                  aria-label="Augmenter la quantité"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+              </div>
+
+              <p className="text-gray-800 font-semibold text-sm tabular-nums">
+                {formatCurrency(item.prix * item.quantite)}
               </p>
-              <p className="text-brand-500 font-bold text-sm mt-0.5">
-                {formatCurrency(item.prix)}
-              </p>
             </div>
-
-            {/* Contrôle quantité */}
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => updateQuantite(item.id, item.quantite - 1)}
-                className="bg-gray-100 rounded-full w-9 h-9 flex items-center justify-center
-                           hover:bg-gray-200 active:scale-95 transition-all"
-                aria-label="Réduire la quantité"
-              >
-                <Minus className="w-3 h-3" />
-              </button>
-              <span className="font-bold text-gray-900 text-sm w-6 text-center tabular-nums">
-                {item.quantite}
-              </span>
-              <button
-                onClick={() => updateQuantite(item.id, item.quantite + 1)}
-                className="bg-brand-500 text-white rounded-full w-9 h-9 flex items-center justify-center
-                           hover:bg-brand-600 active:scale-95 transition-all"
-                aria-label="Augmenter la quantité"
-              >
-                <Plus className="w-3 h-3" />
-              </button>
-            </div>
-
-            {/* Sous-total de la ligne */}
-            <p className="text-gray-800 font-semibold text-sm shrink-0 tabular-nums ml-1">
-              {formatCurrency(item.prix * item.quantite)}
-            </p>
           </div>
         ))}
       </section>

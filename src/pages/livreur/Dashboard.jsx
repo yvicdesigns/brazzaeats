@@ -36,7 +36,7 @@ function KpiCard({ titre, valeur, sousTitre, Icon, couleur = 'brand' }) {
 // Page Dashboard Livreur
 // ══════════════════════════════════════════════════════════
 export default function LivreurDashboard() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
 
   const [stats,          setStats]          = useState(null)
   const [commandeActive, setCommandeActive] = useState(null)
@@ -109,7 +109,7 @@ export default function LivreurDashboard() {
     )
   }
 
-  const prenom = user?.user_metadata?.nom?.split(' ')[0] ?? 'Livreur'
+  const prenom = profile?.nom?.split(' ')[0] ?? user?.user_metadata?.nom?.split(' ')[0] ?? 'Livreur'
 
   return (
     <div className="min-h-screen bg-gray-50 pb-8">

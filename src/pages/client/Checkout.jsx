@@ -357,9 +357,13 @@ export default function Checkout() {
 
     commandePasseeRef.current = true
 
-    clearCart()
+    // Navigue d'abord, vide le panier ensuite : si clearCart() s'exécute
+    // avant la navigation, le total recalculé (panier vide) s'affiche
+    // brièvement sur cet écran avant que la redirection ne prenne effet
+    // (ex. total réduit aux seuls frais de livraison pendant une frame).
     toast.success('Commande envoyée ! 🎉')
     navigate(`/suivi/${data.id}`, { replace: true })
+    clearCart()
   }
 
   // ── Capture de la position GPS ──────────────────────────

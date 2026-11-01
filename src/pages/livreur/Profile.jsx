@@ -301,7 +301,7 @@ export default function LivreurProfile() {
             icon={<Bike className="w-4 h-4 text-purple-500" />}
             iconBg="bg-purple-100"
             title="Véhicule et zone"
-            subtitle={[livreurInfo?.vehicule, livreurInfo?.zone].filter(Boolean).join(' · ') || 'Non renseigné'}
+            subtitle={[livreurInfo?.vehicule ?? 'moto', livreurInfo?.zone].filter(Boolean).join(' · ')}
             expanded={sectionVehicule}
             onToggle={() => setSectionVehicule(p => !p)}
           >
