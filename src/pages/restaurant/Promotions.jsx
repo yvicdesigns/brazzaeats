@@ -258,10 +258,10 @@ export default function Promotions() {
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <header className="bg-white border-b border-gray-100 px-4 pt-12 pb-5 md:pt-8">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
             <p className="text-xs text-gray-400 font-medium">Marketing</p>
-            <h1 className="text-xl font-black text-gray-900 mt-0.5">Promotions & codes promo</h1>
+            <h1 className="text-xl font-black text-gray-900 mt-0.5 truncate">Promotions & codes promo</h1>
             <p className="text-xs text-gray-500 mt-0.5">
               {promos.filter(p => {
                 const today = new Date().toISOString().slice(0, 10)
@@ -272,7 +272,7 @@ export default function Promotions() {
           <button
             onClick={() => setModal('new')}
             className="flex items-center gap-1.5 bg-brand-500 text-white font-bold text-sm
-                       px-4 py-2.5 rounded-xl hover:bg-brand-600 transition-colors min-h-[44px]"
+                       px-4 py-2.5 rounded-xl hover:bg-brand-600 transition-colors min-h-[44px] shrink-0"
           >
             <Plus className="w-4 h-4" />
             Créer

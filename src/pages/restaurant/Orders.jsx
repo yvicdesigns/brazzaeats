@@ -494,17 +494,17 @@ export default function RestaurantOrders() {
 
       {/* ── En-tête ─────────────────────────────────────── */}
       <header className="bg-white border-b border-gray-100 px-4 pt-12 pb-0 md:pt-8">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h1 className="text-xl font-black text-gray-900">Commandes</h1>
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="min-w-0">
+            <h1 className="text-xl font-black text-gray-900 truncate">Commandes</h1>
             {nbEnAttente > 0 && (
               <p className="text-sm text-red-500 font-semibold mt-0.5 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-ping-slow inline-block" />
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-ping-slow inline-block shrink-0" />
                 {nbEnAttente} en attente de votre réponse
               </p>
             )}
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={() => setVenteComptoirOuverte(true)}
               className="flex items-center gap-1.5 bg-brand-600 text-white text-sm font-bold px-3.5 py-2
