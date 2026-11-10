@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react'
 import { Loader2, Bell, Minus, Plus } from 'lucide-react'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { tempsPreparationParDefaut } from '@/hooks/useRestaurantNotifications'
+import ChoixMotifRefus from '@/components/restaurant/ChoixMotifRefus'
 
 const PAS_MINUTES = 5
 
@@ -91,20 +92,13 @@ export default function AlarmeNouvelleCommande({ commande, restantes, onAccepter
 
         <div className="mt-auto flex flex-col gap-2.5">
           {confirmerRefus ? (
-            <>
-              <p className="text-center text-[15px] font-bold text-gray-900">Refuser cette commande ? Le client sera prévenu.</p>
-              <div className="grid grid-cols-[1fr_1.6fr] gap-2.5">
-                <button type="button" onClick={() => setConfirmerRefus(false)} disabled={!!enCours}
-                        className="h-[52px] rounded-2xl border border-gray-200 font-bold text-gray-900 disabled:opacity-50">
-                  Retour
-                </button>
-                <button type="button" onClick={() => onRefuser(commande.id)} disabled={!!enCours}
-                        className="h-[52px] rounded-2xl bg-terracotta-700 text-white font-extrabold flex items-center justify-center gap-2 disabled:opacity-50">
-                  {enCours === 'refuser' && <Loader2 className="w-5 h-5 animate-spin" />}
-                  Confirmer le refus
-                </button>
-              </div>
-            </>
+            <ChoixMotifRefus
+              commande={commande}
+              titre="Pourquoi refuser cette commande ?"
+              envoi={enCours === 'refuser'}
+              onRetour={() => setConfirmerRefus(false)}
+              onConfirmer={(motif, platId) => onRefuser(commande.id, motif, platId)}
+            />
           ) : (
             <>
               <button type="button" onClick={() => onAccepter(commande.id, minutes)} disabled={!!enCours}

@@ -5,7 +5,11 @@ import { useMyRestaurant } from '@/hooks/useMyRestaurant'
 import { useRestaurantPendingCount } from '@/hooks/useRestaurantPendingCount'
 import { useRestaurantNotifications } from '@/hooks/useRestaurantNotifications'
 import { useAuth } from '@/hooks/useAuth'
+import toast from 'react-hot-toast'
+import { updateRestaurant } from '@/services/menuService'
+import { finDePause } from '@/services/restaurantService'
 import AlarmeNouvelleCommande from '@/components/restaurant/AlarmeNouvelleCommande'
+import PanneauPause from '@/components/restaurant/PanneauPause'
 import BandeauHorsLigne from '@/components/shared/BandeauHorsLigne'
 import BandeauSuppressionProgrammee from '@/components/shared/BandeauSuppressionProgrammee'
 
@@ -47,12 +51,30 @@ export default function RestaurantLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { logout } = useAuth()
-  const { restaurant } = useMyRestaurant()
+  const { restaurant, setRestaurant } = useMyRestaurant()
   const pendingCount = useRestaurantPendingCount(restaurant?.id)
   const { commandeAlarme, nbEnAttente, enCours, accepter, refuser } = useRestaurantNotifications(restaurant?.id)
   const [plusOuvert, setPlusOuvert] = useState(false)
+  const [pauseOuverte, setPauseOuverte] = useState(false)
+  const [, rafraichir] = useState(0)
 
   useEffect(() => { setPlusOuvert(false) }, [location.pathname])
+
+  // La pause se termine toute seule : on réaffiche « Ouvert » sans recharger
+  const pause = finDePause(restaurant?.pause_jusqu_a)
+  useEffect(() => {
+    if (!pause) return
+    const id = setTimeout(() => rafraichir(n => n + 1), pause.getTime() - Date.now() + 500)
+    return () => clearTimeout(id)
+  }, [pause?.getTime()])
+
+  async function changerPause(fin) {
+    const { data, error } = await updateRestaurant(restaurant.id, { pause_jusqu_a: fin ? fin.toISOString() : null })
+    if (error) { toast.error('Erreur : ' + error); return }
+    setRestaurant(data)
+    setPauseOuverte(false)
+    toast.success(fin ? 'Pause activée' : 'Commandes reprises')
+  }
 
   const secondaireActif = NAV_SECONDAIRE.some(i => location.pathname.startsWith(i.to))
 
@@ -128,8 +150,26 @@ export default function RestaurantLayout() {
 
       {/* ── Contenu ─────────────────────────────────────── */}
       <main className="flex-1 min-w-0 md:ml-[88px] lg:ml-60 pb-24 md:pb-0">
-        <Outlet />
+        {pause && (
+          <div className="sticky top-0 z-20 bg-white px-4 lg:px-8 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-3 border-b border-gray-100">
+            <div className="max-w-3xl flex items-center gap-3 pl-3.5 pr-2 py-2 rounded-2xl bg-amber-50 border border-amber-100">
+              <span className="w-2 h-2 rounded-full bg-amber-600 shrink-0" />
+              <span className="flex-1 min-w-0">
+                <span className="block text-[15px] font-extrabold text-amber-900">En pause</span>
+                <span className="block text-[13px] font-semibold text-amber-900">
+                  Reprise automatique à {pause.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </span>
+              <button onClick={() => changerPause(null)} className="h-10 px-3.5 rounded-xl bg-brand-500 text-white text-sm font-bold shrink-0">
+                Reprendre
+              </button>
+            </div>
+          </div>
+        )}
+        <Outlet context={{ restaurant, pause, ouvrirPause: () => setPauseOuverte(true), reprendre: () => changerPause(null) }} />
       </main>
+
+      {pauseOuverte && <PanneauPause onValider={changerPause} onFermer={() => setPauseOuverte(false)} />}
 
       {/* ── Téléphone : onglets en bas ──────────────────── */}
       <nav aria-label="Navigation restaurant" className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 z-40 pb-safe-only">

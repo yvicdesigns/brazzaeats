@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Star, Clock, MapPin, ShoppingCart, MessageSquare } from 'lucide-react'
 import toast from 'react-hot-toast'
 import MenuItemCard from '@/components/shared/MenuItemCard'
-import { getRestaurantById, getMenuByRestaurant, getRestaurantReviews } from '@/services/restaurantService'
+import { getRestaurantById, getMenuByRestaurant, getRestaurantReviews, finDePause } from '@/services/restaurantService'
 import useCart, { useCartCount, useCartTotal } from '@/hooks/useCart'
 import { formatCurrency } from '@/utils/formatCurrency'
 
@@ -179,6 +179,15 @@ export default function Restaurant() {
           </div>
         )}
       </div>
+
+      {finDePause(restaurant?.pause_jusqu_a) && (
+        <div className="mx-4 mt-3 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-100 text-amber-900">
+          <p className="text-sm font-extrabold">Ce restaurant fait une courte pause</p>
+          <p className="text-[13px] font-semibold">
+            Vous pourrez commander à partir de {finDePause(restaurant.pause_jusqu_a).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.
+          </p>
+        </div>
+      )}
 
       {/* ── Onglets catégories + Avis (sticky sous le header) */}
       {!loading && (

@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useOutletContext } from 'react-router-dom'
 import { X, Loader2, Phone, Minus, Plus } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '@/supabase/client'
 import { useMyRestaurant } from '@/hooks/useMyRestaurant'
-import { getOrdersByRestaurant } from '@/services/menuService'
+import { getOrdersByRestaurant, updateMenuItem } from '@/services/menuService'
+import ChoixMotifRefus from '@/components/restaurant/ChoixMotifRefus'
 import { updateOrderStatus } from '@/services/orderService'
 import { getPlatformSettings } from '@/services/adminService'
 import { formatCurrency } from '@/utils/formatCurrency'
@@ -100,7 +102,7 @@ function CarteCommande({ commande, maintenant, livraisonExterne, onOuvrir, onAct
         <p className="text-[13px] font-semibold text-gray-500">En attente d'un livreur — il confirmera la remise.</p>
       )}
       {commande.statut === 'annulée' && (
-        <p className="text-[13px] font-bold text-terracotta-700">Annulée</p>
+        <p className="text-[13px] font-bold text-terracotta-700">Annulée{commande.motif_refus ? ` · ${commande.motif_refus}` : ''}</p>
       )}
     </article>
   )
@@ -119,9 +121,11 @@ function ModalCommande({ commande, onClose, onStatusChange, livraisonExterne }) 
   const peutAnnuler = !['annulée', 'livrée'].includes(commande.statut)
   const fraisLivraison = commande.frais_livraison ?? 0
 
-  async function changerStatut(nouveauStatut) {
+  async function changerStatut(nouveauStatut, motif = null, platEnRupture = null) {
     setEnvoi(true)
-    const champsSupplementaires = nouveauStatut === 'acceptée' ? { temps_preparation_minutes: minutes } : {}
+    const champsSupplementaires = nouveauStatut === 'acceptée' ? { temps_preparation_minutes: minutes }
+      : motif ? { motif_refus: motif } : {}
+    if (platEnRupture) updateMenuItem(platEnRupture, { disponible: false })
     const { error } = await updateOrderStatus(commande.id, nouveauStatut, champsSupplementaires)
     setEnvoi(false)
 
@@ -238,20 +242,13 @@ function ModalCommande({ commande, onClose, onStatusChange, livraisonExterne }) 
 
         <footer className="px-5 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))] border-t border-gray-100 flex flex-col gap-2">
           {confirmerAnnul ? (
-            <>
-              <p className="text-center text-sm font-bold text-gray-900">
-                {estNouvelle ? 'Refuser cette commande ?' : 'Annuler cette commande ?'} Le client sera prévenu.
-              </p>
-              <div className="grid grid-cols-[1fr_1.6fr] gap-2.5">
-                <button onClick={() => setConfirmerAnnul(false)} disabled={envoi}
-                        className="h-12 rounded-xl border border-gray-200 font-bold text-gray-900">Retour</button>
-                <button onClick={() => changerStatut('annulée')} disabled={envoi}
-                        className="h-12 rounded-xl bg-terracotta-700 text-white font-extrabold flex items-center justify-center gap-2 disabled:opacity-60">
-                  {envoi && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {estNouvelle ? 'Confirmer le refus' : "Confirmer l'annulation"}
-                </button>
-              </div>
-            </>
+            <ChoixMotifRefus
+              commande={commande}
+              titre={estNouvelle ? 'Pourquoi refuser cette commande ?' : 'Pourquoi annuler cette commande ?'}
+              envoi={envoi}
+              onRetour={() => setConfirmerAnnul(false)}
+              onConfirmer={(motif, platId) => changerStatut('annulée', motif, platId)}
+            />
           ) : estNouvelle ? (
             <div className="grid grid-cols-[1fr_1.6fr] gap-2.5">
               <button onClick={() => setConfirmerAnnul(true)} disabled={envoi}
@@ -289,6 +286,7 @@ function ModalCommande({ commande, onClose, onStatusChange, livraisonExterne }) 
 // ══════════════════════════════════════════════════════════
 export default function RestaurantOrders() {
   const { restaurant, loading: loadingResto } = useMyRestaurant()
+  const { pause, ouvrirPause } = useOutletContext() ?? {}
 
   const [commandes,    setCommandes]    = useState([])
   const [loading,      setLoading]      = useState(true)
@@ -346,7 +344,7 @@ export default function RestaurantOrders() {
               .select(`
                 *,
                 client:profiles!orders_client_id_fkey(nom, telephone),
-                order_items(id, quantite, prix_unitaire, sous_total, menu_item:menu_items(nom, temps_preparation))
+                order_items(id, quantite, prix_unitaire, sous_total, menu_item:menu_items(id, nom, temps_preparation))
               `)
               .eq('id', payload.new.id)
               .single()
@@ -408,6 +406,13 @@ export default function RestaurantOrders() {
         <div className="flex items-center justify-between gap-3 mb-3 lg:mb-5">
           <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Commandes</h1>
           <div className="flex items-center gap-2">
+            {!pause && ouvrirPause && (
+              <div className="hidden lg:flex h-10 pl-3.5 pr-1.5 rounded-xl border border-gray-200 items-center gap-2.5">
+                <span className="w-2 h-2 rounded-full bg-brand-400" />
+                <span className="text-sm font-bold">Ouvert</span>
+                <button onClick={ouvrirPause} className="h-[30px] px-2.5 rounded-lg bg-gray-100 text-[13px] font-bold">Pause</button>
+              </div>
+            )}
             <button onClick={() => setVoirTerminees(v => !v)}
                     className={`hidden lg:flex h-10 px-3.5 rounded-xl border text-sm font-bold items-center
                                 ${voirTerminees ? 'border-brand-500 text-brand-500 bg-brand-50/60' : 'border-gray-200 text-gray-900'}`}>

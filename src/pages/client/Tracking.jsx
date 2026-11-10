@@ -247,7 +247,8 @@ export default function Tracking() {
     : details.statut === 'acceptée' ? 'Commande acceptée'
     : 'Commande envoyée'
 
-  const statusSub = annulee ? 'Contactez le support si besoin'
+  const statusSub = annulee
+    ? (details.motif_refus ? `Motif du restaurant : ${details.motif_refus}` : 'Contactez le support si besoin')
     : livree ? "Bon appétit ! N'oubliez pas de laisser un avis"
     : details.livreur ? `${details.livreur.nom.split(' ')[0]} s'occupe de votre commande`
     : `${estLivraison ? 'Livraison' : 'Retrait'} · ${details.restaurant?.nom ?? ''}`

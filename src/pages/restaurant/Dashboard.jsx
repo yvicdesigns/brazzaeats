@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useOutletContext } from 'react-router-dom'
 import { Loader2, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useMyRestaurant } from '@/hooks/useMyRestaurant'
@@ -54,6 +54,7 @@ function Graphique({ parJour }) {
 // ══════════════════════════════════════════════════════════
 export default function Dashboard() {
   const { restaurant, loading: loadingResto } = useMyRestaurant()
+  const { pause, ouvrirPause } = useOutletContext() ?? {}
 
   const [donnees,    setDonnees]    = useState(null)
   const [versements, setVersements] = useState([])
@@ -127,13 +128,19 @@ export default function Dashboard() {
             <p className="text-[13px] font-semibold text-gray-500 first-letter:uppercase">{dateLongue()}</p>
             <h1 className="text-[22px] font-extrabold text-gray-900 tracking-tight">{restaurant?.nom ?? 'Mon restaurant'}</h1>
           </div>
-          <Link to="/restaurant/profil" className="flex items-center gap-2.5 h-[52px] pl-3.5 pr-2 border border-gray-200 rounded-2xl">
-            <span className={`w-2 h-2 rounded-full ${ouvert ? 'bg-brand-400' : 'bg-gray-400'}`} />
-            <span className="flex-1 text-[15px] font-bold text-gray-900">
-              {ouvert ? 'Ouvert' : 'Fermé'} <span className="font-semibold text-gray-500">· clients {ouvert ? 'acceptés' : 'en attente de réouverture'}</span>
-            </span>
-            <span className="h-10 px-3.5 rounded-xl bg-gray-100 text-sm font-bold text-gray-900 flex items-center">Gérer</span>
-          </Link>
+          {!ouvert ? (
+            <Link to="/restaurant/profil" className="flex items-center gap-2.5 h-[52px] pl-3.5 pr-2 border border-gray-200 rounded-2xl">
+              <span className="w-2 h-2 rounded-full bg-gray-400" />
+              <span className="flex-1 text-[15px] font-bold text-gray-900">Fermé <span className="font-semibold text-gray-500">· invisible pour les clients</span></span>
+              <span className="h-10 px-3.5 rounded-xl bg-gray-100 text-sm font-bold text-gray-900 flex items-center">Gérer</span>
+            </Link>
+          ) : !pause && (
+            <div className="flex items-center gap-2.5 h-[52px] pl-3.5 pr-2 border border-gray-200 rounded-2xl">
+              <span className="w-2 h-2 rounded-full bg-brand-400" />
+              <span className="flex-1 text-[15px] font-bold text-gray-900">Ouvert <span className="font-semibold text-gray-500">· vous recevez les commandes</span></span>
+              <button onClick={ouvrirPause} className="h-10 px-3.5 rounded-xl bg-gray-100 text-sm font-bold text-gray-900">Pause</button>
+            </div>
+          )}
         </header>
 
         <section className="border border-gray-200 rounded-2xl p-[18px] flex flex-col gap-3.5">

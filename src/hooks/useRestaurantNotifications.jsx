@@ -20,6 +20,7 @@ import toast from 'react-hot-toast'
 import { supabase } from '@/supabase/client'
 import { demarrerAlarme, arreterAlarme, resumeAudio } from '@/utils/notificationSound'
 import { updateOrderStatus } from '@/services/orderService'
+import { updateMenuItem } from '@/services/menuService'
 import { enfiler, estErreurReseau } from '@/utils/offlineQueue'
 
 export function useRestaurantNotifications(restaurantId) {
@@ -96,7 +97,7 @@ export function useRestaurantNotifications(restaurantId) {
             .select(`
               *,
               client:profiles!orders_client_id_fkey(nom, telephone),
-              order_items(id, quantite, prix_unitaire, sous_total, menu_item:menu_items(nom, temps_preparation))
+              order_items(id, quantite, prix_unitaire, sous_total, menu_item:menu_items(id, nom, temps_preparation))
             `)
             .eq('id', ordreId)
             .single()
@@ -149,7 +150,7 @@ export function useRestaurantNotifications(restaurantId) {
   // sur file[0] qui, entre-temps, désigne une AUTRE commande, et de la
   // résoudre par erreur sans qu'aucun humain n'ait cliqué dessus.
   const resoudreEnCoursRef = useRef(false)
-  const resoudre = useCallback(async (orderId, statut, action, tempsPreparation) => {
+  const resoudre = useCallback(async (orderId, statut, action, { tempsPreparation, motif, platEnRupture } = {}) => {
     if (resoudreEnCoursRef.current) return
     const commande = file.find(c => c.id === orderId)
     if (!commande) return
@@ -157,7 +158,8 @@ export function useRestaurantNotifications(restaurantId) {
     setEnCours(action)
     const champsSupplementaires = statut === 'acceptée'
       ? { temps_preparation_minutes: tempsPreparation ?? tempsPreparationParDefaut(commande) }
-      : {}
+      : motif ? { motif_refus: motif } : {}
+    if (platEnRupture) updateMenuItem(platEnRupture, { disponible: false })
     const { error } = await updateOrderStatus(commande.id, statut, champsSupplementaires)
     resoudreEnCoursRef.current = false
     setEnCours(null)
@@ -180,8 +182,8 @@ export function useRestaurantNotifications(restaurantId) {
     commandeAlarme: file[0] ?? null,
     nbEnAttente:    file.length,
     enCours,
-    accepter: (orderId, tempsPreparation) => resoudre(orderId, 'acceptée', 'accepter', tempsPreparation),
-    refuser:  (orderId) => resoudre(orderId, 'annulée', 'refuser'),
+    accepter: (orderId, tempsPreparation) => resoudre(orderId, 'acceptée', 'accepter', { tempsPreparation }),
+    refuser:  (orderId, motif, platEnRupture) => resoudre(orderId, 'annulée', 'refuser', { motif, platEnRupture }),
   }
 }
 

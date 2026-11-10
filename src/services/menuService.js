@@ -305,7 +305,7 @@ export async function getOrdersByRestaurant(restaurantId) {
           quantite,
           prix_unitaire,
           sous_total,
-          menu_item:menu_items(nom, temps_preparation)
+          menu_item:menu_items(id, nom, temps_preparation)
         )
       `)
       .eq('restaurant_id', restaurantId)

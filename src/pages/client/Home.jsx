@@ -218,13 +218,13 @@ export default function Home() {
   )
 
   const nbOuverts = useMemo(
-    () => tousFiltres.filter(r => isRestaurantOpen(r.horaires)).length,
+    () => tousFiltres.filter(r => isRestaurantOpen(r.horaires, r.pause_jusqu_a)).length,
     [tousFiltres]
   )
 
   // Restaurants affichés dans la grille (catégorie + segment Tous/Ouvert/Nouveau)
   const tousAffiches = useMemo(() => {
-    if (segment === 'ouvert')  return tousFiltres.filter(r => isRestaurantOpen(r.horaires))
+    if (segment === 'ouvert')  return tousFiltres.filter(r => isRestaurantOpen(r.horaires, r.pause_jusqu_a))
     if (segment === 'nouveau') return tousFiltres.filter(r => estRecent(r.created_at))
     return tousFiltres
   }, [tousFiltres, segment])

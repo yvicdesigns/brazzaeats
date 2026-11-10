@@ -8,7 +8,15 @@ const JOURS_FR = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi',
  * @param {object} horaires — JSONB { "lundi": { ouverture: "08:00", fermeture: "22:00" } }
  * @returns {boolean}
  */
-export function isRestaurantOpen(horaires) {
+/** Heure de fin de pause si le restaurant est en pause en ce moment, sinon null. */
+export function finDePause(pauseJusquA) {
+  if (!pauseJusquA) return null
+  const fin = new Date(pauseJusquA)
+  return fin.getTime() > Date.now() ? fin : null
+}
+
+export function isRestaurantOpen(horaires, pauseJusquA = null) {
+  if (finDePause(pauseJusquA)) return false
   if (!horaires) return false
 
   const maintenant   = new Date()
@@ -84,7 +92,7 @@ export async function getRestaurants({
   try {
     let query = supabase
       .from('restaurants')
-      .select('id, nom, description, logo_url, photo_couverture_url, video_apercu_url, adresse, horaires, note_moyenne, statut, ville, categorie, created_at, price_tier', { count: 'exact' })
+      .select('id, nom, description, logo_url, photo_couverture_url, video_apercu_url, adresse, horaires, pause_jusqu_a, note_moyenne, statut, ville, categorie, created_at, price_tier', { count: 'exact' })
       .eq('statut', 'actif')
       .order('note_moyenne', { ascending: false })
 
@@ -98,7 +106,7 @@ export async function getRestaurants({
     let results = data ?? []
 
     // Filtre horaire côté client
-    if (ouvertMaintenant) results = results.filter(r => isRestaurantOpen(r.horaires))
+    if (ouvertMaintenant) results = results.filter(r => isRestaurantOpen(r.horaires, r.pause_jusqu_a))
 
     return {
       data:    results,

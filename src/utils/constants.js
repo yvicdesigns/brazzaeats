@@ -76,6 +76,15 @@ export const STATUTS_ACTIFS = ['en_attente', 'acceptée', 'en_préparation', 'pr
 // Statuts terminaux
 export const STATUTS_TERMINAUX = ['livrée', 'annulée']
 
+// Motifs proposés au restaurant quand il refuse ou annule une commande (montrés au client)
+export const MOTIFS_REFUS = [
+  { id: 'rupture',   label: 'Un plat est en rupture' },
+  { id: 'affluence', label: 'Trop de commandes en ce moment' },
+  { id: 'fermeture', label: 'Nous fermons bientôt' },
+  { id: 'distance',  label: 'Adresse de livraison trop loin' },
+  { id: 'autre',     label: 'Autre motif' },
+]
+
 // ------------------------------------------------------------
 // Statuts restaurant
 // ------------------------------------------------------------
