@@ -137,7 +137,7 @@ export default function Dashboard() {
           ) : !pause && (
             <div className="flex items-center gap-2.5 h-[52px] pl-3.5 pr-2 border border-gray-200 rounded-2xl">
               <span className="w-2 h-2 rounded-full bg-brand-400" />
-              <span className="flex-1 text-[15px] font-bold text-gray-900">Ouvert <span className="font-semibold text-gray-500">· vous recevez les commandes</span></span>
+              <span className="flex-1 text-[15px] font-bold text-gray-900">Ouvert <span className="font-semibold text-gray-500">· en service</span></span>
               <button onClick={ouvrirPause} className="h-10 px-3.5 rounded-xl bg-gray-100 text-sm font-bold text-gray-900">Pause</button>
             </div>
           )}
