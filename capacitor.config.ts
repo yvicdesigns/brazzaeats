@@ -26,13 +26,24 @@ const config: CapacitorConfig = {
       backgroundColor: '#085028',
       overlaysWebView: false,
     },
-    // resize:'none' — le WebView ne se redimensionne plus du tout à
-    // l'apparition du clavier (le clavier se contente de recouvrir le bas
-    // de l'écran). Évite les incohérences observées avec le redimensionnement
-    // natif Android (adjustResize), qui pouvait faire disparaître tout le
-    // contenu au-dessus du clavier sur certains appareils.
+    // Cette option Keyboard.resize ne s'applique qu'à iOS (voir la doc du
+    // plugin) — elle n'a aucun effet sur Android, qui gère son propre
+    // comportement séparément via android:windowSoftInputMode="adjustPan"
+    // dans AndroidManifest.xml.
+    //
+    // resize:'native' — la WebView iOS se redimensionne réellement à
+    // l'apparition du clavier (comportement standard WebKit). Avec
+    // resize:'none' (essayé précédemment), la WebView ne bougeait jamais :
+    // un champ situé dans la moitié basse de l'écran (ex. "Mot de passe" à
+    // l'inscription) se retrouvait purement caché sous le clavier, sans
+    // aucun scroll — ni natif, ni programmatique — possible pour le révéler.
     Keyboard: {
-      resize: 'none',
+      resize: 'native',
+      // Avec resize:'native', l'espace entre le bas de la WebView
+      // redimensionnée et le haut du clavier ("backdrop") est noir par
+      // défaut (autoBackdropColor vaut 'off' par défaut). 'dom' le fait
+      // correspondre à la couleur de fond réelle de la page affichée.
+      autoBackdropColor: 'dom',
     },
   },
 }

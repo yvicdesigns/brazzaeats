@@ -22,7 +22,7 @@ export default function AdminSettings() {
   const [form, setForm] = useState({
     nom_plateforme:       'Zandofood',
     contact_support:      '',
-    commission_defaut:    10,
+    commission_defaut:    0,
     frais_livraison_base: 1000,
     mode_livraison:       'independants',
     solde_cash_actif:     false,
@@ -50,7 +50,7 @@ export default function AdminSettings() {
         setForm({
           nom_plateforme:       data.nom_plateforme       ?? 'Zandofood',
           contact_support:      data.contact_support      ?? '',
-          commission_defaut:    data.commission_defaut    ?? 10,
+          commission_defaut:    data.commission_defaut    ?? 0,
           frais_livraison_base: data.frais_livraison_base ?? 1000,
           mode_livraison:       data.mode_livraison       ?? 'independants',
           solde_cash_actif:     data.solde_cash_actif     ?? false,

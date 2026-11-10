@@ -87,6 +87,8 @@ export function useRestaurantNotifications(restaurantId) {
         async (payload) => {
           const ordreId = payload.new?.id
           if (!ordreId) return
+          // Une vente comptoir est créée directement « acceptée » par le restaurant lui-même
+          if (payload.new.statut !== 'en_attente') return
 
           // Récupérer la commande complète (items, client) pour l'alarme plein écran
           const { data: cmdComplete } = await supabase
@@ -119,6 +121,17 @@ export function useRestaurantNotifications(restaurantId) {
           }
         }
       )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders',
+          filter: `restaurant_id=eq.${restaurantId}` },
+        (payload) => {
+          // Acceptée sur un autre appareil, ou annulée : plus rien à sonner pour elle
+          if (payload.new?.statut && payload.new.statut !== 'en_attente') {
+            setFile(prev => prev.filter(c => c.id !== payload.new.id))
+          }
+        }
+      )
       .subscribe()
 
     return () => {
@@ -136,21 +149,14 @@ export function useRestaurantNotifications(restaurantId) {
   // sur file[0] qui, entre-temps, désigne une AUTRE commande, et de la
   // résoudre par erreur sans qu'aucun humain n'ait cliqué dessus.
   const resoudreEnCoursRef = useRef(false)
-  const resoudre = useCallback(async (orderId, statut, action) => {
+  const resoudre = useCallback(async (orderId, statut, action, tempsPreparation) => {
     if (resoudreEnCoursRef.current) return
     const commande = file.find(c => c.id === orderId)
     if (!commande) return
     resoudreEnCoursRef.current = true
     setEnCours(action)
-    // Acceptation via l'alarme plein écran : pas d'étape d'ajustement (garder
-    // le geste rapide), on fige donc directement le délai par défaut calculé
-    // sur les articles — contrairement au bouton "Accepter" du détail de
-    // commande, qui permet d'ajuster ce délai avant de valider.
     const champsSupplementaires = statut === 'acceptée'
-      ? { temps_preparation_minutes: Math.max(
-            ...(commande.order_items ?? []).map(oi => oi.menu_item?.temps_preparation ?? 15),
-            15
-          ) }
+      ? { temps_preparation_minutes: tempsPreparation ?? tempsPreparationParDefaut(commande) }
       : {}
     const { error } = await updateOrderStatus(commande.id, statut, champsSupplementaires)
     resoudreEnCoursRef.current = false
@@ -174,7 +180,14 @@ export function useRestaurantNotifications(restaurantId) {
     commandeAlarme: file[0] ?? null,
     nbEnAttente:    file.length,
     enCours,
-    accepter: (orderId) => resoudre(orderId, 'acceptée', 'accepter'),
+    accepter: (orderId, tempsPreparation) => resoudre(orderId, 'acceptée', 'accepter', tempsPreparation),
     refuser:  (orderId) => resoudre(orderId, 'annulée', 'refuser'),
   }
+}
+
+export function tempsPreparationParDefaut(commande) {
+  return Math.max(
+    ...(commande?.order_items ?? []).map(oi => oi.menu_item?.temps_preparation ?? 15),
+    15
+  )
 }

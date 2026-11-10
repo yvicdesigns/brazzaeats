@@ -40,7 +40,7 @@ function ModaleModifier({ restaurant, onSave, onClose }) {
     nom:             restaurant.nom             ?? '',
     adresse:         restaurant.adresse         ?? '',
     description:     restaurant.description     ?? '',
-    commission_rate: restaurant.commission_rate ?? 10,
+    commission_rate: restaurant.commission_rate ?? 0,
     latitude:        restaurant.latitude  ?? '',
     longitude:       restaurant.longitude ?? '',
     mode_livraison:  restaurant.mode_livraison  ?? '',
@@ -196,7 +196,7 @@ function DetailRestaurant({ restaurant, ouvert, onValider, onSuspendre, onModifi
             <p className="font-medium text-gray-700">Adresse</p>
             <p className="truncate">{restaurant.adresse ?? '—'}</p>
             <p className="font-medium text-gray-700 mt-1">Commission</p>
-            <p>{restaurant.commission_rate ?? 10}%</p>
+            <p>{restaurant.commission_rate ?? 0}%</p>
           </div>
         </div>
 
@@ -420,7 +420,7 @@ function ModaleProprietaire({ restaurant, onSave, onClose }) {
 // ── Modale création restaurant ────────────────────────────
 function ModaleCreerRestaurant({ onSave, onClose }) {
   const [form, setForm] = useState({
-    nom: '', adresse: '', telephone: '', motDePasse: '', commissionRate: 10,
+    nom: '', adresse: '', telephone: '', motDePasse: '', commissionRate: 0,
   })
   const [mdpVisible, setMdpVisible] = useState(false)
   const [saving,     setSaving]     = useState(false)

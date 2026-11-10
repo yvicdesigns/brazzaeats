@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
       // téléphone (email synthétique déjà pris), sans qu'aucun restaurant
       // ne soit visible dans la liste pour comprendre pourquoi.
       case 'createRestaurant': {
-        const { nom, adresse, telephone, motDePasse, commissionRate = 10 } = payload
+        const { nom, adresse, telephone, motDePasse, commissionRate = 0 } = payload
         const email = phoneToFakeEmail(telephone)
 
         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({

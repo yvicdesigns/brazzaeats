@@ -10,7 +10,7 @@ const FAQ = [
   { cat: 'Paiement', q: 'Comment on paie une commande ?', a: "En espèces à la livraison, ou par Mobile Money (MTN ou Airtel) directement au numéro du restaurant, avec une preuve de paiement à envoyer dans l'app. Ce n'est pas un paiement automatique intégré — c'est un virement manuel vérifié." },
   { cat: 'Paiement', q: 'Combien coûte la livraison ?', a: "1000 FCFA, un montant fixe qui ne dépend pas de la distance. C'est gratuit si le client vient récupérer sa commande sur place (retrait)." },
   { cat: 'Paiement', q: 'Y a-t-il un montant minimum de commande ?', a: "Non, il n'y a pas de minimum imposé pour l'instant." },
-  { cat: 'Restaurants', q: 'Quelle commission Zandofood prend aux restaurants ?', a: "10% par défaut sur le sous-total de la commande (hors frais de livraison). Ce taux peut être ajusté restaurant par restaurant par l'équipe Zandofood." },
+  { cat: 'Restaurants', q: 'Quelle commission Zandofood prend aux restaurants ?', a: "Aucune pendant la phase de lancement : Zandofood ne prend aucune commission sur vos ventes." },
   { cat: 'Restaurants', q: 'Comment un restaurant rejoint Zandofood ?', a: "Il n'y a pas d'inscription publique pour l'instant : c'est l'équipe Zandofood qui crée le compte du restaurant après l'avoir contactée." },
   { cat: 'Livreurs', q: 'Comment devenir livreur Zandofood ?', a: "Même principe que pour les restaurants : pas d'auto-inscription publique aujourd'hui, le compte est créé par l'équipe après contact direct." },
   { cat: 'Compte', q: 'Est-ce gratuit de créer un compte client ?', a: 'Oui, totalement gratuit pour commander.' },

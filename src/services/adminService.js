@@ -401,7 +401,7 @@ export async function updateCommissionRate(id, commissionRate) {
  *   2. Upsert le profil avec rôle 'restaurant'
  *   3. Insère le restaurant en statut 'en_attente'
  */
-export async function createRestaurant({ nom, adresse, telephone, motDePasse, commissionRate = 10 }) {
+export async function createRestaurant({ nom, adresse, telephone, motDePasse, commissionRate = 0 }) {
   try {
     const resto = await appelerAdminUsers('createRestaurant', {
       nom, adresse, telephone, motDePasse, commissionRate,

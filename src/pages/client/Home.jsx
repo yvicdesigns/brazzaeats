@@ -10,6 +10,7 @@ import { contacterSupport } from '@/utils/whatsappMessage'
 import { useVille } from '@/hooks/useVille'
 import SelectVille from './SelectVille'
 import { VILLES_CONGO } from '@/utils/constants'
+import { lireCache, ecrireCache } from '@/utils/cacheMemoire'
 
 const JOURS_NOUVEAU = 14
 
@@ -240,16 +241,34 @@ export default function Home() {
     }
   }, [])
 
-  // ── Chargement initial (restaurants de la ville sélectionnée) ──
+  // ── Chargement des restaurants de la ville sélectionnée ────
+  // "Stale-while-revalidate" : si on a déjà une liste en cache pour cette
+  // ville (ex. retour sur Accueil après être allé sur un autre onglet), on
+  // l'affiche immédiatement — sans écran de chargement — puis on revalide
+  // en silence derrière. Seule la toute première visite de la session
+  // affiche encore les skeletons.
   useEffect(() => {
     if (!ville) return
     let cancelled = false
-    const charger = async () => {
+    const cle = `restaurants:${ville}`
+
+    const enCache = lireCache(cle)
+    if (enCache) {
+      setTous(enCache)
+      setLoading(false)
+    } else {
       setLoading(true)
+    }
+
+    const charger = async () => {
       const { data, error } = await getRestaurants({ page: 0, limit: 100, ville })
       if (cancelled) return
-      if (error) toast.error('Impossible de charger les restaurants')
-      else setTous(data ?? [])
+      if (error) {
+        if (!enCache) toast.error('Impossible de charger les restaurants')
+      } else {
+        setTous(data ?? [])
+        ecrireCache(cle, data ?? [])
+      }
       setLoading(false)
     }
     charger()

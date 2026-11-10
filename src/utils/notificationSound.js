@@ -1,6 +1,45 @@
 // Notifications sonores via l'API Web Audio — aucun fichier .mp3 externe requis.
 // Les sons sont synthétisés à la volée avec des oscillateurs.
+import { Capacitor } from '@capacitor/core'
+import { Haptics } from '@capacitor/haptics'
 import { getPrefs, getPreset } from '@/utils/notificationPrefs'
+
+// ------------------------------------------------------------
+// Vibration — navigator.vibrate() n'existe pas sur iOS (WebKit ne l'a
+// jamais implémenté, contrairement à Chrome Android) : silencieusement
+// ignoré partout dans ce fichier sans la moindre erreur. Sur plateforme
+// native, on relaie donc vers le plugin Haptics (Taptic Engine), qui
+// fonctionne sur iOS ET Android ; navigator.vibrate reste le repli pour
+// le web (PWA desktop/Android hors app native).
+// ------------------------------------------------------------
+let _vibrationTimers = []
+
+export function arreterVibration() {
+  _vibrationTimers.forEach(clearTimeout)
+  _vibrationTimers = []
+  if (navigator.vibrate) navigator.vibrate(0)
+}
+
+/**
+ * @param {number[]} pattern — même format que navigator.vibrate() :
+ *   durées alternées [vibration, pause, vibration, pause, ...] en ms.
+ */
+export function vibrer(pattern) {
+  arreterVibration()
+  if (!getPrefs().vibrationActive) return
+  if (Capacitor.isNativePlatform()) {
+    let t = 0
+    pattern.forEach((duree, i) => {
+      const estVibration = i % 2 === 0
+      if (estVibration) {
+        _vibrationTimers.push(setTimeout(() => Haptics.vibrate({ duration: duree }), t))
+      }
+      t += duree
+    })
+  } else if (navigator.vibrate) {
+    navigator.vibrate(pattern)
+  }
+}
 
 /**
  * Catalogue des séquences sonores disponibles.
@@ -86,12 +125,15 @@ export function direNotification(texte) {
  */
 export function playNotificationSound(type = 'nouvelle_commande', volume = 0.4, repeat = 1) {
   try {
+    const prefs = getPrefs()
+    if (!prefs.sonActif) return // Son désactivé par l'utilisateur
+
     const ctx = getAudioContext()
     if (!ctx) return // Navigateur sans support Web Audio
 
     // Le volume demandé par l'appelant reste la base (équilibre relatif entre
     // les différents sons) — le réglage utilisateur agit comme un multiplicateur.
-    volume *= getPrefs().volume
+    volume *= prefs.volume
 
     const sequence      = SEQUENCES[type] ?? SEQUENCES.nouvelle_commande
     const dureeSequence = sequence.reduce((total, { duree }) => total + duree * 0.85, 0)
@@ -157,19 +199,36 @@ let _alarmeMasterGain = null
  */
 export function demarrerAlarme(annonce) {
   if (_alarmeActive) return
-  const ctx = getAudioContext()
-  if (!ctx) return
-  resumeAudio()
 
   const prefs = getPrefs()
-  const { toneA: TONE_A, toneB: TONE_B, forme } = getPreset(prefs.preset)
-  const DUREE_NOTE = 0.28
+
+  // Ni son ni vibration à faire boucler : l'annonce vocale (ci-dessous, si
+  // activée) suffit à elle seule, inutile de programmer un cycle qui ne
+  // ferait jamais rien.
+  if (!prefs.sonActif && !prefs.vibrationActive) {
+    if (annonce) direNotification(annonce)
+    return
+  }
+
+  const DUREE_NOTE_DEFAUT = 0.28
+  const DUREE_CYCLE_SANS_SON_MS = DUREE_NOTE_DEFAUT * 4 * 1000 // vibration seule
+
+  // Le son est optionnel (prefs.sonActif) — la vibration, elle, est gérée
+  // par vibrer() qui se filtre déjà elle-même selon prefs.vibrationActive.
+  let ctx = null, preset = null, dureeNote = DUREE_NOTE_DEFAUT
+  if (prefs.sonActif) {
+    ctx = getAudioContext()
+    if (ctx) {
+      resumeAudio()
+      preset = getPreset(prefs.preset)
+      dureeNote = preset.dureeNote ?? DUREE_NOTE_DEFAUT
+      _alarmeMasterGain = ctx.createGain()
+      _alarmeMasterGain.gain.value = prefs.volume
+      _alarmeMasterGain.connect(ctx.destination)
+    }
+  }
 
   _alarmeActive = true
-  _alarmeMasterGain = ctx.createGain()
-  _alarmeMasterGain.gain.value = prefs.volume
-  _alarmeMasterGain.connect(ctx.destination)
-
   if (annonce) direNotification(annonce)
 
   function jouerNote(freq, quand) {
@@ -177,25 +236,29 @@ export function demarrerAlarme(annonce) {
     const gain = ctx.createGain()
     osc.connect(gain)
     gain.connect(_alarmeMasterGain)
-    osc.type = forme
+    osc.type = preset.forme
     osc.frequency.setValueAtTime(freq, quand)
     gain.gain.setValueAtTime(0, quand)
     gain.gain.linearRampToValueAtTime(1, quand + 0.015)
-    gain.gain.setValueAtTime(1, quand + DUREE_NOTE - 0.03)
-    gain.gain.linearRampToValueAtTime(0, quand + DUREE_NOTE)
+    gain.gain.setValueAtTime(1, quand + dureeNote - 0.03)
+    gain.gain.linearRampToValueAtTime(0, quand + dureeNote)
     osc.start(quand)
-    osc.stop(quand + DUREE_NOTE + 0.02)
+    osc.stop(quand + dureeNote + 0.02)
   }
 
   function cycle() {
     if (!_alarmeActive) return
-    const t0 = ctx.currentTime
-    jouerNote(TONE_A, t0)
-    jouerNote(TONE_B, t0 + DUREE_NOTE)
-    jouerNote(TONE_A, t0 + DUREE_NOTE * 2)
-    jouerNote(TONE_B, t0 + DUREE_NOTE * 3)
-    if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300])
-    _alarmeTimer = setTimeout(cycle, DUREE_NOTE * 4 * 1000)
+    let dureeCycleMs = DUREE_CYCLE_SANS_SON_MS
+    if (ctx && preset) {
+      let t = ctx.currentTime
+      preset.notes.forEach(freq => {
+        jouerNote(freq, t)
+        t += dureeNote
+      })
+      dureeCycleMs = preset.notes.length * dureeNote * 1000
+    }
+    vibrer([300, 150, 300, 150, 300])
+    _alarmeTimer = setTimeout(cycle, dureeCycleMs)
   }
   cycle()
 }
@@ -216,7 +279,7 @@ export function arreterAlarme() {
     } catch { /* contexte déjà fermé — rien à faire */ }
     _alarmeMasterGain = null
   }
-  if (navigator.vibrate) navigator.vibrate(0)
+  arreterVibration()
 }
 
 export function alarmeEnCours() {

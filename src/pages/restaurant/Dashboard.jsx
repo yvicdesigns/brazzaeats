@@ -253,19 +253,22 @@ export default function Dashboard() {
               </span>
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 bg-red-50 rounded-lg flex items-center justify-center">
-                  <ArrowDownToLine className="w-3.5 h-3.5 text-red-400" />
+            {/* Pas de commission pendant la phase de lancement : la ligne n'apparaît qu'à partir d'un taux > 0 */}
+            {(kpis?.commissionRate ?? 0) > 0 && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 bg-red-50 rounded-lg flex items-center justify-center">
+                    <ArrowDownToLine className="w-3.5 h-3.5 text-red-400" />
+                  </div>
+                  <span className="text-sm text-gray-600">
+                    Commission Zandofood ({kpis.commissionRate}%)
+                  </span>
                 </div>
-                <span className="text-sm text-gray-600">
-                  Commission Zandofood ({kpis?.commissionRate ?? 10}%)
+                <span className="font-bold text-red-400 tabular-nums">
+                  − {formatCurrency(kpis?.commissionSemaine ?? 0)}
                 </span>
               </div>
-              <span className="font-bold text-red-400 tabular-nums">
-                − {formatCurrency(kpis?.commissionSemaine ?? 0)}
-              </span>
-            </div>
+            )}
 
             <div className="h-px bg-gray-100" />
 

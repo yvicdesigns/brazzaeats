@@ -74,13 +74,9 @@ export default function Register() {
     <div className="min-h-screen bg-gray-50 flex flex-col overflow-y-auto">
       <div className="flex-1 flex flex-col items-center justify-start px-6 pt-12 pb-8">
 
-        {/* Logo */}
+        {/* Logo — même logo que Login, pour la cohérence de marque */}
         <div className="mb-6 text-center">
-          <div className="w-14 h-14 bg-brand-500 rounded-2xl flex items-center justify-center
-                          mx-auto mb-3 shadow-lg">
-            <span className="text-2xl">🍽️</span>
-          </div>
-          <h1 className="text-xl font-black text-gray-900">Zandofood</h1>
+          <img src="/logo-zando.svg" alt="Zandofood" className="w-44 max-w-[55vw] mx-auto" />
         </div>
 
         <div className="w-full max-w-sm">
@@ -262,11 +258,11 @@ export default function Register() {
                 />
                 <span className="text-xs text-gray-500 leading-relaxed">
                   J'accepte les{' '}
-                  <Link to="/conditions-utilisation" target="_blank" className="text-brand-600 font-medium hover:underline">
+                  <Link to="/conditions-utilisation" className="text-brand-600 font-medium hover:underline">
                     conditions d'utilisation
                   </Link>{' '}
                   et la{' '}
-                  <Link to="/politique-confidentialite" target="_blank" className="text-brand-600 font-medium hover:underline">
+                  <Link to="/politique-confidentialite" className="text-brand-600 font-medium hover:underline">
                     politique de confidentialité
                   </Link>.
                 </span>

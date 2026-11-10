@@ -12,7 +12,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { supabase } from '@/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
-import { sons, resumeAudio, direNotification } from '@/utils/notificationSound'
+import { sons, resumeAudio, direNotification, vibrer } from '@/utils/notificationSound'
 
 const MESSAGES = {
   acceptée:       { emoji: '✅', titre: 'Commande acceptée !',    corps: 'Le restaurant prépare votre commande.' },
@@ -63,7 +63,7 @@ export function useClientOrderNotifications() {
 
           sons.confirmation()
           direNotification(msg.titre)
-          if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200])
+          vibrer([200, 100, 200, 100, 200])
 
           if ('Notification' in window && Notification.permission === 'granted') {
             const notif = new Notification(`Zandofood — ${msg.titre}`, {

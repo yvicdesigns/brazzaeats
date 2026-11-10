@@ -5,19 +5,27 @@ beforeEach(() => {
   localStorage.clear()
 })
 
+const DEFAUTS = {
+  sonActif:        true,
+  volume:          0.85,
+  preset:          'sirene',
+  vibrationActive: true,
+  tts:             false,
+}
+
 describe('getPrefs', () => {
   it('renvoie les valeurs par défaut sans rien en localStorage', () => {
-    expect(getPrefs()).toEqual({ volume: 0.85, preset: 'sirene', tts: false })
+    expect(getPrefs()).toEqual(DEFAUTS)
   })
 
   it('fusionne avec les valeurs sauvegardées', () => {
     setPrefs({ volume: 0.3 })
-    expect(getPrefs()).toEqual({ volume: 0.3, preset: 'sirene', tts: false })
+    expect(getPrefs()).toEqual({ ...DEFAUTS, volume: 0.3 })
   })
 
   it('ne plante pas sur un contenu localStorage corrompu', () => {
     localStorage.setItem('zando_notif_prefs_v1', '{not valid json')
-    expect(getPrefs()).toEqual({ volume: 0.85, preset: 'sirene', tts: false })
+    expect(getPrefs()).toEqual(DEFAUTS)
   })
 })
 
@@ -31,7 +39,7 @@ describe('setPrefs', () => {
   it('les appels successifs s\'accumulent (pas d\'écrasement total)', () => {
     setPrefs({ volume: 0.5 })
     setPrefs({ tts: true })
-    expect(getPrefs()).toEqual({ volume: 0.5, preset: 'sirene', tts: true })
+    expect(getPrefs()).toEqual({ ...DEFAUTS, volume: 0.5, tts: true })
   })
 })
 

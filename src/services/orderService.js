@@ -62,7 +62,7 @@ export async function createOrder({
       .eq('id', restaurantId)
       .single()
 
-    const commissionRate = resto?.commission_rate ?? 10
+    const commissionRate = resto?.commission_rate ?? 0
     const sousTotal      = items.reduce((acc, i) => acc + i.prix_unitaire * i.quantite, 0)
     const fraisReels     = type === 'retrait' ? 0 : (livraisonGratuite ? 0 : fraisLivraison)
     const montantTotal   = Math.max(0, sousTotal - remise) + fraisReels

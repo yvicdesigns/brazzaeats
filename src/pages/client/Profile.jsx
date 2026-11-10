@@ -422,6 +422,28 @@ export default function Profile() {
     navigate('/login', { replace: true })
   }
 
+  // ── Suppression définitive du compte ──────────────────────
+  const [suppressionEnCours, setSuppressionEnCours] = useState(false)
+
+  async function handleSupprimerCompte() {
+    const confirme = window.confirm(
+      'Supprimer définitivement votre compte ?\n\n' +
+      'Vos informations personnelles seront effacées et vous serez déconnecté. ' +
+      'Cette action est irréversible.'
+    )
+    if (!confirme) return
+
+    setSuppressionEnCours(true)
+    const { error } = await supabase.functions.invoke('delete-account')
+    setSuppressionEnCours(false)
+
+    if (error) { toast.error("Impossible de supprimer le compte : " + error.message); return }
+
+    toast.success('Compte supprimé')
+    await logout()
+    navigate('/login', { replace: true })
+  }
+
   if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -992,6 +1014,23 @@ export default function Profile() {
         >
           <LogOut className="w-4 h-4" />
           Se déconnecter
+        </button>
+      </div>
+
+      {/* ── Suppression du compte ────────────────────────── */}
+      <div className="mx-4 mt-3">
+        <button
+          onClick={handleSupprimerCompte}
+          disabled={suppressionEnCours}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl
+                     text-gray-400 text-sm font-medium hover:text-red-500
+                     active:scale-[0.98] transition-all disabled:opacity-60"
+        >
+          {suppressionEnCours
+            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            : <Trash2 className="w-3.5 h-3.5" />
+          }
+          Supprimer mon compte
         </button>
       </div>
 

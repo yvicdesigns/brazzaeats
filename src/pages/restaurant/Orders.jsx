@@ -1,367 +1,284 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { X, Check, XCircle, ChefHat, Package, Bike, Loader2, Phone, Banknote } from 'lucide-react'
+import { X, Loader2, Phone, Minus, Plus } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '@/supabase/client'
 import { useMyRestaurant } from '@/hooks/useMyRestaurant'
-import { useAuth } from '@/hooks/useAuth'
 import { getOrdersByRestaurant } from '@/services/menuService'
 import { updateOrderStatus } from '@/services/orderService'
 import { getPlatformSettings } from '@/services/adminService'
 import { formatCurrency } from '@/utils/formatCurrency'
-import { STATUTS_COMMANDE, STATUTS_ACTIFS } from '@/utils/constants'
+import { STATUTS_COMMANDE } from '@/utils/constants'
 import { enfiler, estErreurReseau } from '@/utils/offlineQueue'
+import { tempsPreparationParDefaut } from '@/hooks/useRestaurantNotifications'
 import LienCarte from '@/components/shared/LienCarte'
 import ModalVenteComptoir from '@/components/restaurant/ModalVenteComptoir'
 
-// ── Transitions de statut autorisées côté restaurant ───────
-const TRANSITIONS = {
-  en_attente:     [
-    { statut: 'acceptée', label: 'Accepter',    Icon: Check,    classe: 'bg-green-500 hover:bg-green-600' },
-    { statut: 'annulée',  label: 'Refuser',     Icon: XCircle,  classe: 'bg-red-500   hover:bg-red-600'   },
-  ],
-  acceptée: [
-    { statut: 'en_préparation', label: 'Commencer',   Icon: ChefHat, classe: 'bg-indigo-500 hover:bg-indigo-600' },
-  ],
-  en_préparation: [
-    { statut: 'prête', label: 'Marquer prête', Icon: Package, classe: 'bg-purple-500 hover:bg-purple-600' },
-  ],
-  prête: [
-    { statut: 'livrée', label: 'Marquer livrée', Icon: Check, classe: 'bg-green-500 hover:bg-green-600' },
-  ],
-  en_livraison: [
-    { statut: 'livrée', label: 'Marquer livrée', Icon: Check, classe: 'bg-green-500 hover:bg-green-600' },
-  ],
+// ── Étapes du service (onglets sur téléphone/tablette, colonnes sur ordinateur) ──
+const ETAPES = [
+  { id: 'nouvelles',  label: 'Nouvelles',    statuts: ['en_attente'] },
+  { id: 'cuisine',    label: 'En cuisine',   statuts: ['acceptée', 'en_préparation'] },
+  { id: 'pretes',     label: 'Prêtes',       statuts: ['prête'] },
+  { id: 'livraison',  label: 'En livraison', statuts: ['en_livraison'] },
+]
+const ETAPE_TERMINEES = { id: 'terminees', label: 'Terminées', statuts: ['livrée', 'annulée'] }
+
+const refCourte = (c) => c.id.slice(0, 6).toUpperCase()
+const minutesDepuis = (iso, maintenant) => Math.max(0, Math.floor((maintenant - new Date(iso).getTime()) / 60000))
+const duree = (min) => min < 60 ? `${min} min` : min < 1440 ? `${Math.floor(min / 60)} h` : `${Math.floor(min / 1440)} j`
+const heure = (iso) => new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+const totalPlats = (c) => (c.montant_total ?? 0) - (c.frais_livraison ?? 0)
+const resumeArticles = (c) => (c.order_items ?? []).map(i => `${i.quantite} × ${i.menu_item?.nom ?? '?'}`).join(', ')
+
+/**
+ * Prochaine étape « en un geste » d'une commande, telle qu'affichée sur sa carte.
+ * Quand la livraison est gérée par un acteur externe (livreurs indépendants ou
+ * Zando Delivery), le restaurant ne marque jamais lui-même « livrée » une
+ * commande à livrer : c'est le livreur qui confirme la remise.
+ */
+function actionSuivante(c, livraisonExterne) {
+  switch (c.statut) {
+    case 'acceptée':       return { statut: 'en_préparation', label: 'Commencer' }
+    case 'en_préparation': return { statut: 'prête', label: 'Marquer prête' }
+    case 'prête':
+      if (c.type === 'retrait') return { statut: 'livrée', label: 'Remise au client' }
+      return livraisonExterne ? null : { statut: 'livrée', label: 'Marquer livrée' }
+    default: return null
+  }
 }
 
-// ── Badge statut ─────────────────────────────────────────────
-function BadgeStatut({ statut }) {
-  const info = STATUTS_COMMANDE[statut] ?? { label: statut, couleur: 'bg-gray-100 text-gray-600' }
+// ── Carte d'une commande ─────────────────────────────────────
+function CarteCommande({ commande, maintenant, livraisonExterne, onOuvrir, onAction, actionEnCours }) {
+  const ecoule = minutesDepuis(commande.created_at, maintenant)
+  const prevu  = commande.temps_preparation_minutes
+  const enCuisine = ['acceptée', 'en_préparation'].includes(commande.statut)
+  const enRetard  = enCuisine && prevu != null && ecoule > prevu
+  const action = actionSuivante(commande, livraisonExterne)
+  const estNouvelle = commande.statut === 'en_attente'
+
   return (
-    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${info.couleur}`}>
-      {info.couleurDot && (
-        <span className={`inline-block w-1.5 h-1.5 rounded-full ${info.couleurDot} mr-1.5 align-middle`} />
+    <article className={`bg-white border rounded-2xl p-4 flex flex-col gap-3 ${enRetard ? 'border-terracotta-200' : 'border-gray-200'}`}>
+      <button type="button" onClick={() => onOuvrir(commande)} className="text-left flex flex-col gap-2.5">
+        <div className="flex justify-between items-baseline gap-2">
+          <span className="text-base font-extrabold text-gray-900">#{refCourte(commande)}</span>
+          {estNouvelle ? (
+            <span className="text-sm font-extrabold text-terracotta-700">il y a {duree(ecoule)}</span>
+          ) : enCuisine && prevu != null ? (
+            <span className={`text-sm font-bold tabular-nums ${enRetard ? 'text-terracotta-700 font-extrabold' : 'text-gray-500'}`}>
+              {ecoule} / {prevu} min{enRetard ? ' · en retard' : ''}
+            </span>
+          ) : (
+            <span className="text-sm font-bold text-gray-500">{heure(commande.created_at)}</span>
+          )}
+        </div>
+        <span className="text-[13px] font-semibold text-gray-500 -mt-1.5">
+          {commande.client?.nom ?? 'Client'} · {commande.type === 'retrait' ? 'Retrait' : 'Livraison'} · {commande.mode_paiement === 'cash' ? 'Espèces' : 'Mobile Money'}
+        </span>
+        {enCuisine && prevu != null && (
+          <span className="h-1 rounded-full bg-gray-100 overflow-hidden block">
+            <span className={`block h-1 ${enRetard ? 'bg-terracotta-500' : 'bg-brand-400'}`}
+                  style={{ width: `${Math.min(100, Math.round((ecoule / prevu) * 100))}%` }} />
+          </span>
+        )}
+        <p className="text-[15px] font-semibold text-gray-900 leading-relaxed">{resumeArticles(commande)}</p>
+        {commande.notes && <p className="text-sm font-semibold text-gray-600">Note : « {commande.notes} »</p>}
+      </button>
+
+      {estNouvelle && (
+        <button type="button" onClick={() => onOuvrir(commande)}
+                className="h-12 rounded-xl bg-brand-500 text-white font-bold text-[15px] active:scale-[0.98] transition-transform">
+          Répondre
+        </button>
       )}
-      {info.label}
-    </span>
+      {action && (
+        <button type="button" onClick={() => onAction(commande, action.statut)} disabled={actionEnCours === commande.id}
+                className="h-11 rounded-xl border border-gray-200 text-brand-500 font-extrabold text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+          {actionEnCours === commande.id && <Loader2 className="w-4 h-4 animate-spin" />}
+          {action.label}
+        </button>
+      )}
+      {commande.statut === 'prête' && !action && (
+        <p className="text-[13px] font-semibold text-gray-500">En attente d'un livreur — il confirmera la remise.</p>
+      )}
+      {commande.statut === 'annulée' && (
+        <p className="text-[13px] font-bold text-terracotta-700">Annulée</p>
+      )}
+    </article>
   )
 }
 
-// ── Modal de détail commande ─────────────────────────────────
-function ModalCommande({ commande, onClose, onStatusChange, userId, livraisonExterne }) {
-  const [envoi,         setEnvoi]         = useState(false)
+// ── Détail d'une commande ────────────────────────────────────
+function ModalCommande({ commande, onClose, onStatusChange, livraisonExterne }) {
+  const [envoi, setEnvoi] = useState(false)
   const [confirmerAnnul, setConfirmerAnnul] = useState(false)
-  // Quand la livraison est gérée par un acteur externe au restaurant — livreurs
-  // indépendants ou Zando Delivery — le restaurant ne doit jamais pouvoir marquer
-  // une commande livrée directement depuis "prête" : ça sauterait toute l'étape de
-  // livraison (pas de suivi GPS, le client ne verrait jamais "En route vers vous").
-  // Cette transition n'a de sens que si le restaurant gère sa propre livraison.
-  // Uniquement pour les commandes en livraison : un retrait n'a pas de livreur,
-  // donc pas de hand-off à sauter.
-  const transitions = (TRANSITIONS[commande.statut] ?? []).filter(t =>
-    !(livraisonExterne && commande.type === 'livraison' && commande.statut === 'prête' && t.statut === 'livrée')
-  )
-  const refCourte   = commande.id.slice(0, 8).toUpperCase()
-  // L'annulation manuelle est disponible pour tout statut actif qui n'a pas déjà ce bouton
-  const peutAnnuler = commande.statut !== 'annulée' && commande.statut !== 'livrée'
-  const annulationDansTransitions = transitions.some(t => t.statut === 'annulée')
+  const [minutes, setMinutes] = useState(commande.temps_preparation_minutes ?? tempsPreparationParDefaut(commande))
 
-  const tempsPrepDefaut = Math.max(
-    ...(commande.order_items ?? []).map(oi => oi.menu_item?.temps_preparation ?? 15),
-    15
-  )
-  // Ajustable uniquement avant acceptation — une fois annoncé au client,
-  // le délai est figé sur la commande (temps_preparation_minutes).
-  const peutAjusterTemps = commande.statut === 'en_attente'
-  const [tempsPrepAjuste, setTempsPrepAjuste] =
-    useState(commande.temps_preparation_minutes ?? tempsPrepDefaut)
-  const tempsPrepAffiche = commande.temps_preparation_minutes ?? tempsPrepDefaut
+  const estNouvelle = commande.statut === 'en_attente'
+  const action = actionSuivante(commande, livraisonExterne)
+  // Comme avant : le restaurant peut toujours confirmer une livraison en cours
+  const peutMarquerLivree = commande.statut === 'en_livraison'
+  const peutAnnuler = !['annulée', 'livrée'].includes(commande.statut)
+  const fraisLivraison = commande.frais_livraison ?? 0
 
   async function changerStatut(nouveauStatut) {
     setEnvoi(true)
-    const champsSupplementaires = nouveauStatut === 'acceptée'
-      ? { temps_preparation_minutes: tempsPrepAjuste }
-      : {}
+    const champsSupplementaires = nouveauStatut === 'acceptée' ? { temps_preparation_minutes: minutes } : {}
     const { error } = await updateOrderStatus(commande.id, nouveauStatut, champsSupplementaires)
     setEnvoi(false)
 
-    // Transition de statut sur une commande déjà propriété de ce restaurant —
-    // idempotente, rejouable sans risque (contrairement à "accepter une
-    // livraison" chez le livreur, qui est une vraie course entre acteurs).
+    // Transition idempotente sur une commande du restaurant : rejouable sans risque
     if (error && estErreurReseau(error)) {
       enfiler('updateOrderStatus', { orderId: commande.id, statut: nouveauStatut, champsSupplementaires })
-      toast.success('Hors-ligne — sera synchronisé automatiquement 📡')
-      onStatusChange(commande.id, nouveauStatut)
-      if (nouveauStatut === 'annulée' || nouveauStatut === 'livrée') onClose()
+      toast.success('Hors-ligne — sera synchronisé automatiquement')
+      onStatusChange(commande.id, nouveauStatut, champsSupplementaires)
+      onClose()
       return
     }
-
-    if (error) {
-      toast.error(`Erreur : ${error}`)
-    } else {
-      const infos = STATUTS_COMMANDE[nouveauStatut]
-      toast.success(`Commande ${infos?.label?.toLowerCase() ?? nouveauStatut}`)
-      onStatusChange(commande.id, nouveauStatut)
-      if (nouveauStatut === 'annulée' || nouveauStatut === 'livrée') onClose()
-    }
+    if (error) { toast.error(`Erreur : ${error}`); return }
+    toast.success(`Commande ${STATUTS_COMMANDE[nouveauStatut]?.label?.toLowerCase() ?? nouveauStatut}`)
+    onStatusChange(commande.id, nouveauStatut, champsSupplementaires)
+    onClose()
   }
 
   return (
-    <div
-      className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center"
-      onClick={e => e.target === e.currentTarget && onClose()}
-    >
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[90vh]
-                      overflow-y-auto shadow-2xl">
-        {/* En-tête modal */}
-        <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex
-                        items-center justify-between z-10 rounded-t-3xl sm:rounded-t-3xl">
+    <div className="fixed inset-0 bg-gray-900/50 z-50 flex items-end sm:items-center justify-center"
+         onClick={e => e.target === e.currentTarget && onClose()}>
+      <div role="dialog" aria-modal="true" aria-labelledby="detail-titre"
+           className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[92vh] flex flex-col shadow-2xl">
+
+        <header className="px-5 pt-5 pb-4 flex items-start justify-between gap-3 border-b border-gray-100">
           <div>
-            <p className="font-black text-gray-900 text-lg">Commande #{refCourte}</p>
-            <div className="flex items-center gap-2 mt-0.5">
-              <BadgeStatut statut={commande.statut} />
-              <span className="text-xs text-gray-400">
-                {new Date(commande.created_at).toLocaleTimeString('fr-FR', {
-                  hour: '2-digit', minute: '2-digit'
-                })}
-              </span>
-            </div>
+            <h2 id="detail-titre" className="text-lg font-extrabold text-gray-900">Commande #{refCourte(commande)}</h2>
+            <p className="text-[13px] font-bold text-gray-500 mt-0.5">
+              {STATUTS_COMMANDE[commande.statut]?.label ?? commande.statut} · reçue à {heure(commande.created_at)}
+            </p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-full hover:bg-gray-100 transition-colors min-h-[48px] min-w-[48px]
-                       flex items-center justify-center"
-            aria-label="Fermer"
-          >
-            <X className="w-5 h-5 text-gray-600" />
+          <button onClick={onClose} aria-label="Fermer" className="w-11 h-11 -mr-2 -mt-1 rounded-full flex items-center justify-center hover:bg-gray-50">
+            <X className="w-5 h-5" />
           </button>
-        </div>
+        </header>
 
-        <div className="p-5 space-y-5">
-          {/* Infos client */}
-          {commande.client && (
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-400">Client</p>
-                <p className="font-semibold text-gray-900">{commande.client.nom}</p>
+        <div className="flex-1 overflow-y-auto px-5 divide-y divide-gray-100">
+          <section className="py-4 flex flex-col gap-2">
+            <h3 className="text-[13px] font-bold text-gray-500">Articles</h3>
+            {(commande.order_items ?? []).map((item, i) => (
+              <div key={item.id ?? i} className="flex justify-between gap-3 text-[15px]">
+                <span className="font-semibold text-gray-900"><span className="font-extrabold">{item.quantite} ×</span> {item.menu_item?.nom ?? '—'}</span>
+                <span className="font-bold text-gray-700 tabular-nums shrink-0">{formatCurrency(item.sous_total)}</span>
               </div>
-              {commande.client.telephone && (
-                <a
-                  href={`tel:${commande.client.telephone}`}
-                  className="flex items-center gap-1.5 text-sm text-green-600 font-semibold
-                             bg-green-50 px-3 py-2 rounded-xl min-h-[48px]"
-                >
-                  <Phone className="w-4 h-4" />
-                  Appeler
+            ))}
+            {commande.notes && (
+              <p className="mt-1 px-3 py-2.5 rounded-xl bg-gray-50 text-sm font-semibold text-gray-700">Note du client : « {commande.notes} »</p>
+            )}
+          </section>
+
+          <section className="py-4 flex flex-col gap-2">
+            <h3 className="text-[13px] font-bold text-gray-500">Client</h3>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-[15px] font-bold text-gray-900">{commande.client?.nom ?? 'Client'}</p>
+                {commande.client?.telephone && <p className="text-sm font-semibold text-gray-500">{commande.client.telephone}</p>}
+              </div>
+              {commande.client?.telephone && (
+                <a href={`tel:${commande.client.telephone}`}
+                   className="h-11 px-4 rounded-xl border border-gray-200 flex items-center gap-2 text-sm font-bold text-gray-900">
+                  <Phone className="w-4 h-4" /> Appeler
                 </a>
               )}
             </div>
-          )}
-
-          {/* Mode de récupération */}
-          <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-2">
-            <span className="text-xl">{commande.type === 'livraison' ? '🛵' : '🏪'}</span>
-            <div>
-              <p className="text-xs text-gray-500">
-                {commande.type === 'livraison' ? 'Livraison à domicile' : 'Retrait en boutique'}
-              </p>
-              {commande.type === 'livraison' && commande.adresse_livraison && (
-                <>
-                  <p className="text-sm font-medium text-gray-800">
-                    {commande.adresse_livraison.rue}, {commande.adresse_livraison.quartier}
-                  </p>
-                  <LienCarte adresseLivraison={commande.adresse_livraison} className="mt-0.5" />
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Articles */}
-          <div>
-            <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Articles</p>
-            <div className="space-y-2">
-              {(commande.order_items ?? []).map((item, i) => (
-                <div key={i} className="flex justify-between text-sm">
-                  <span className="text-gray-700">
-                    <span className="font-bold text-gray-900">{item.quantite}×</span>{' '}
-                    {item.menu_item?.nom ?? '—'}
-                  </span>
-                  <span className="font-semibold text-gray-800 tabular-nums shrink-0 ml-2">
-                    {formatCurrency(item.sous_total)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Temps de préparation — ajustable à l'acceptation, figé ensuite */}
-          {peutAjusterTemps ? (
-            <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-3">
-              <p className="text-xs text-orange-600 font-semibold mb-2">
-                ⏱ Délai à annoncer au client
-              </p>
-              <div className="flex items-center justify-center gap-4">
-                <button
-                  type="button"
-                  onClick={() => setTempsPrepAjuste(t => Math.max(5, t - 5))}
-                  aria-label="Réduire de 5 minutes"
-                  className="w-11 h-11 rounded-full bg-white border border-orange-200 text-orange-600
-                             font-black text-lg flex items-center justify-center
-                             active:scale-95 transition-transform"
-                >
-                  −
-                </button>
-                <span className="text-2xl font-black text-orange-800 tabular-nums w-20 text-center">
-                  {tempsPrepAjuste} min
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setTempsPrepAjuste(t => Math.min(120, t + 5))}
-                  aria-label="Augmenter de 5 minutes"
-                  className="w-11 h-11 rounded-full bg-white border border-orange-200 text-orange-600
-                             font-black text-lg flex items-center justify-center
-                             active:scale-95 transition-transform"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 bg-orange-50 border border-orange-200
-                            rounded-xl px-3 py-2.5">
-              <span className="text-base">⏱</span>
-              <div>
-                <p className="text-xs text-orange-600 font-semibold">Temps de préparation annoncé</p>
-                <p className="text-sm font-bold text-orange-800">~{tempsPrepAffiche} min</p>
-              </div>
-            </div>
-          )}
-
-          {/* Total */}
-          <div className="border-t border-gray-100 pt-3 flex justify-between">
-            <span className="font-bold text-gray-900">Total</span>
-            <span className="font-black text-brand-500 text-lg tabular-nums">
-              {formatCurrency(commande.montant_total)}
-            </span>
-          </div>
-
-          {/* Mode paiement */}
-          <p className="text-xs text-gray-400">
-            Paiement : {commande.mode_paiement === 'cash'
-              ? '💵 Espèces'
-              : `📱 Mobile Money — ${commande.operateur_paiement ?? ''}`}
-          </p>
-
-          {/* Preuve de paiement Mobile Money — visible sur toute commande, quel que soit son statut */}
-          {commande.mode_paiement === 'mobile_money' && (
-            <div className={`rounded-xl p-3 space-y-2 border ${
-              commande.statut === 'en_attente'
-                ? 'bg-amber-50 border-amber-200'
-                : 'bg-gray-50 border-gray-200'
-            }`}>
-              {commande.statut === 'en_attente' && (
-                <p className="text-xs font-bold text-amber-700">
-                  ⚠️ Vérifiez la réception du paiement {commande.operateur_paiement} avant d'accepter
-                </p>
-              )}
-              {commande.preuve_paiement_url ? (
-                <a
-                  href={commande.preuve_paiement_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-2"
-                >
-                  <img
-                    src={commande.preuve_paiement_url}
-                    alt="Capture du SMS de confirmation envoyée par le client"
-                    className={`h-16 w-16 object-cover rounded-lg border ${
-                      commande.statut === 'en_attente' ? 'border-amber-200' : 'border-gray-200'
-                    }`}
-                  />
-                  <span className={`text-xs underline ${
-                    commande.statut === 'en_attente' ? 'text-amber-700' : 'text-gray-500'
-                  }`}>
-                    Voir la capture d'écran envoyée par le client
-                  </span>
-                </a>
-              ) : (
-                <p className="text-xs text-amber-600 italic">Aucune capture de confirmation fournie</p>
-              )}
-            </div>
-          )}
-
-          {/* Notes client */}
-          {commande.notes && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
-              <p className="text-xs font-bold text-yellow-700 mb-1">📝 Instructions client</p>
-              <p className="text-sm text-yellow-800">{commande.notes}</p>
-            </div>
-          )}
-
-          {/* Boutons d'action — min-h-[48px] obligatoire */}
-          {transitions.length > 0 && (
-            <div className="space-y-3 pt-2">
-              {transitions.map(({ statut, label, Icon, classe }) => (
-                <button
-                  key={statut}
-                  onClick={() => changerStatut(statut)}
-                  disabled={envoi}
-                  className={`w-full min-h-[52px] flex items-center justify-center gap-2
-                             text-white font-bold text-base rounded-xl ${classe}
-                             disabled:opacity-60 active:scale-[0.98] transition-all`}
-                >
-                  {envoi
-                    ? <Loader2 className="w-5 h-5 animate-spin" />
-                    : <Icon className="w-5 h-5" />
-                  }
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Annulation manuelle (pour statuts sans bouton "Refuser" direct) */}
-          {peutAnnuler && !annulationDansTransitions && (
-            confirmerAnnul ? (
-              <div className="border border-red-200 bg-red-50 rounded-xl p-4 space-y-3">
-                <p className="text-sm font-semibold text-red-700 text-center">
-                  Confirmer l'annulation de cette commande ?
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setConfirmerAnnul(false)}
-                    className="flex-1 min-h-[44px] border border-gray-200 rounded-xl text-gray-600
-                               font-semibold text-sm hover:bg-gray-50 transition-colors"
-                  >
-                    Non, garder
-                  </button>
-                  <button
-                    onClick={() => changerStatut('annulée')}
-                    disabled={envoi}
-                    className="flex-1 min-h-[44px] bg-red-500 text-white rounded-xl font-semibold
-                               text-sm hover:bg-red-600 disabled:opacity-60 transition-colors
-                               flex items-center justify-center gap-1.5"
-                  >
-                    {envoi
-                      ? <Loader2 className="w-4 h-4 animate-spin" />
-                      : <XCircle className="w-4 h-4" />
-                    }
-                    Oui, annuler
-                  </button>
-                </div>
+            {commande.type === 'livraison' && commande.adresse_livraison ? (
+              <div className="text-sm font-semibold text-gray-700">
+                Livraison : {commande.adresse_livraison.rue}, {commande.adresse_livraison.quartier}
+                <LienCarte adresseLivraison={commande.adresse_livraison} className="mt-0.5" />
               </div>
             ) : (
-              <button
-                onClick={() => setConfirmerAnnul(true)}
-                className="w-full min-h-[48px] flex items-center justify-center gap-2
-                           border border-red-200 text-red-500 font-semibold rounded-xl
-                           hover:bg-red-50 transition-colors text-sm"
-              >
-                <XCircle className="w-4 h-4" />
-                Annuler la commande
-              </button>
-            )
+              <p className="text-sm font-semibold text-gray-700">Retrait sur place</p>
+            )}
+          </section>
+
+          <section className="py-4 flex flex-col gap-2">
+            <h3 className="text-[13px] font-bold text-gray-500">
+              Paiement · {commande.mode_paiement === 'cash' ? 'Espèces' : `Mobile Money ${commande.operateur_paiement ?? ''}`}
+            </h3>
+            {commande.mode_paiement === 'mobile_money' && (
+              commande.preuve_paiement_url ? (
+                <a href={commande.preuve_paiement_url} target="_blank" rel="noreferrer" className="flex items-center gap-3">
+                  <img src={commande.preuve_paiement_url} alt="Preuve de paiement envoyée par le client"
+                       className="h-16 w-16 object-cover rounded-xl border border-gray-200" />
+                  <span className="text-sm font-bold text-brand-500">Voir la preuve en grand</span>
+                </a>
+              ) : (
+                <p className="text-sm font-bold text-amber-800 bg-amber-50 rounded-xl px-3 py-2">Aucune preuve de paiement envoyée</p>
+              )
+            )}
+            <div className="flex justify-between text-base font-extrabold pt-1">
+              <span>Pour le restaurant</span>
+              <span className="tabular-nums">{formatCurrency(totalPlats(commande))}</span>
+            </div>
+            {fraisLivraison > 0 && (
+              <p className="text-[13px] font-semibold text-gray-500">Frais de livraison ({formatCurrency(fraisLivraison)}) : pour le livreur.</p>
+            )}
+          </section>
+
+          {estNouvelle && (
+            <section className="py-4 flex items-center justify-between">
+              <span className="text-[15px] font-bold text-gray-900">Prête dans</span>
+              <div className="flex items-center gap-1.5">
+                <button type="button" aria-label="Moins 5 minutes" onClick={() => setMinutes(m => Math.max(5, m - 5))}
+                        className="w-11 h-11 rounded-xl border border-gray-200 flex items-center justify-center"><Minus className="w-4 h-4" /></button>
+                <span className="min-w-[70px] text-center text-lg font-extrabold tabular-nums">{minutes} min</span>
+                <button type="button" aria-label="Plus 5 minutes" onClick={() => setMinutes(m => Math.min(120, m + 5))}
+                        className="w-11 h-11 rounded-xl border border-gray-200 flex items-center justify-center"><Plus className="w-4 h-4" /></button>
+              </div>
+            </section>
+          )}
+          {!estNouvelle && commande.temps_preparation_minutes != null && (
+            <p className="py-4 text-sm font-semibold text-gray-600">Délai annoncé au client : {commande.temps_preparation_minutes} min</p>
           )}
         </div>
+
+        <footer className="px-5 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))] border-t border-gray-100 flex flex-col gap-2">
+          {confirmerAnnul ? (
+            <>
+              <p className="text-center text-sm font-bold text-gray-900">
+                {estNouvelle ? 'Refuser cette commande ?' : 'Annuler cette commande ?'} Le client sera prévenu.
+              </p>
+              <div className="grid grid-cols-[1fr_1.6fr] gap-2.5">
+                <button onClick={() => setConfirmerAnnul(false)} disabled={envoi}
+                        className="h-12 rounded-xl border border-gray-200 font-bold text-gray-900">Retour</button>
+                <button onClick={() => changerStatut('annulée')} disabled={envoi}
+                        className="h-12 rounded-xl bg-terracotta-700 text-white font-extrabold flex items-center justify-center gap-2 disabled:opacity-60">
+                  {envoi && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {estNouvelle ? 'Confirmer le refus' : "Confirmer l'annulation"}
+                </button>
+              </div>
+            </>
+          ) : estNouvelle ? (
+            <div className="grid grid-cols-[1fr_1.6fr] gap-2.5">
+              <button onClick={() => setConfirmerAnnul(true)} disabled={envoi}
+                      className="h-[52px] rounded-xl border border-gray-200 font-bold text-gray-900">Refuser</button>
+              <button onClick={() => changerStatut('acceptée')} disabled={envoi}
+                      className="h-[52px] rounded-xl bg-brand-500 text-white font-extrabold flex items-center justify-center gap-2 disabled:opacity-60">
+                {envoi && <Loader2 className="w-4 h-4 animate-spin" />}
+                Accepter
+              </button>
+            </div>
+          ) : (
+            <>
+              {(action || peutMarquerLivree) && (
+                <button onClick={() => changerStatut(action?.statut ?? 'livrée')} disabled={envoi}
+                        className="h-[52px] rounded-xl bg-brand-500 text-white font-extrabold flex items-center justify-center gap-2 disabled:opacity-60">
+                  {envoi && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {action?.label ?? 'Marquer livrée'}
+                </button>
+              )}
+              {peutAnnuler && (
+                <button onClick={() => setConfirmerAnnul(true)} className="h-10 text-sm font-bold text-terracotta-700">
+                  Annuler la commande
+                </button>
+              )}
+            </>
+          )}
+        </footer>
       </div>
     </div>
   )
@@ -372,20 +289,26 @@ function ModalCommande({ commande, onClose, onStatusChange, userId, livraisonExt
 // ══════════════════════════════════════════════════════════
 export default function RestaurantOrders() {
   const { restaurant, loading: loadingResto } = useMyRestaurant()
-  const { user } = useAuth()
 
   const [commandes,    setCommandes]    = useState([])
   const [loading,      setLoading]      = useState(true)
   const [modalOuverte, setModalOuverte] = useState(null)
   const [nbNouveaux,   setNbNouveaux]   = useState(0)
-  const [filtreStatut, setFiltreStatut] = useState('actives')
+  const [etape,        setEtape]        = useState('nouvelles')
+  const [voirTerminees, setVoirTerminees] = useState(false)
+  const [actionEnCours, setActionEnCours] = useState(null)
+  const [maintenant,   setMaintenant]   = useState(Date.now())
   const [modeLivraisonPlateforme, setModeLivraisonPlateforme] = useState('independants')
   const [venteComptoirOuverte, setVenteComptoirOuverte] = useState(false)
 
-  // Titre original de l'onglet (pour restauration au démontage)
   const titreOriginal = useRef(document.title)
 
-  // ── Chargement initial des commandes ───────────────────
+  // Les durées « il y a X min » avancent toutes seules
+  useEffect(() => {
+    const id = setInterval(() => setMaintenant(Date.now()), 30000)
+    return () => clearInterval(id)
+  }, [])
+
   const charger = useCallback(async () => {
     if (!restaurant?.id) return
     setLoading(true)
@@ -403,83 +326,65 @@ export default function RestaurantOrders() {
     })
   }, [])
 
-  // Le restaurant peut surcharger le réglage plateforme (voir Phase A du plan Zando
-  // Delivery) — restaurant.mode_livraison a priorité quand il est défini.
+  // restaurant.mode_livraison a priorité sur le réglage plateforme quand il est défini
   const modeLivraisonEffectif = restaurant?.mode_livraison || modeLivraisonPlateforme
   const livraisonExterne = modeLivraisonEffectif === 'independants' || modeLivraisonEffectif === 'zando_delivery'
 
-  // ── Abonnement Realtime ─────────────────────────────────
+  // ── Temps réel ──────────────────────────────────────────
   useEffect(() => {
     if (!restaurant?.id) return
-
     const canal = supabase
       .channel(`restaurant_orders:${restaurant.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event:  '*',
-          schema: 'public',
-          table:  'orders',
-          filter: `restaurant_id=eq.${restaurant.id}`,
-        },
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurant.id}` },
         async (payload) => {
           if (payload.eventType === 'INSERT') {
-            // L'alarme plein écran (useRestaurantNotifications, montée dans
-            // RestaurantLayout) gère déjà le son + l'accusé de réception
-            // (accepter/refuser) — pas de modal ici pour éviter deux UI
-            // concurrentes sur la même commande.
-            setNbNouveaux(n => n + 1)
-
-            // Récupérer la commande complète (avec les items)
+            // Le son et l'accusé de réception sont gérés par l'alarme plein écran (RestaurantLayout)
+            if (payload.new.statut === 'en_attente') setNbNouveaux(n => n + 1)
             const { data: cmdComplete } = await supabase
               .from('orders')
               .select(`
                 *,
                 client:profiles!orders_client_id_fkey(nom, telephone),
-                order_items(id, quantite, prix_unitaire, sous_total, menu_item:menu_items(nom))
+                order_items(id, quantite, prix_unitaire, sous_total, menu_item:menu_items(nom, temps_preparation))
               `)
               .eq('id', payload.new.id)
               .single()
-
-            setCommandes(prev => [cmdComplete ?? payload.new, ...prev])
-
+            setCommandes(prev => prev.some(c => c.id === payload.new.id) ? prev : [cmdComplete ?? payload.new, ...prev])
           } else if (payload.eventType === 'UPDATE') {
-            setCommandes(prev =>
-              prev.map(c => c.id === payload.new.id ? { ...c, ...payload.new } : c)
-            )
+            setCommandes(prev => prev.map(c => c.id === payload.new.id ? { ...c, ...payload.new } : c))
           }
-        }
-      )
+        })
       .subscribe()
-
     return () => supabase.removeChannel(canal)
   }, [restaurant?.id])
 
-  // ── Badge sur l'onglet navigateur ──────────────────────
   useEffect(() => {
-    if (nbNouveaux > 0) {
-      document.title = `(${nbNouveaux}) Nouvelles commandes — Zandofood`
-    } else {
-      document.title = titreOriginal.current
-    }
+    document.title = nbNouveaux > 0 ? `(${nbNouveaux}) Nouvelles commandes — Zandofood` : titreOriginal.current
     return () => { document.title = titreOriginal.current }
   }, [nbNouveaux])
 
-  // ── Mise à jour locale du statut après action ──────────
-  function handleStatusChange(commandeId, nouveauStatut) {
-    setCommandes(prev =>
-      prev.map(c => c.id === commandeId ? { ...c, statut: nouveauStatut } : c)
-    )
+  function appliquerLocalement(commandeId, statut, champs = {}) {
+    setCommandes(prev => prev.map(c => c.id === commandeId ? { ...c, statut, ...champs } : c))
   }
 
-  // ── Filtrage des commandes selon l'onglet actif ─────────
-  const commandesFiltrees = commandes.filter(c => {
-    if (filtreStatut === 'actives')   return STATUTS_ACTIFS.includes(c.statut)
-    if (filtreStatut === 'terminees') return c.statut === 'livrée' || c.statut === 'annulée'
-    return true
-  })
+  // Action « en un geste » depuis une carte (Commencer, Marquer prête, Remise…)
+  async function actionRapide(commande, statut) {
+    setActionEnCours(commande.id)
+    const { error } = await updateOrderStatus(commande.id, statut)
+    setActionEnCours(null)
+    if (error && estErreurReseau(error)) {
+      enfiler('updateOrderStatus', { orderId: commande.id, statut, champsSupplementaires: {} })
+      toast.success('Hors-ligne — sera synchronisé automatiquement')
+      appliquerLocalement(commande.id, statut)
+      return
+    }
+    if (error) { toast.error(`Erreur : ${error}`); return }
+    appliquerLocalement(commande.id, statut)
+  }
 
-  const nbEnAttente = commandes.filter(c => c.statut === 'en_attente').length
+  const commandesDe = (e) => commandes.filter(c => e.statuts.includes(c.statut))
+  const ouvrir = (c) => { setModalOuverte(c); setNbNouveaux(0) }
 
   if (loadingResto || loading) {
     return (
@@ -489,179 +394,90 @@ export default function RestaurantOrders() {
     )
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 pb-8">
+  const etapeActive = [...ETAPES, ETAPE_TERMINEES].find(e => e.id === etape) ?? ETAPES[0]
+  const carte = (c) => (
+    <CarteCommande key={c.id} commande={c} maintenant={maintenant} livraisonExterne={livraisonExterne}
+                   onOuvrir={ouvrir} onAction={actionRapide} actionEnCours={actionEnCours} />
+  )
+  const vide = (texte) => <p className="text-sm font-semibold text-gray-500 text-center py-10">{texte}</p>
 
-      {/* ── En-tête ─────────────────────────────────────── */}
-      <header className="bg-white border-b border-gray-100 px-4 pt-12 pb-0 md:pt-8">
-        <div className="flex items-center justify-between gap-3 mb-3">
-          <div className="min-w-0">
-            <h1 className="text-xl font-black text-gray-900 truncate">Commandes</h1>
-            {nbEnAttente > 0 && (
-              <p className="text-sm text-red-500 font-semibold mt-0.5 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-ping-slow inline-block shrink-0" />
-                {nbEnAttente} en attente de votre réponse
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              onClick={() => setVenteComptoirOuverte(true)}
-              className="flex items-center gap-1.5 bg-brand-600 text-white text-sm font-bold px-3.5 py-2
-                         rounded-xl hover:bg-brand-700 transition-colors min-h-[48px]"
-            >
-              <Banknote className="w-4 h-4" />
-              Vente comptoir
+  return (
+    <div className="min-h-screen bg-white">
+
+      <header className="px-5 lg:px-8 pt-12 md:pt-8 border-b border-gray-100 bg-white">
+        <div className="flex items-center justify-between gap-3 mb-3 lg:mb-5">
+          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Commandes</h1>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setVoirTerminees(v => !v)}
+                    className={`hidden lg:flex h-10 px-3.5 rounded-xl border text-sm font-bold items-center
+                                ${voirTerminees ? 'border-brand-500 text-brand-500 bg-brand-50/60' : 'border-gray-200 text-gray-900'}`}>
+              Terminées
             </button>
-            <button
-              onClick={() => { charger(); setNbNouveaux(0) }}
-              className="text-brand-500 text-sm font-semibold px-3 py-2 hover:bg-brand-50 rounded-xl
-                         transition-colors min-h-[48px]"
-            >
-              Actualiser
+            <button onClick={() => setVenteComptoirOuverte(true)}
+                    className="h-10 px-3.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-900 lg:bg-brand-500 lg:text-white lg:border-brand-500">
+              Vente comptoir
             </button>
           </div>
         </div>
 
-        {/* Onglets filtre */}
-        <div className="flex border-b border-gray-100">
-          {[
-            { val: 'actives',   label: 'Actives',   count: commandes.filter(c => STATUTS_ACTIFS.includes(c.statut)).length },
-            { val: 'terminees', label: 'Terminées', count: null },
-          ].map(({ val, label, count }) => (
-            <button
-              key={val}
-              onClick={() => setFiltreStatut(val)}
-              className={`flex-1 pb-3 text-sm font-semibold flex items-center justify-center gap-1.5
-                         transition-colors border-b-2
-                         ${filtreStatut === val
-                           ? 'border-brand-500 text-brand-600'
-                           : 'border-transparent text-gray-400 hover:text-gray-600'
-                         }`}
-            >
-              {label}
-              {count != null && count > 0 && (
-                <span className={`rounded-full text-xs px-1.5 py-0.5 font-bold
-                  ${filtreStatut === val ? 'bg-brand-100 text-brand-600' : 'bg-gray-100 text-gray-500'}`}>
-                  {count}
-                </span>
-              )}
-            </button>
-          ))}
+        {/* Onglets par étape — téléphone et tablette */}
+        <div role="tablist" aria-label="Étapes" className="lg:hidden flex gap-6 overflow-x-auto -mb-px [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {[...ETAPES, ETAPE_TERMINEES].map(e => {
+            const n = e.id === 'terminees' ? null : commandesDe(e).length
+            const actif = etape === e.id
+            return (
+              <button key={e.id} role="tab" aria-selected={actif} onClick={() => setEtape(e.id)}
+                      className={`h-11 shrink-0 border-b-2 text-sm flex items-center gap-1.5 whitespace-nowrap
+                                  ${actif ? 'border-brand-500 text-brand-500 font-extrabold' : 'border-transparent text-gray-500 font-bold'}`}>
+                {e.label}
+                {n > 0 && (
+                  <span className={`min-w-[20px] h-5 px-1.5 rounded-full text-xs flex items-center justify-center
+                                    ${e.id === 'nouvelles' ? 'bg-terracotta-50 text-terracotta-700' : 'text-gray-500'}`}>{n}</span>
+                )}
+              </button>
+            )
+          })}
         </div>
       </header>
 
-      {/* ── Liste commandes ─────────────────────────────── */}
-      <main className="px-4 pt-4 space-y-3">
-        {commandesFiltrees.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
-            <p className="text-4xl mb-3">📋</p>
-            <p className="font-semibold text-gray-500">Aucune commande</p>
-            <p className="text-sm mt-1">
-              {filtreStatut === 'actives' ? 'Toutes les commandes sont traitées ✓' : 'L\'historique est vide'}
-            </p>
-          </div>
-        ) : (
-          commandesFiltrees.map(commande => {
-            const refCourte    = commande.id.slice(0, 8).toUpperCase()
-            const estEnAttente = commande.statut === 'en_attente'
-
-            return (
-              <div
-                key={commande.id}
-                className={`bg-white rounded-2xl shadow-card overflow-hidden
-                  ${estEnAttente ? 'ring-2 ring-red-400' : ''}`}
-              >
-                {/* Bandeau urgence */}
-                {estEnAttente && (
-                  <div className="bg-red-500 text-white text-xs font-bold px-4 py-1.5 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-white animate-ping" />
-                    NOUVELLE COMMANDE — Réponse requise
-                  </div>
-                )}
-
-                <div className="p-4">
-                  {/* Ligne 1 : ID + statut + heure */}
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p className="font-black text-gray-900">#{refCourte}</p>
-                      <p className="text-xs text-gray-400">
-                        {new Date(commande.created_at).toLocaleTimeString('fr-FR', {
-                          hour: '2-digit', minute: '2-digit'
-                        })}
-                      </p>
-                    </div>
-                    <BadgeStatut statut={commande.statut} />
-                  </div>
-
-                  {/* Client + mode */}
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm font-medium text-gray-700">
-                      {commande.client?.nom ?? 'Client'}
-                    </span>
-                    <span className="text-gray-300">·</span>
-                    <span className="text-sm text-gray-500">
-                      {commande.type === 'livraison' ? '🛵 Livraison' : '🏪 Retrait'}
-                    </span>
-                  </div>
-
-                  {/* Résumé articles */}
-                  <p className="text-xs text-gray-500 line-clamp-1 mb-3">
-                    {(commande.order_items ?? [])
-                      .map(i => `${i.quantite}× ${i.menu_item?.nom ?? '?'}`)
-                      .join(' · ')}
-                  </p>
-
-                  {/* Total + bouton détail */}
-                  <div className="flex items-center justify-between">
-                    <span className="font-black text-brand-500 tabular-nums">
-                      {formatCurrency(commande.montant_total)}
-                    </span>
-                    <button
-                      onClick={() => { setModalOuverte(commande); setNbNouveaux(0) }}
-                      className={`min-h-[48px] px-4 rounded-xl font-bold text-sm flex items-center gap-1.5
-                        transition-colors
-                        ${estEnAttente
-                          ? 'bg-red-500 text-white hover:bg-red-600'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                    >
-                      {estEnAttente ? (
-                        <>
-                          <Check className="w-4 h-4" />
-                          Répondre
-                        </>
-                      ) : 'Détails'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )
-          })
-        )}
+      {/* Téléphone et tablette : une étape à la fois */}
+      <main className="lg:hidden px-5 py-4 bg-gray-50/60 min-h-[60vh] flex flex-col gap-3 md:grid md:grid-cols-2 md:items-start">
+        {commandesDe(etapeActive).length === 0
+          ? <div className="md:col-span-2">{vide(etape === 'nouvelles' ? 'Aucune nouvelle commande pour le moment.' : 'Rien à cette étape.')}</div>
+          : commandesDe(etapeActive).map(carte)}
       </main>
 
-      {/* ── Modal détail commande ────────────────────────── */}
+      {/* Ordinateur : toutes les étapes en colonnes */}
+      <main className="hidden lg:grid px-8 py-6 bg-gray-50/60 min-h-[calc(100vh-110px)] gap-5 items-start"
+            style={{ gridTemplateColumns: `repeat(${voirTerminees ? 5 : 4}, minmax(0, 1fr))` }}>
+        {[...ETAPES, ...(voirTerminees ? [ETAPE_TERMINEES] : [])].map(e => {
+          const liste = commandesDe(e)
+          return (
+            <section key={e.id} className="flex flex-col gap-3">
+              <h2 className="flex items-center gap-2 text-sm font-extrabold text-gray-900">
+                {e.label}
+                <span className={`min-w-[22px] h-[22px] px-1.5 rounded-full text-xs flex items-center justify-center
+                                  ${e.id === 'nouvelles' && liste.length ? 'bg-terracotta-50 text-terracotta-700' : 'text-gray-500'}`}>
+                  {liste.length}
+                </span>
+              </h2>
+              {liste.length === 0 ? vide('Rien ici.') : liste.map(carte)}
+            </section>
+          )
+        })}
+      </main>
+
       {modalOuverte && (
         <ModalCommande
-          commande={modalOuverte}
+          commande={commandes.find(c => c.id === modalOuverte.id) ?? modalOuverte}
           onClose={() => setModalOuverte(null)}
-          userId={user?.id}
           livraisonExterne={livraisonExterne}
-          onStatusChange={(id, statut) => {
-            handleStatusChange(id, statut)
-            // Mettre à jour la commande dans la modal aussi
-            setModalOuverte(prev => prev?.id === id ? { ...prev, statut } : prev)
-          }}
+          onStatusChange={appliquerLocalement}
         />
       )}
 
-      {/* ── Modal vente comptoir ─────────────────────────── */}
       {venteComptoirOuverte && (
-        <ModalVenteComptoir
-          restaurantId={restaurant.id}
-          onClose={() => setVenteComptoirOuverte(false)}
-        />
+        <ModalVenteComptoir restaurantId={restaurant.id} onClose={() => setVenteComptoirOuverte(false)} />
       )}
     </div>
   )

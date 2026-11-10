@@ -508,7 +508,7 @@ export async function getDashboardData(restaurantId) {
         caJour,
         commandesActives:  nbActives ?? 0,
         noteMoyenne:       restaurant?.note_moyenne ?? 0,
-        commissionRate:    restaurant?.commission_rate ?? 10,
+        commissionRate:    restaurant?.commission_rate ?? 0,
         commandesSemaine:  commandesSemaine ?? [],
         // Bilan financier semaine en cours (lundi → aujourd'hui)
         caSemaineBrut,

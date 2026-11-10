@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { getOrdersByClient, submitReview } from '@/services/orderService'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { STATUTS_COMMANDE } from '@/utils/constants'
+import { lireCache, ecrireCache } from '@/utils/cacheMemoire'
 
 // ── Composant sélecteur d'étoiles ──────────────────────────
 function Etoiles({ valeur, onChange, readonly = false }) {
@@ -101,6 +102,22 @@ function FormulaireAvis({ orderId, restaurantId, clientId, onSuccess }) {
   )
 }
 
+// ── Squelette d'une carte commande, pendant le chargement ──
+function CarteCommandeSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl shadow-card p-4 animate-pulse">
+      <div className="flex items-center gap-3">
+        <div className="w-11 h-11 rounded-xl bg-gray-200 shrink-0" />
+        <div className="flex-1 space-y-2">
+          <div className="h-4 bg-gray-200 rounded-lg w-1/2" />
+          <div className="h-3 bg-gray-200 rounded-lg w-1/3" />
+        </div>
+      </div>
+      <div className="h-3 bg-gray-200 rounded-lg w-3/4 mt-4" />
+    </div>
+  )
+}
+
 // ── Affichage d'un avis existant ───────────────────────────
 function AvisExistant({ avis }) {
   return (
@@ -128,14 +145,29 @@ export default function Orders() {
   const [formulaireOuvert, setFormulaireOuvert] = useState(null)
 
   // ── Chargement des commandes ────────────────────────────
+  // "Stale-while-revalidate" comme sur l'Accueil : si on a déjà la liste en
+  // cache (retour sur l'onglet après être allé ailleurs), on l'affiche
+  // immédiatement — sans squelette — puis on revalide en silence.
   useEffect(() => {
     if (!user) return
+    const cle = `commandes:${user.id}`
+
+    const enCache = lireCache(cle)
+    if (enCache) {
+      setCommandes(enCache)
+      setLoading(false)
+    } else {
+      setLoading(true)
+    }
 
     async function charger() {
-      setLoading(true)
       const { data, error } = await getOrdersByClient(user.id)
-      if (error) setErreur(error)
-      else       setCommandes(data)
+      if (error) {
+        if (!enCache) setErreur(error)
+      } else {
+        setCommandes(data)
+        ecrireCache(cle, data)
+      }
       setLoading(false)
     }
 
@@ -167,24 +199,23 @@ export default function Orders() {
     )
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center pb-20">
-        <Loader2 className="w-8 h-8 text-brand-500 animate-spin" strokeWidth={1.5} />
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
 
-      {/* ── En-tête ─────────────────────────────────────── */}
+      {/* ── En-tête — affiché immédiatement, même pendant le chargement ── */}
       <header className="bg-white border-b border-gray-100 px-4 pt-12 pb-4">
         <h1 className="font-bold text-gray-900 text-xl">Mes commandes</h1>
         <p className="text-sm text-gray-400 mt-0.5">
-          {commandes.length} commande{commandes.length !== 1 ? 's' : ''}
+          {loading ? 'Chargement…' : `${commandes.length} commande${commandes.length !== 1 ? 's' : ''}`}
         </p>
       </header>
+
+      {/* ── Squelettes pendant le chargement ─────────────── */}
+      {loading && (
+        <main className="px-4 pt-4 space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => <CarteCommandeSkeleton key={i} />)}
+        </main>
+      )}
 
       {/* ── Liste vide ──────────────────────────────────── */}
       {commandes.length === 0 && !loading && (
