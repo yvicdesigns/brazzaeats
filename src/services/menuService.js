@@ -423,99 +423,41 @@ export async function replyToReview(reviewId, reponse) {
 // ============================================================
 
 /**
- * Récupère en parallèle toutes les données nécessaires au dashboard.
- * Retourne : caJour, commandesActives, noteMoyenne, commandesSemaine[]
+ * Données brutes du tableau de bord : commandes des 60 derniers jours (de quoi
+ * comparer jusqu'à 30 jours avec les 30 précédents), commandes en cours, note,
+ * nombre d'avis et de plats en rupture. Les calculs sont dans utils/statsRestaurant.
  */
-export async function getDashboardData(restaurantId) {
+export async function getTableauDeBord(restaurantId) {
   try {
-    const debutJour = new Date()
-    debutJour.setHours(0, 0, 0, 0)
+    const depuis = new Date()
+    depuis.setDate(depuis.getDate() - 60)
+    depuis.setHours(0, 0, 0, 0)
 
-    const debutSemaine = new Date()
-    debutSemaine.setDate(debutSemaine.getDate() - 6)
-    debutSemaine.setHours(0, 0, 0, 0)
-
-    // Lundi de la semaine courante (début de la période de paiement)
-    const lundiCourant = new Date()
-    lundiCourant.setDate(lundiCourant.getDate() - ((lundiCourant.getDay() + 6) % 7))
-    lundiCourant.setHours(0, 0, 0, 0)
-
-    // Prochain lundi (date du versement)
-    const prochainLundi = new Date(lundiCourant)
-    prochainLundi.setDate(prochainLundi.getDate() + 7)
-
-    const [
-      { data: commandesJour },
-      { count: nbActives },
-      { data: restaurant },
-      { data: commandesSemaine },
-      { data: commandesSemaineFinancieres },
-    ] = await Promise.all([
-      // CA du jour : commandes livrées uniquement
+    const [commandes, actives, resto, avis, ruptures] = await Promise.all([
       supabase
         .from('orders')
-        .select('montant_total, frais_livraison')
+        .select('id, created_at, statut, montant_total, frais_livraison, temps_preparation_minutes, order_items(quantite, sous_total, menu_item:menu_items(nom))')
         .eq('restaurant_id', restaurantId)
-        .eq('statut', 'livrée')
-        .gte('created_at', debutJour.toISOString()),
-
-      // Commandes actives (non terminées)
+        .gte('created_at', depuis.toISOString()),
       supabase
         .from('orders')
-        .select('id', { count: 'exact', head: true })
+        .select('id, statut, created_at')
         .eq('restaurant_id', restaurantId)
         .in('statut', ['en_attente', 'acceptée', 'en_préparation', 'prête', 'en_livraison']),
-
-      // Note moyenne + commission_rate depuis la table restaurants
-      supabase
-        .from('restaurants')
-        .select('note_moyenne, commission_rate')
-        .eq('id', restaurantId)
-        .single(),
-
-      // Commandes de la semaine (toutes sauf annulées) — pour le graphique
-      supabase
-        .from('orders')
-        .select('created_at, montant_total, frais_livraison, statut')
-        .eq('restaurant_id', restaurantId)
-        .neq('statut', 'annulée')
-        .gte('created_at', debutSemaine.toISOString()),
-
-      // Commandes livrées depuis lundi — pour le bilan financier hebdomadaire
-      supabase
-        .from('orders')
-        .select('montant_total, commission')
-        .eq('restaurant_id', restaurantId)
-        .eq('statut', 'livrée')
-        .gte('created_at', lundiCourant.toISOString()),
+      supabase.from('restaurants').select('note_moyenne').eq('id', restaurantId).single(),
+      supabase.from('reviews').select('id', { count: 'exact', head: true }).eq('restaurant_id', restaurantId),
+      supabase.from('menu_items').select('id', { count: 'exact', head: true }).eq('restaurant_id', restaurantId).eq('disponible', false),
     ])
-
-    const caJour = (commandesJour ?? []).reduce(
-      (acc, o) => acc + (o.montant_total ?? 0),
-      0
-    )
-
-    const caSemaineBrut = (commandesSemaineFinancieres ?? []).reduce(
-      (acc, o) => acc + (o.montant_total ?? 0), 0
-    )
-    const commissionSemaine = (commandesSemaineFinancieres ?? []).reduce(
-      (acc, o) => acc + (o.commission ?? 0), 0
-    )
-    const montantNetSemaine = caSemaineBrut - commissionSemaine
+    const erreur = commandes.error ?? actives.error
+    if (erreur) throw erreur
 
     return {
       data: {
-        caJour,
-        commandesActives:  nbActives ?? 0,
-        noteMoyenne:       restaurant?.note_moyenne ?? 0,
-        commissionRate:    restaurant?.commission_rate ?? 0,
-        commandesSemaine:  commandesSemaine ?? [],
-        // Bilan financier semaine en cours (lundi → aujourd'hui)
-        caSemaineBrut,
-        commissionSemaine,
-        montantNetSemaine,
-        prochainVersement: prochainLundi.toISOString(),
-        nbCommandesLivrees: (commandesSemaineFinancieres ?? []).length,
+        commandes:   commandes.data ?? [],
+        actives:     actives.data ?? [],
+        noteMoyenne: resto.data?.note_moyenne ?? null,
+        nbAvis:      avis.count ?? 0,
+        nbRuptures:  ruptures.count ?? 0,
       },
       error: null,
     }
