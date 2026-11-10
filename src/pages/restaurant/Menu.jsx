@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   Plus, Pencil, Trash2, ChevronUp, ChevronDown,
-  ImagePlus, Loader2, X, Check, ToggleLeft, ToggleRight, Clock,
+  ImagePlus, Loader2, X, ToggleLeft, ToggleRight, Search, MoreVertical,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useMyRestaurant } from '@/hooks/useMyRestaurant'
@@ -571,6 +571,9 @@ export default function Menu() {
   const [modaleCategorie, setModaleCategorie] = useState(null)
   const [modaleItem,      setModaleItem]      = useState(null)
   const [modaleHoraires,  setModaleHoraires]  = useState(null) // null | objet item
+  const [gestionCategories, setGestionCategories] = useState(false)
+  const [menuItemId,      setMenuItemId]      = useState(null)
+  const [filtre,          setFiltre]          = useState('')
 
   // ── Chargement ─────────────────────────────────────────
   useEffect(() => {
@@ -584,7 +587,6 @@ export default function Menu() {
       ])
       setCategories(cats ?? [])
       setItems(its ?? [])
-      setActiveCatId(cats?.[0]?.id ?? null)
       setLoading(false)
     }
 
@@ -618,7 +620,7 @@ export default function Menu() {
     const reste = categories.filter(c => c.id !== cat.id)
     setCategories(reste)
     setItems(its => its.filter(i => i.categorie_id !== cat.id))
-    if (activeCatId === cat.id) setActiveCatId(reste[0]?.id ?? null)
+    if (activeCatId === cat.id) setActiveCatId(null)
     toast.success('Catégorie supprimée')
   }
 
@@ -691,11 +693,6 @@ export default function Menu() {
     setModaleHoraires(null)
   }
 
-  // ── Articles filtrés par onglet actif ──────────────────
-  const itemsFiltres = activeCatId
-    ? items.filter(i => i.categorie_id === activeCatId)
-    : items
-
   // ── Chargement ─────────────────────────────────────────
   if (loadingResto || loading) {
     return (
@@ -705,244 +702,182 @@ export default function Menu() {
     )
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+  const recherche = filtre.trim().toLowerCase()
+  const visibles = items.filter(i =>
+    (!activeCatId || i.categorie_id === activeCatId) &&
+    (!recherche || i.nom.toLowerCase().includes(recherche))
+  )
+  const groupes = categories
+    .map(cat => ({ cat, articles: visibles.filter(i => i.categorie_id === cat.id) }))
+    .filter(g => g.articles.length > 0)
 
-      {/* ── En-tête ─────────────────────────────────────── */}
-      <header className="bg-white border-b border-gray-100 px-4 pt-12 pb-5 md:pt-8">
-        <p className="text-xs text-gray-400 font-medium">Gestion du menu</p>
-        <h1 className="text-xl font-black text-gray-900 mt-0.5">Menu</h1>
-        <p className="text-xs text-gray-500 mt-0.5">
-          {categories.length} catégorie{categories.length !== 1 ? 's' : ''} ·{' '}
-          {items.length} article{items.length !== 1 ? 's' : ''}
-        </p>
+  return (
+    <div className="min-h-screen bg-white pb-24 md:pb-10">
+
+      <header className="max-w-3xl mx-auto px-5 lg:px-8 pt-12 md:pt-8 pb-3 flex flex-col gap-3.5">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Menu</h1>
+          <button
+            onClick={() => setModaleItem('new')}
+            disabled={categories.length === 0}
+            className="h-10 px-3.5 rounded-xl bg-brand-500 text-white text-sm font-bold flex items-center gap-1.5 disabled:opacity-50"
+          >
+            <Plus className="w-4 h-4" /> Ajouter un plat
+          </button>
+        </div>
+        <label className="flex items-center gap-2.5 h-11 rounded-xl bg-gray-100 px-3.5 text-gray-500">
+          <Search className="w-[18px] h-[18px] shrink-0" />
+          <span className="sr-only">Rechercher un plat</span>
+          <input
+            type="search" value={filtre} onChange={e => setFiltre(e.target.value)}
+            placeholder="Rechercher un plat"
+            className="flex-1 bg-transparent outline-none text-[15px] font-semibold text-gray-900 placeholder:text-gray-500"
+          />
+        </label>
+        <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {[{ id: null, nom: 'Tout' }, ...categories].map(cat => (
+            <button
+              key={cat.id ?? 'tout'}
+              onClick={() => setActiveCatId(cat.id)}
+              aria-pressed={activeCatId === cat.id}
+              className={cls(
+                'h-9 px-3.5 rounded-full text-[13px] font-bold whitespace-nowrap shrink-0',
+                activeCatId === cat.id ? 'bg-gray-900 text-white' : 'border border-gray-200 text-gray-900'
+              )}
+            >
+              {cat.nom}{cat.id && !cat.visible ? ' (masquée)' : ''}
+            </button>
+          ))}
+          <button
+            onClick={() => setGestionCategories(true)}
+            className="h-9 px-3.5 rounded-full text-[13px] font-bold whitespace-nowrap shrink-0 border border-dashed border-gray-300 text-gray-600"
+          >
+            Catégories…
+          </button>
+        </div>
       </header>
 
-      <div className="px-4 pt-5 space-y-5">
-
-        {/* ════════════════════════════════════════
-            Catégories
-        ════════════════════════════════════════ */}
-        <div className="bg-white rounded-2xl shadow-card overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-            <h2 className="font-bold text-gray-800">Catégories</h2>
-            <button
-              onClick={() => setModaleCategorie('new')}
-              className="flex items-center gap-1.5 bg-brand-500 text-white text-xs font-bold
-                         px-3 py-2 rounded-xl hover:bg-brand-600 transition-colors min-h-[36px]"
-            >
-              <Plus className="w-4 h-4" /> Ajouter
+      <main className="max-w-3xl mx-auto px-5 lg:px-8">
+        {categories.length === 0 ? (
+          <div className="py-16 text-center flex flex-col items-center gap-3">
+            <p className="text-[15px] font-bold text-gray-900">Commencez par créer une catégorie</p>
+            <p className="text-sm font-semibold text-gray-500">Par exemple : Plats, Grillades, Boissons.</p>
+            <button onClick={() => setModaleCategorie('new')} className="h-11 px-4 rounded-xl bg-brand-500 text-white text-sm font-bold">
+              Créer une catégorie
             </button>
           </div>
-
-          {categories.length === 0
-            ? (
-              <div className="py-10 text-center text-gray-400">
-                <p className="text-sm">Aucune catégorie</p>
-                <p className="text-xs mt-1">Ajoutez votre première catégorie pour commencer.</p>
-              </div>
-            )
-            : (
-              <ul className="divide-y divide-gray-50">
-                {categories.map((cat, idx) => (
-                  <li key={cat.id} className="flex items-center gap-3 px-4 py-3">
-
-                    {/* Flèches réordonnement */}
-                    <div className="flex flex-col gap-0.5 shrink-0">
-                      <button
-                        onClick={() => deplacerCategorie(idx, -1)}
-                        disabled={idx === 0}
-                        className="p-0.5 rounded hover:bg-gray-100 disabled:opacity-30"
-                        aria-label="Monter"
-                      >
-                        <ChevronUp className="w-3.5 h-3.5 text-gray-500" />
-                      </button>
-                      <button
-                        onClick={() => deplacerCategorie(idx, 1)}
-                        disabled={idx === categories.length - 1}
-                        className="p-0.5 rounded hover:bg-gray-100 disabled:opacity-30"
-                        aria-label="Descendre"
-                      >
-                        <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
-                      </button>
+        ) : groupes.length === 0 ? (
+          <p className="py-16 text-center text-sm font-semibold text-gray-500">
+            {recherche ? 'Aucun plat ne correspond à cette recherche.' : 'Aucun plat dans cette catégorie.'}
+          </p>
+        ) : groupes.map(({ cat, articles }) => (
+          <section key={cat.id} className="pt-3">
+            <h2 className="text-[13px] font-bold text-gray-500 py-1.5">
+              {cat.nom} · {articles.length} plat{articles.length > 1 ? 's' : ''}
+            </h2>
+            <ul>
+              {articles.map(item => {
+                const enRupture = !item.disponible || (item.stock_quantite != null && item.stock_quantite <= 0)
+                const details = [
+                  item.variantes?.length ? `${item.variantes.length} tailles` : null,
+                  item.temps_preparation ? `${item.temps_preparation} min` : null,
+                  item.horaires ? labelHoraires(item.horaires) : null,
+                  item.stock_quantite != null && item.stock_quantite > 0 ? `Stock : ${item.stock_quantite}` : null,
+                ].filter(Boolean).join(' · ')
+                return (
+                  <li key={item.id} className="flex items-center gap-3 py-3.5 border-b border-gray-100 relative">
+                    <div className={cls('w-[60px] h-[60px] rounded-xl overflow-hidden bg-gray-100 shrink-0', enRupture && 'opacity-50')}>
+                      {item.image_url && <img src={item.image_url} alt="" className="w-full h-full object-cover" />}
                     </div>
-
-                    {/* Infos */}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-800 text-sm truncate">{cat.nom}</p>
-                      <p className="text-xs text-gray-400">
-                        {items.filter(i => i.categorie_id === cat.id).length} article
-                        {items.filter(i => i.categorie_id === cat.id).length !== 1 ? 's' : ''}
-                        {!cat.visible && ' · Masquée'}
-                      </p>
+                    <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                      <span className={cls('text-[15px] font-bold truncate', enRupture ? 'text-gray-500' : 'text-gray-900')}>{item.nom}</span>
+                      {enRupture
+                        ? <span className="text-[13px] font-bold text-terracotta-700">En rupture · masqué aux clients</span>
+                        : details && <span className="text-[13px] font-semibold text-gray-500 truncate">{details}</span>}
+                      <span className={cls('text-[15px] font-extrabold tabular-nums', enRupture ? 'text-gray-500' : 'text-gray-900')}>{formatCurrency(item.prix)}</span>
                     </div>
-
-                    {!cat.visible && (
-                      <span className="text-xs bg-yellow-100 text-yellow-700 font-medium
-                                       px-2 py-0.5 rounded-full shrink-0">
-                        Masquée
-                      </span>
-                    )}
-
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => setModaleCategorie(cat)}
-                        className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
-                        aria-label="Modifier"
-                      >
-                        <Pencil className="w-4 h-4 text-gray-500" />
-                      </button>
-                      <button
-                        onClick={() => supprimerCategorie(cat)}
-                        className="p-2 rounded-xl hover:bg-red-50 transition-colors"
-                        aria-label="Supprimer"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-400" />
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )
-          }
-        </div>
-
-        {/* ════════════════════════════════════════
-            Articles
-        ════════════════════════════════════════ */}
-        <div className="bg-white rounded-2xl shadow-card overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-            <h2 className="font-bold text-gray-800">Articles</h2>
-            <button
-              onClick={() => setModaleItem('new')}
-              disabled={categories.length === 0}
-              className="flex items-center gap-1.5 bg-brand-500 text-white text-xs font-bold
-                         px-3 py-2 rounded-xl hover:bg-brand-600 transition-colors
-                         disabled:opacity-50 min-h-[36px]"
-            >
-              <Plus className="w-4 h-4" /> Ajouter
-            </button>
-          </div>
-
-          {/* Onglets filtrage par catégorie */}
-          {categories.length > 0 && (
-            <div className="flex gap-2 px-4 py-2.5 overflow-x-auto scrollbar-hide border-b border-gray-100">
-              {categories.map(cat => (
-                <button
-                  key={cat.id}
-                  onClick={() => setActiveCatId(cat.id)}
-                  className={cls(
-                    'shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors',
-                    activeCatId === cat.id
-                      ? 'bg-brand-500 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  )}
-                >
-                  {cat.nom}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {itemsFiltres.length === 0
-            ? (
-              <div className="py-10 text-center text-gray-400">
-                <p className="text-sm">Aucun article dans cette catégorie</p>
-              </div>
-            )
-            : (
-              <ul className="divide-y divide-gray-50">
-                {itemsFiltres.map(item => (
-                  <li key={item.id} className="flex items-center gap-3 px-4 py-3">
-
-                    {/* Miniature */}
-                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 shrink-0">
-                      {item.image_url
-                        ? <img src={item.image_url} alt={item.nom} className="w-full h-full object-cover" />
-                        : <div className="w-full h-full flex items-center justify-center text-2xl">🍽️</div>
-                      }
-                    </div>
-
-                    {/* Infos */}
-                    <div className="flex-1 min-w-0">
-                      <p className={cls(
-                        'font-semibold text-sm truncate',
-                        item.disponible ? 'text-gray-800' : 'text-gray-400 line-through'
-                      )}>
-                        {item.nom}
-                      </p>
-                      <p className="text-xs font-bold text-brand-500 mt-0.5">
-                        {formatCurrency(item.prix)}
-                      </p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <p className="text-xs text-gray-400">{item.temps_preparation} min</p>
-                        {item.horaires && (
-                          <span className="text-xs text-blue-500 font-medium truncate max-w-[120px]">
-                            · {labelHoraires(item.horaires)}
-                          </span>
-                        )}
-                        {item.stock_quantite !== null && item.stock_quantite !== undefined && (
-                          <span className={cls(
-                            'text-xs font-semibold',
-                            item.stock_quantite <= 0 ? 'text-red-500' : 'text-gray-400'
-                          )}>
-                            · {item.stock_quantite <= 0 ? 'Rupture de stock' : `Stock : ${item.stock_quantite}`}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Toggle disponible */}
                     <button
+                      type="button"
+                      role="switch"
+                      aria-checked={item.disponible}
+                      aria-label={`${item.nom} disponible`}
                       onClick={() => toggleDisponible(item)}
-                      title={item.disponible ? 'Rendre indisponible' : 'Rendre disponible'}
-                      className={cls(
-                        'shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors',
-                        item.disponible
-                          ? 'bg-green-100 text-green-600 hover:bg-green-200'
-                          : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                      )}
+                      className="flex flex-col items-center gap-1 text-[11px] font-bold text-gray-600 shrink-0 w-[68px]"
                     >
-                      <Check className="w-4 h-4" strokeWidth={2.5} />
+                      <span className={cls('w-[46px] h-7 rounded-full relative transition-colors', item.disponible ? 'bg-brand-500' : 'bg-gray-300')}>
+                        <span className={cls('absolute top-[3px] w-[22px] h-[22px] rounded-full bg-white shadow-sm transition-all', item.disponible ? 'left-[21px]' : 'left-[3px]')} />
+                      </span>
+                      {item.disponible ? 'Disponible' : 'Rupture'}
                     </button>
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => setModaleHoraires(item)}
-                        title="Horaires de disponibilité"
-                        className={cls(
-                          'p-2 rounded-xl transition-colors',
-                          item.horaires
-                            ? 'text-blue-500 bg-blue-50 hover:bg-blue-100'
-                            : 'hover:bg-gray-100 text-gray-400'
-                        )}
-                        aria-label="Horaires"
-                      >
-                        <Clock className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setModaleItem(item)}
-                        className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
-                        aria-label="Modifier"
-                      >
-                        <Pencil className="w-4 h-4 text-gray-500" />
-                      </button>
-                      <button
-                        onClick={() => supprimerItem(item)}
-                        className="p-2 rounded-xl hover:bg-red-50 transition-colors"
-                        aria-label="Supprimer"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-400" />
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      aria-label={`Plus d'actions pour ${item.nom}`}
+                      aria-expanded={menuItemId === item.id}
+                      onClick={() => setMenuItemId(id => id === item.id ? null : item.id)}
+                      className="w-9 h-11 flex items-center justify-center text-gray-500 shrink-0 rounded-lg hover:bg-gray-50"
+                    >
+                      <MoreVertical className="w-5 h-5" />
+                    </button>
+                    {menuItemId === item.id && (
+                      <>
+                        <button className="fixed inset-0 z-10 cursor-default" aria-label="Fermer le menu" onClick={() => setMenuItemId(null)} />
+                        <div role="menu" className="absolute right-0 top-[calc(100%-8px)] z-20 w-60 bg-white border border-gray-200 rounded-2xl p-1.5 shadow-xl flex flex-col">
+                          <button role="menuitem" onClick={() => { setMenuItemId(null); setModaleItem(item) }}
+                                  className="h-11 px-3 rounded-xl text-left text-[15px] font-semibold text-gray-900 hover:bg-gray-50">Modifier le plat</button>
+                          <button role="menuitem" onClick={() => { setMenuItemId(null); setModaleHoraires(item) }}
+                                  className="h-11 px-3 rounded-xl text-left text-[15px] font-semibold text-gray-900 hover:bg-gray-50">Horaires de disponibilité</button>
+                          <button role="menuitem" onClick={() => { setMenuItemId(null); supprimerItem(item) }}
+                                  className="h-11 px-3 rounded-xl text-left text-[15px] font-semibold text-terracotta-700 hover:bg-terracotta-50 border-t border-gray-100 mt-1 pt-1">Supprimer…</button>
+                        </div>
+                      </>
+                    )}
                   </li>
-                ))}
-              </ul>
-            )
-          }
-        </div>
-      </div>
+                )
+              })}
+            </ul>
+          </section>
+        ))}
+      </main>
+
+      {gestionCategories && (
+        <Modale titre="Catégories" onClose={() => setGestionCategories(false)}>
+          <ul className="divide-y divide-gray-100 -mt-2">
+            {categories.map((cat, idx) => {
+              const nb = items.filter(i => i.categorie_id === cat.id).length
+              return (
+                <li key={cat.id} className="flex items-center gap-2 py-3">
+                  <div className="flex flex-col shrink-0">
+                    <button onClick={() => deplacerCategorie(idx, -1)} disabled={idx === 0} aria-label={`Monter ${cat.nom}`}
+                            className="w-8 h-6 flex items-center justify-center rounded hover:bg-gray-100 disabled:opacity-30">
+                      <ChevronUp className="w-4 h-4 text-gray-600" />
+                    </button>
+                    <button onClick={() => deplacerCategorie(idx, 1)} disabled={idx === categories.length - 1} aria-label={`Descendre ${cat.nom}`}
+                            className="w-8 h-6 flex items-center justify-center rounded hover:bg-gray-100 disabled:opacity-30">
+                      <ChevronDown className="w-4 h-4 text-gray-600" />
+                    </button>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[15px] font-bold text-gray-900 truncate">{cat.nom}</p>
+                    <p className="text-[13px] font-semibold text-gray-500">{nb} plat{nb !== 1 ? 's' : ''}{!cat.visible ? ' · masquée aux clients' : ''}</p>
+                  </div>
+                  <button onClick={() => setModaleCategorie(cat)} aria-label={`Modifier ${cat.nom}`}
+                          className="w-11 h-11 rounded-xl flex items-center justify-center hover:bg-gray-50">
+                    <Pencil className="w-4 h-4 text-gray-600" />
+                  </button>
+                  <button onClick={() => supprimerCategorie(cat)} aria-label={`Supprimer ${cat.nom}`}
+                          className="w-11 h-11 rounded-xl flex items-center justify-center hover:bg-terracotta-50">
+                    <Trash2 className="w-4 h-4 text-terracotta-700" />
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+          <button onClick={() => setModaleCategorie('new')}
+                  className="mt-3 w-full h-12 rounded-xl border border-gray-200 text-sm font-bold text-gray-900 flex items-center justify-center gap-1.5">
+            <Plus className="w-4 h-4" /> Nouvelle catégorie
+          </button>
+        </Modale>
+      )}
 
       {/* ── Modales ─────────────────────────────────────── */}
       {modaleCategorie && (
