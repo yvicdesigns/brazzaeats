@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Star, Clock, MapPin, ShoppingCart, MessageSquare } from 'lucide-react'
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'
+import { ArrowLeft, Star, Clock, MapPin, ShoppingCart, MessageSquare, Share2 } from 'lucide-react'
+import { lienRestaurant, texteInvitation, partagerLien, copierTexte } from '@/utils/partage'
 import toast from 'react-hot-toast'
 import MenuItemCard from '@/components/shared/MenuItemCard'
 import { getRestaurantById, getMenuByRestaurant, getRestaurantReviews, finDePause } from '@/services/restaurantService'
@@ -29,6 +30,7 @@ function SkeletonMenu() {
 export default function Restaurant() {
   const { id }     = useParams()
   const navigate   = useNavigate()
+  const location   = useLocation()
 
   const [restaurant,      setRestaurant]      = useState(null)
   const [menu,            setMenu]            = useState([])
@@ -150,13 +152,29 @@ export default function Restaurant() {
 
         {/* Bouton retour */}
         <button
-          onClick={() => navigate(-1)}
+          // Arrivé par un QR code ou un lien partagé : pas de page précédente, on va à l'accueil
+          onClick={() => (location.key === 'default' ? navigate('/') : navigate(-1))}
           className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm rounded-full p-2.5 shadow
                      active:scale-90 transition-transform"
           aria-label="Retour"
         >
           <ArrowLeft className="w-5 h-5 text-gray-800" />
         </button>
+
+        {restaurant && (
+          <button
+            onClick={async () => {
+              const url = lienRestaurant(restaurant)
+              const ok = await partagerLien({ titre: restaurant.nom, texte: texteInvitation(restaurant), url })
+              if (!ok && await copierTexte(url)) toast.success('Lien copié')
+            }}
+            className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm rounded-full p-2.5 shadow
+                       active:scale-90 transition-transform"
+            aria-label="Partager ce restaurant"
+          >
+            <Share2 className="w-5 h-5 text-gray-800" />
+          </button>
+        )}
 
         {/* Informations du restaurant par-dessus */}
         {restaurant && (

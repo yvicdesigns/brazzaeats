@@ -32,6 +32,7 @@ import Stand      from '@/pages/public/Stand'
 // ── Pages Client ───────────────────────────────────────────
 import Home      from '@/pages/client/Home'
 import Restaurant from '@/pages/client/Restaurant'
+import LienRestaurant from '@/pages/client/LienRestaurant'
 import Cart       from '@/pages/client/Cart'
 import Checkout   from '@/pages/client/Checkout'
 import Tracking   from '@/pages/client/Tracking'
@@ -222,6 +223,7 @@ export default function App() {
         <Route path="/mentions-legales"           element={<LegalNotice />} />
         <Route path="/guide"                      element={<ZandoGuide />} />
         <Route path="/stand"                      element={<Stand />} />
+        <Route path="/r/:slug"                    element={<LienRestaurant />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
 
         {/* ── Espace client ─────────────────────────────── */}

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Loader2, ImagePlus, Save, ToggleLeft, ToggleRight, Video, X, UploadCloud, LogOut, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useMyRestaurant } from '@/hooks/useMyRestaurant'
+import PartageRestaurant from '@/components/restaurant/PartageRestaurant'
 import { useAuth } from '@/hooks/useAuth'
 import { updateRestaurant, uploadRestaurantLogo, uploadRestaurantVideo, uploadRestaurantVideoApercu } from '@/services/menuService'
 import { VILLES_CONGO, PREFIXE_OPERATEUR } from '@/utils/constants'
@@ -293,6 +294,12 @@ export default function Profile() {
         <p className="text-xs text-gray-400 font-medium">Paramètres</p>
         <h1 className="text-xl font-black text-gray-900 mt-0.5">Profil du restaurant</h1>
       </header>
+
+      {restaurant && (
+        <div className="px-4 pt-5">
+          <PartageRestaurant restaurant={restaurant} />
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="px-4 pt-5 space-y-5">
 
