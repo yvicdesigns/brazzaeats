@@ -135,6 +135,14 @@ const useAuthStore = create((set, get) => ({
       // distinct de l'email de contact optionnel saisi par l'utilisateur)
       const email = phoneToFakeEmail(telephone)
 
+      // 0. Vérifier le username AVANT de créer le compte : sinon le compte de
+      // connexion est créé mais la fiche profil échoue, et le numéro reste bloqué.
+      const usernameSaisi = username?.trim()
+      if (usernameSaisi) {
+        const { data: dejaPris } = await supabase.rpc('resoudre_username', { p_username: usernameSaisi })
+        if (dejaPris) throw new Error('Ce username est déjà utilisé. Choisissez-en un autre ou laissez le champ vide.')
+      }
+
       // 1. Créer le compte dans auth.users
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
@@ -157,7 +165,12 @@ const useAuthStore = create((set, get) => ({
           },
           { onConflict: 'id' }
         )
-      if (profileError) throw profileError
+      if (profileError) {
+        if (profileError.code === '23505' && /username/.test(profileError.message)) {
+          throw new Error('Ce username est déjà utilisé. Choisissez-en un autre ou laissez le champ vide.')
+        }
+        throw profileError
+      }
 
       return { data: authData, error: null }
     } catch (err) {
