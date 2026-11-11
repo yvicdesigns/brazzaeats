@@ -206,6 +206,17 @@ const useAuthStore = create((set, get) => ({
 
 let _subscription = null
 
+// Lien « Réinitialiser le mot de passe » reçu par e-mail : Supabase connecte
+// l'utilisateur via l'URL (#...&type=recovery). On le capture avant que le
+// client n'efface l'URL, pour l'envoyer choisir son nouveau mot de passe.
+const PAGE_NOUVEAU_MDP = '/nouveau-mot-de-passe'
+const _lienRecuperation = typeof window !== 'undefined'
+  && /type=recovery/.test(window.location.hash + window.location.search)
+
+function allerChoisirMotDePasse() {
+  if (window.location.pathname !== PAGE_NOUVEAU_MDP) window.location.replace(PAGE_NOUVEAU_MDP)
+}
+
 async function bootstrapAuth() {
   // Nettoyage de l'éventuelle souscription précédente (HMR)
   if (_subscription) {
@@ -227,11 +238,13 @@ async function bootstrapAuth() {
     useAuthStore.setState({ session, user: session.user })
     await useAuthStore.getState()._fetchProfile(session.user.id)
     useAuthStore.setState({ loading: false })
+    if (_lienRecuperation) allerChoisirMotDePasse()
   }
 
   // 2. Écouter les changements suivants (login, logout, refresh…)
   _subscription = supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'INITIAL_SESSION') return  // déjà géré ci-dessus
+    if (event === 'PASSWORD_RECOVERY') allerChoisirMotDePasse()
 
     if (session) {
       // Supabase déclenche TOKEN_REFRESHED à chaque fois qu'un onglet revient
