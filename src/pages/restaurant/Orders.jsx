@@ -49,7 +49,38 @@ function actionSuivante(c, livraisonExterne) {
 }
 
 // ── Carte d'une commande ─────────────────────────────────────
-function CarteCommande({ commande, maintenant, livraisonExterne, onOuvrir, onAction, actionEnCours }) {
+// Demande de livreur à Zando Delivery : en cours, envoyée, ou en échec avec « Réessayer »
+function EtatZandoDelivery({ commande }) {
+  const [envoi, setEnvoi] = useState(false)
+  async function reessayer() {
+    setEnvoi(true)
+    const { data, error } = await supabase.functions.invoke('zando-delivery-create', { body: { order_id: commande.id } })
+    setEnvoi(false)
+    if (error || data?.error) toast.error(data?.error ?? 'Zando Delivery injoignable, réessayez dans un instant')
+    else toast.success('Livreur demandé à Zando Delivery')
+  }
+  if (commande.zando_delivery_ref) {
+    return <p className="text-[13px] font-semibold text-gray-500">Livreur demandé à Zando Delivery — il confirmera la remise.</p>
+  }
+  // Sans réponse après 2 minutes, la demande s'est perdue : on propose de la relancer
+  const bloquee = Date.now() - new Date(commande.updated_at ?? commande.created_at).getTime() > 2 * 60000
+  if (!commande.zando_delivery_erreur && !bloquee) {
+    return <p className="text-[13px] font-semibold text-gray-500">Demande de livreur à Zando Delivery en cours…</p>
+  }
+  return (
+    <div className="rounded-xl bg-terracotta-50 border border-terracotta-200 p-3 flex flex-col gap-2">
+      <p className="text-[13px] font-bold text-terracotta-700">
+        Livreur non demandé{commande.zando_delivery_erreur ? ` : ${commande.zando_delivery_erreur}` : ' — Zando Delivery n\'a pas répondu'}
+      </p>
+      <button type="button" onClick={reessayer} disabled={envoi}
+              className="h-10 rounded-lg bg-white border border-terracotta-200 text-terracotta-700 text-sm font-extrabold flex items-center justify-center gap-2 disabled:opacity-60">
+        {envoi && <Loader2 className="w-4 h-4 animate-spin" />} Réessayer
+      </button>
+    </div>
+  )
+}
+
+function CarteCommande({ commande, maintenant, livraisonExterne, zandoDelivery, onOuvrir, onAction, actionEnCours }) {
   const ecoule = minutesDepuis(commande.created_at, maintenant)
   const prevu  = commande.temps_preparation_minutes
   const enCuisine = ['acceptée', 'en_préparation'].includes(commande.statut)
@@ -99,7 +130,9 @@ function CarteCommande({ commande, maintenant, livraisonExterne, onOuvrir, onAct
         </button>
       )}
       {commande.statut === 'prête' && !action && (
-        <p className="text-[13px] font-semibold text-gray-500">En attente d'un livreur — il confirmera la remise.</p>
+        zandoDelivery && commande.type === 'livraison'
+          ? <EtatZandoDelivery commande={commande} />
+          : <p className="text-[13px] font-semibold text-gray-500">En attente d'un livreur — il confirmera la remise.</p>
       )}
       {commande.statut === 'annulée' && (
         <p className="text-[13px] font-bold text-terracotta-700">Annulée{commande.motif_refus ? ` · ${commande.motif_refus}` : ''}</p>
@@ -404,6 +437,7 @@ export default function RestaurantOrders() {
   const etapeActive = [...ETAPES, ETAPE_TERMINEES].find(e => e.id === etape) ?? ETAPES[0]
   const carte = (c) => (
     <CarteCommande key={c.id} commande={c} maintenant={maintenant} livraisonExterne={livraisonExterne}
+                   zandoDelivery={modeLivraisonEffectif === 'zando_delivery'}
                    onOuvrir={ouvrir} onAction={actionRapide} actionEnCours={actionEnCours} />
   )
   const vide = (texte) => <p className="text-sm font-semibold text-gray-500 text-center py-10">{texte}</p>
