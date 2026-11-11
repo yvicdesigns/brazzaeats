@@ -135,6 +135,16 @@ export default function Tracking() {
   const [envoiEnCours,      setEnvoiEnCours]      = useState(false)
   const [dejaSignale,       setDejaSignale]       = useState(false)
   const [livreurPos,        setLivreurPos]        = useState(null)
+  const [confirmationEnCours, setConfirmationEnCours] = useState(false)
+
+  async function confirmerReception() {
+    setConfirmationEnCours(true)
+    const { error } = await supabase.rpc('confirmer_reception', { p_order_id: id })
+    setConfirmationEnCours(false)
+    if (error) { toast.error(error.message || 'Confirmation impossible'); return }
+    setDetails(prev => ({ ...prev, statut: 'livrée', recue_confirmee_at: new Date().toISOString() }))
+    toast.success('Merci ! Bon appétit 🍽️')
+  }
 
   const { row: update } = useRealtimeRow('orders', id)
 
@@ -316,6 +326,26 @@ export default function Tracking() {
             livreurPos={livreurPos}
             destinationPos={destinationPos}
           />
+        )}
+
+        {/* « J'ai reçu ma commande » : le client confirme lui-même la remise */}
+        {estLivraison && ['prête', 'en_livraison', 'livrée'].includes(details.statut) && (
+          details.recue_confirmee_at ? (
+            <p className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-brand-50 text-brand-700 py-2.5 text-sm font-bold">
+              <Check className="w-4 h-4" /> Réception confirmée — merci !
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={confirmerReception}
+              disabled={confirmationEnCours}
+              className="mt-3 w-full h-12 rounded-xl bg-brand-500 text-white text-sm font-extrabold
+                         flex items-center justify-center gap-2 disabled:opacity-60"
+            >
+              {confirmationEnCours ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              J'ai reçu ma commande
+            </button>
+          )
         )}
 
         {/* Livraison confiée à Zando Delivery : son propre suivi en direct fait foi. */}
