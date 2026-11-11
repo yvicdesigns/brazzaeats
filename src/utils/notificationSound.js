@@ -175,21 +175,22 @@ export function playNotificationSound(type = 'nouvelle_commande', volume = 0.4, 
 }
 
 // ------------------------------------------------------------
-// Alarme continue — nouvelle commande restaurant
+// Alarme — nouvelle commande restaurant
 // ------------------------------------------------------------
-// Contrairement à playNotificationSound (une séquence courte, jouée N fois
-// puis terminée), cette alarme boucle INDÉFINIMENT jusqu'à arreterAlarme() —
-// pensée pour ne jamais passer inaperçue dans le bruit d'une cuisine, et pour
-// ne s'arrêter que sur une action explicite (accepter/refuser la commande),
-// jamais toute seule.
+// Comme un message reçu : on joue le DÉBUT de la sonnerie (~2,5 s), puis on
+// coupe. Tant que l'écran « Nouvelle commande » est affiché sans réponse, ce
+// court extrait revient toutes les ~10 s, pour ne pas passer inaperçu dans
+// une cuisine bruyante, sans sonner en continu. arreterAlarme() coupe tout.
+const DUREE_EXTRAIT_MS = 2500
+const PAUSE_RAPPEL_MS  = 10000
+
 let _alarmeActive     = false
 let _alarmeTimer      = null
 let _alarmeMasterGain = null
 
 /**
- * Démarre l'alarme en boucle (deux tons alternés, façon sirène). Sans effet
- * si déjà en cours — un seul flux d'alarme à la fois, même si plusieurs
- * commandes s'accumulent dans la file d'attente.
+ * Démarre l'alarme : extrait de sonnerie, pause, extrait… Sans effet si déjà
+ * en cours — un seul flux d'alarme à la fois.
  *
  * Volume et préréglage sonore viennent des réglages utilisateur
  * (notificationPrefs) — chaque appareil peut choisir son propre son/volume.
@@ -198,8 +199,30 @@ let _alarmeMasterGain = null
  *   l'utilisateur a activé la lecture vocale dans ses réglages.
  */
 export function demarrerAlarme(annonce) {
-  if (_alarmeActive) return
+  if (_alarmeActive) {
+    // Un extrait isolé est en train de jouer : on le transforme en alarme
+    // avec rappels, sans le couper.
+    _rappel = true
+    return
+  }
+  _demarrer(annonce, true)
+}
 
+/**
+ * Joue une fois le début de la sonnerie : une commande de plus arrive alors
+ * que l'écran est déjà ouvert, ou après l'avoir fermé avec X. Si l'alarme
+ * est en pause entre deux rappels, l'extrait est joué tout de suite.
+ */
+export function jouerExtraitSonnerie() {
+  if (_alarmeActive) { _relancer?.(); return }
+  _demarrer(null, false)
+}
+
+let _rappel   = false
+let _relancer = null
+
+function _demarrer(annonce, rappel) {
+  _rappel = rappel
   const prefs = getPrefs()
 
   // Ni son ni vibration à faire boucler : l'annonce vocale (ci-dessous, si
@@ -246,21 +269,44 @@ export function demarrerAlarme(annonce) {
     osc.stop(quand + dureeNote + 0.02)
   }
 
-  function cycle() {
+  // Joue l'extrait (quelques passages du motif du préréglage), puis soit
+  // programme le rappel suivant, soit s'arrête.
+  let enLecture = false
+  _relancer = () => {
+    if (enLecture) return // un extrait joue déjà : inutile d'en superposer un autre
+    if (_alarmeTimer) clearTimeout(_alarmeTimer)
+    extrait()
+  }
+
+  function extrait() {
     if (!_alarmeActive) return
-    let dureeCycleMs = DUREE_CYCLE_SANS_SON_MS
+    enLecture = true
+    const dureeCycleMs = (ctx && preset) ? preset.notes.length * dureeNote * 1000 : DUREE_CYCLE_SANS_SON_MS
+    const nbCycles = Math.max(1, Math.round(DUREE_EXTRAIT_MS / dureeCycleMs))
     if (ctx && preset) {
       let t = ctx.currentTime
-      preset.notes.forEach(freq => {
-        jouerNote(freq, t)
-        t += dureeNote
-      })
-      dureeCycleMs = preset.notes.length * dureeNote * 1000
+      for (let i = 0; i < nbCycles; i++) {
+        preset.notes.forEach(freq => {
+          jouerNote(freq, t)
+          t += dureeNote
+        })
+      }
     }
     vibrer([300, 150, 300, 150, 300])
-    _alarmeTimer = setTimeout(cycle, dureeCycleMs)
+    const finExtraitMs = nbCycles * dureeCycleMs
+    _alarmeTimer = setTimeout(() => {
+      enLecture = false
+      if (_rappel) {
+        _alarmeTimer = setTimeout(extrait, PAUSE_RAPPEL_MS)
+      } else {
+        _alarmeActive = false
+        _alarmeTimer = null
+        _alarmeMasterGain = null
+        _relancer = null
+      }
+    }, finExtraitMs + 100)
   }
-  cycle()
+  extrait()
 }
 
 /**
@@ -270,6 +316,8 @@ export function demarrerAlarme(annonce) {
  */
 export function arreterAlarme() {
   _alarmeActive = false
+  _rappel = false
+  _relancer = null
   if (_alarmeTimer) { clearTimeout(_alarmeTimer); _alarmeTimer = null }
   if (_alarmeMasterGain) {
     try {

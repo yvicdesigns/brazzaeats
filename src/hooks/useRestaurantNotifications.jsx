@@ -18,7 +18,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { supabase } from '@/supabase/client'
-import { demarrerAlarme, arreterAlarme, resumeAudio } from '@/utils/notificationSound'
+import { demarrerAlarme, arreterAlarme, resumeAudio, jouerExtraitSonnerie } from '@/utils/notificationSound'
 import { updateOrderStatus } from '@/services/orderService'
 import { updateMenuItem } from '@/services/menuService'
 import { enfiler, estErreurReseau } from '@/utils/offlineQueue'
@@ -26,14 +26,21 @@ import { enfiler, estErreurReseau } from '@/utils/offlineQueue'
 export function useRestaurantNotifications(restaurantId) {
   const navigate = useNavigate()
   const [file,    setFile]    = useState([]) // commandes en attente d'accusé de réception
+  const [masquees, setMasquees] = useState(() => new Set()) // fermées avec X : restent dans « Nouvelles »
   const [enCours, setEnCours] = useState(null) // 'accepter' | 'refuser' | null
   const wakeLockRef = useRef(null)
+
+  // Commandes que l'écran plein doit encore présenter (hors celles fermées avec X)
+  const aPresenter = file.filter(c => !masquees.has(c.id))
+  const nbAPresenter = aPresenter.length
+  const nbAPresenterRef = useRef(0)
+  nbAPresenterRef.current = nbAPresenter
 
   // ── Wake Lock : garde l'écran allumé tant que l'alarme sonne ─────
   useEffect(() => {
     let annule = false
     async function gerer() {
-      if (file.length > 0 && !wakeLockRef.current && 'wakeLock' in navigator) {
+      if (nbAPresenter > 0 && !wakeLockRef.current && 'wakeLock' in navigator) {
         try {
           const lock = await navigator.wakeLock.request('screen')
           if (!annule) wakeLockRef.current = lock
@@ -42,20 +49,28 @@ export function useRestaurantNotifications(restaurantId) {
           // Non bloquant — refusé par le navigateur ou API absente
         }
       }
-      if (file.length === 0 && wakeLockRef.current) {
+      if (nbAPresenter === 0 && wakeLockRef.current) {
         wakeLockRef.current.release().catch(() => {})
         wakeLockRef.current = null
       }
     }
     gerer()
     return () => { annule = true }
-  }, [file.length])
+  }, [nbAPresenter])
 
-  // ── Démarre/arrête l'alarme selon la file ────────────────────────
+  // ── Démarre/arrête l'alarme selon les commandes à présenter ──────
   useEffect(() => {
-    if (file.length > 0) demarrerAlarme('Nouvelle commande')
+    if (nbAPresenter > 0) demarrerAlarme('Nouvelle commande')
     else arreterAlarme()
-  }, [file.length])
+  }, [nbAPresenter])
+
+  // Les commandes sorties de la file n'ont plus à être retenues comme fermées
+  useEffect(() => {
+    setMasquees(prev => {
+      const restantes = [...prev].filter(id => file.some(c => c.id === id))
+      return restantes.length === prev.size ? prev : new Set(restantes)
+    })
+  }, [file])
 
   // ── Nettoyage complet au démontage (changement de compte…) ──────
   useEffect(() => () => {
@@ -103,6 +118,9 @@ export function useRestaurantNotifications(restaurantId) {
             .single()
 
           const nouvelleCmd = cmdComplete ?? payload.new
+          // L'écran est déjà ouvert sur une autre commande : un extrait de
+          // sonnerie signale celle-ci (comme un message), sans attendre le rappel.
+          if (nbAPresenterRef.current > 0) jouerExtraitSonnerie()
           setFile(prev => prev.some(c => c.id === ordreId) ? prev : [...prev, nouvelleCmd])
 
           // Browser Notification (Notification API) — best-effort si onglet en arrière-plan
@@ -178,10 +196,18 @@ export function useRestaurantNotifications(restaurantId) {
     setFile(prev => prev.filter(c => c.id !== commande.id))
   }, [file])
 
+  // X : ferme l'écran pour toutes les commandes affichées. Elles restent
+  // « en attente », donc visibles dans la colonne « Nouvelles ».
+  const fermer = useCallback(() => {
+    setMasquees(prev => new Set([...prev, ...file.map(c => c.id)]))
+  }, [file])
+
   return {
-    commandeAlarme: file[0] ?? null,
-    nbEnAttente:    file.length,
+    commandeAlarme: aPresenter[0] ?? null,
+    nbEnAttente:    nbAPresenter,
+    nbTotalEnAttente: file.length,
     enCours,
+    fermer,
     accepter: (orderId, tempsPreparation) => resoudre(orderId, 'acceptée', 'accepter', { tempsPreparation }),
     refuser:  (orderId, motif, platEnRupture) => resoudre(orderId, 'annulée', 'refuser', { motif, platEnRupture }),
   }

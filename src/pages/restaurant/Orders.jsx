@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useOutletContext, useSearchParams } from 'react-router-dom'
 import { X, Loader2, Phone, Minus, Plus } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '@/supabase/client'
@@ -291,7 +291,7 @@ export default function RestaurantOrders() {
   const [commandes,    setCommandes]    = useState([])
   const [loading,      setLoading]      = useState(true)
   const [modalOuverte, setModalOuverte] = useState(null)
-  const [nbNouveaux,   setNbNouveaux]   = useState(0)
+  const [searchParams, setSearchParams] = useSearchParams()
   const [etape,        setEtape]        = useState('nouvelles')
   const [voirTerminees, setVoirTerminees] = useState(false)
   const [actionEnCours, setActionEnCours] = useState(null)
@@ -338,7 +338,6 @@ export default function RestaurantOrders() {
         async (payload) => {
           if (payload.eventType === 'INSERT') {
             // Le son et l'accusé de réception sont gérés par l'alarme plein écran (RestaurantLayout)
-            if (payload.new.statut === 'en_attente') setNbNouveaux(n => n + 1)
             const { data: cmdComplete } = await supabase
               .from('orders')
               .select(`
@@ -357,6 +356,16 @@ export default function RestaurantOrders() {
     return () => supabase.removeChannel(canal)
   }, [restaurant?.id])
 
+  // Lien « Voir dans Nouvelles » de l'écran plein : ouvre directement cette colonne
+  useEffect(() => {
+    const demandee = searchParams.get('etape')
+    if (!demandee) return
+    setEtape(demandee)
+    setSearchParams({}, { replace: true })
+  }, [searchParams, setSearchParams])
+
+  // Titre de l'onglet = nombre de commandes qui attendent encore une réponse
+  const nbNouveaux = commandes.filter(c => c.statut === 'en_attente').length
   useEffect(() => {
     document.title = nbNouveaux > 0 ? `(${nbNouveaux}) Nouvelles commandes — Zandofood` : titreOriginal.current
     return () => { document.title = titreOriginal.current }
@@ -382,7 +391,7 @@ export default function RestaurantOrders() {
   }
 
   const commandesDe = (e) => commandes.filter(c => e.statuts.includes(c.statut))
-  const ouvrir = (c) => { setModalOuverte(c); setNbNouveaux(0) }
+  const ouvrir = (c) => setModalOuverte(c)
 
   if (loadingResto || loading) {
     return (

@@ -5,14 +5,14 @@
  * quelle page de l'espace restaurant.
  */
 import { useState, useEffect } from 'react'
-import { Loader2, Bell, Minus, Plus } from 'lucide-react'
+import { Loader2, Bell, Minus, Plus, X } from 'lucide-react'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { tempsPreparationParDefaut } from '@/hooks/useRestaurantNotifications'
 import ChoixMotifRefus from '@/components/restaurant/ChoixMotifRefus'
 
 const PAS_MINUTES = 5
 
-export default function AlarmeNouvelleCommande({ commande, restantes, onAccepter, onRefuser, enCours }) {
+export default function AlarmeNouvelleCommande({ commande, restantes, onAccepter, onRefuser, onFermer, onVoirNouvelles, enCours }) {
   const [minutes, setMinutes] = useState(15)
   const [confirmerRefus, setConfirmerRefus] = useState(false)
 
@@ -32,6 +32,11 @@ export default function AlarmeNouvelleCommande({ commande, restantes, onAccepter
   return (
     <div role="alertdialog" aria-modal="true" aria-labelledby="alarme-titre"
          className="fixed inset-0 z-[100] bg-white flex flex-col overflow-y-auto">
+      <button type="button" onClick={onFermer} disabled={!!enCours}
+              aria-label="Fermer — la commande reste dans Nouvelles"
+              className="absolute right-3 top-[calc(0.75rem+env(safe-area-inset-top))] w-12 h-12 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100 active:bg-gray-100 disabled:opacity-50">
+        <X className="w-6 h-6" />
+      </button>
       <div className="w-full max-w-md mx-auto flex-1 flex flex-col px-6 pt-[calc(3.5rem+env(safe-area-inset-top))] pb-[calc(2rem+env(safe-area-inset-bottom))] gap-6">
 
         <div className="flex flex-col items-center gap-3.5 text-center">
@@ -113,12 +118,13 @@ export default function AlarmeNouvelleCommande({ commande, restantes, onAccepter
             </>
           )}
           <p className="text-center text-[13px] font-semibold text-gray-500">
-            La sonnerie s'arrête dès que vous répondez, ou si la commande est prise sur un autre appareil.
+            Pas le temps ? Fermez avec X : la commande attend dans « Nouvelles ».
           </p>
           {autres > 0 && (
-            <p className="text-center text-[13px] font-bold text-terracotta-700">
-              + {autres} autre{autres > 1 ? 's' : ''} commande{autres > 1 ? 's' : ''} en attente
-            </p>
+            <button type="button" onClick={onVoirNouvelles} disabled={!!enCours}
+                    className="text-center text-[13px] font-bold text-terracotta-700 underline underline-offset-2 min-h-[44px]">
+              + {autres} autre{autres > 1 ? 's' : ''} commande{autres > 1 ? 's' : ''} en attente · Voir dans Nouvelles
+            </button>
           )}
         </div>
       </div>

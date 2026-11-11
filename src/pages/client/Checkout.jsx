@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { ArrowLeft, MapPin, Check, Loader2, Tag, X, Gift, Wallet, LocateFixed, ImagePlus } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Geolocation } from '@capacitor/geolocation'
+import { Capacitor } from '@capacitor/core'
 import useCart, { useCartTempsPrep } from '@/hooks/useCart'
 import { useAuth } from '@/hooks/useAuth'
 import { createOrder, uploadPaymentProof } from '@/services/orderService'
@@ -370,14 +371,20 @@ export default function Checkout() {
   async function handleUtiliserPosition() {
     setChargementGPS(true)
     try {
-      const permission = await Geolocation.requestPermissions()
-      if (permission.location === 'denied') {
-        toast.error("Localisation refusée. Active-la dans les réglages du téléphone.")
-        return
+      // requestPermissions n'existe que sur l'app mobile : sur le web, il
+      // lève toujours une erreur. Le navigateur demande l'autorisation lui-même.
+      if (Capacitor.isNativePlatform()) {
+        const permission = await Geolocation.requestPermissions()
+        if (permission.location === 'denied') {
+          toast.error("Localisation refusée. Active-la dans les réglages du téléphone.")
+          return
+        }
       }
       const { coords } = await Geolocation.getCurrentPosition({
-        enableHighAccuracy: true,
-        timeout: 10000,
+        // Un ordinateur n'a pas de GPS : la haute précision le fait souvent
+        // échouer. On ne la demande que sur téléphone.
+        enableHighAccuracy: Capacitor.isNativePlatform(),
+        timeout: 15000,
         maximumAge: 0, // jamais une position mise en cache par l'OS — toujours une lecture fraîche
       })
       setPosition({ latitude: coords.latitude, longitude: coords.longitude })
@@ -414,7 +421,14 @@ export default function Checkout() {
         )
       }
     } catch (err) {
-      toast.error("Impossible de récupérer votre position. Vérifiez que la localisation est activée.")
+      const refus = err?.code === 1 || /denied|refus/i.test(err?.message ?? '')
+      toast.error(
+        refus
+          ? (Capacitor.isNativePlatform()
+              ? "Localisation refusée. Active-la dans les réglages du téléphone."
+              : "Localisation bloquée par le navigateur. Autorisez-la via le cadenas à gauche de l'adresse du site.")
+          : "Impossible de récupérer votre position. Vous pouvez saisir votre adresse à la main."
+      )
     } finally {
       setChargementGPS(false)
     }

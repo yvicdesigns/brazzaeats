@@ -53,7 +53,8 @@ export default function RestaurantLayout() {
   const { logout } = useAuth()
   const { restaurant, setRestaurant } = useMyRestaurant()
   const pendingCount = useRestaurantPendingCount(restaurant?.id)
-  const { commandeAlarme, nbEnAttente, enCours, accepter, refuser } = useRestaurantNotifications(restaurant?.id)
+  const { commandeAlarme, nbEnAttente, enCours, accepter, refuser, fermer } = useRestaurantNotifications(restaurant?.id)
+  const voirNouvelles = () => { fermer(); navigate('/restaurant/commandes?etape=nouvelles') }
   const [plusOuvert, setPlusOuvert] = useState(false)
   const [pauseOuverte, setPauseOuverte] = useState(false)
   const [, rafraichir] = useState(0)
@@ -243,6 +244,8 @@ export default function RestaurantLayout() {
         enCours={enCours}
         onAccepter={accepter}
         onRefuser={refuser}
+        onFermer={fermer}
+        onVoirNouvelles={voirNouvelles}
       />
     </div>
   )
