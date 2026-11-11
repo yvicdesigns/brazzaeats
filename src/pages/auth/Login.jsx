@@ -10,7 +10,7 @@ import { REDIRECT_PAR_ROLE } from '@/utils/constants'
 // ══════════════════════════════════════════════════════════
 export default function Login() {
   const navigate = useNavigate()
-  const { login, user, role, loading: authLoading } = useAuth()
+  const { login, logout, user, profile, role, loading: authLoading } = useAuth()
 
   // Par défaut, connexion par téléphone (préfixe +242 fixe) — la grande majorité
   // des comptes s'identifient ainsi. "autreIdentifiant" bascule vers un champ
@@ -27,10 +27,16 @@ export default function Login() {
 
   // Rediriger si déjà connecté
   useEffect(() => {
-    if (!authLoading && user) {
+    if (authLoading || !user) return
+    if (profile) {
       navigate(REDIRECT_PAR_ROLE[role ?? 'client'] ?? '/', { replace: true })
+    } else {
+      // Session sans fiche profil (ex. inscription interrompue) : on la ferme
+      // pour que la personne puisse se connecter, au lieu de la renvoyer en
+      // boucle vers l'accueil.
+      logout()
     }
-  }, [user, role, authLoading, navigate])
+  }, [user, profile, role, authLoading, navigate, logout])
 
   // ── Connexion ──────────────────────────────────────────
   async function handleSubmit(e) {
