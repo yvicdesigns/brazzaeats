@@ -1,6 +1,12 @@
 {
+  "headers": [
+    {
+      "source": "/.well-known/(apple-app-site-association|assetlinks.json)",
+      "headers": [{ "key": "Content-Type", "value": "application/json" }]
+    }
+  ],
   "rewrites": [
     { "source": "/r/:slug", "destination": "/api/r?slug=:slug" },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    { "source": "/((?!api/|\\.well-known/).*)", "destination": "/index.html" }
   ]
 }

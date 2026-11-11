@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.zandofood.app",
+      "sha256_cert_fingerprints": [
+        "A6:43:24:2B:8A:A2:2E:08:93:19:8C:4C:AA:C9:8F:2A:E0:85:E1:7D:C6:BB:38:F8:78:A9:94:25:DC:34:35:7A"
+      ]
+    }
+  }
+]

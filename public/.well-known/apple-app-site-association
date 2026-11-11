@@ -1,0 +1,13 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["LJ73XSDBTK.com.zandofood.app"],
+        "components": [
+          { "/": "/r/*", "comment": "Lien court d'un restaurant (QR code, partage)" },
+          { "/": "/restaurant/*", "comment": "Page d'un restaurant" }
+        ]
+      }
+    ]
+  }
+}

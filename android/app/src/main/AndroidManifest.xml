@@ -19,6 +19,18 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Liens zandofood.com/r/… et /restaurant/… (QR code, partage) ouverts dans l'app -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="zandofood.com" />
+                <data android:host="www.zandofood.com" />
+                <data android:pathPrefix="/r/" />
+                <data android:pathPrefix="/restaurant/" />
+            </intent-filter>
         </activity>
 
         <provider

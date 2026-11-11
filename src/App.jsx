@@ -33,6 +33,7 @@ import Stand      from '@/pages/public/Stand'
 import Home      from '@/pages/client/Home'
 import Restaurant from '@/pages/client/Restaurant'
 import LienRestaurant from '@/pages/client/LienRestaurant'
+import LiensEntrants from '@/components/shared/LiensEntrants'
 import Cart       from '@/pages/client/Cart'
 import Checkout   from '@/pages/client/Checkout'
 import Tracking   from '@/pages/client/Tracking'
@@ -211,6 +212,7 @@ export default function App() {
     <FirstLaunchIntro>
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <PushNotificationsBootstrap />
+      <LiensEntrants />
       <Routes>
 
         {/* ── Routes publiques (auth) ───────────────────── */}
